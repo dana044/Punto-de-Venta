@@ -1,0 +1,168 @@
+/* OVERLAY Y TARJETA BASE*/
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.modal-overlay.modal--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.modal-card {
+  background: var(--bg-card);
+  width: 100%;
+  max-width: 620px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 90vh;
+}
+
+/*SUBVENTANA 1.1: LIQUIDACIÓN Y COBRO (POS)*/
+.pos-total-banner {
+  background-color: rgba(5, 86, 81, 0.08);
+  border: 1px solid rgba(5, 86, 81, 0.2);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.pos-total-banner__amount {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+/* Selector de método de pago (Efectivo / Tarjeta / Transf) */
+.payment-methods-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.payment-card {
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.85rem;
+  text-align: center;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.payment-card--active {
+  border-color: var(--color-primary);
+  background-color: rgba(5, 86, 81, 0.05);
+  color: var(--color-primary);
+}
+
+/* Botones de billetes rápidos (+$50, +$100, etc.) */
+.denominations-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 1rem 0;
+}
+
+.btn-chip {
+  background-color: #F1F5F9;
+  border: 1px solid var(--border-color);
+  border-radius: 9999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-chip:hover {
+  background-color: #E2E8F0;
+}
+
+/* Caja de Cambio a devolver */
+.change-box {
+  background-color: #F8FAFC;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.change-box__amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+/*SUBVENTANA 1.2: TICKET TÉRMICO (RECIBO COMERCIAL)*/
+.ticket-receipt {
+  max-width: 360px;
+  background: #FFFFFF;
+  padding: 1.5rem;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.85rem;
+  color: #1E293B;
+  box-shadow: var(--shadow-modal);
+  border-radius: var(--radius-sm);
+}
+
+.ticket-divider {
+  border-top: 1px dashed #94A3B8;
+  margin: 0.75rem 0;
+}
+
+.ticket-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ticket-table th, .ticket-table td {
+  padding: 0.2rem 0;
+  font-size: 0.8rem;
+}
+
+/* SUBVENTANA 2.3: DRAWER LATERAL DERECHO (ALERTAS DE STOCK/CADUCIDAD)*/
+.drawer-right {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 380px;
+  height: 100vh;
+  background-color: #FFFFFF;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s ease-in-out;
+}
+
+.drawer-right--open {
+  transform: translateX(0);
+}
+
+.alert-card {
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background-color: #FAFAFA;
+}
+
+.alert-card--warning { border-left-color: var(--color-warning); }
+.alert-card--danger  { border-left-color: var(--color-danger); }

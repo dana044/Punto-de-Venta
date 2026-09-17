@@ -1,0 +1,50 @@
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar lateral común a las 4 pantallas */
+.sidebar {
+  width: 260px;
+  background-color: var(--bg-sidebar);
+  color: var(--text-white);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebar__brand {
+  padding: 1.5rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  border-bottom: 1px solid #1E293B;
+}
+
+.sidebar__nav {
+  list-style: none;
+  padding: 1rem 0;
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  color: #94A3B8;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.sidebar__link:hover,
+.sidebar__link--active {
+  color: var(--text-white);
+  background-color: #1E293B;
+  border-left: 4px solid var(--color-primary);
+}
+
+.main-content {
+  flex-grow: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
