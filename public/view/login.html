@@ -1,0 +1,139 @@
+<!--
+  Punto de Venta UV — Vista de Inicio de Sesión
+  Inicio de sesión con usuario y contraseña
+  para que pueda acceder a funciones correspondientes.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Punto de Venta UV · Iniciar Sesión</title>
+  <link rel="stylesheet" href="/css/login.css" />
+</head>
+<body>
+
+  <main class="page">
+
+    <!--
+      Alerta de error de credenciales
+      permanece vacía y oculta hasta que login.js la llene y la
+      muestre tras una respuesta fallida del servidor.
+    -->
+    <div class="alert alert--error" id="loginError" role="alert" hidden></div>
+
+    <div class="auth-card">
+
+      <!-- Panel de marca -->
+      <section class="brand-panel">
+        <div class="brand-panel__header">
+          <div class="logo">UV</div>
+          <div>
+            <h1>Punto de Venta UV</h1>
+            <p class="muted">Sistema institucional</p>
+          </div>
+        </div>
+
+        <h2 class="tagline">Turnos seguros, cajas sin fricción.</h2>
+        <p class="tagline-sub">
+          Control de personal, cortes de caja y auditoría en una sola consola para toda la red de sucursales.
+        </p>
+      </section>
+
+      <!-- Panel de formulario -->
+      <section class="form-panel">
+        <div class="form-panel__header">
+          <div class="logo logo--dark">UV</div>
+          <div>
+            <h2>Punto de Venta UV</h2>
+            <p class="muted">Autenticación segura del personal</p>
+          </div>
+        </div>
+
+        <!--
+          Formulario principal, se desactiva la
+          validación nativa del navegador porque login.js hace su
+          propia validación y controla los mensajes de error.
+        -->
+        <form id="loginForm" novalidate>
+
+          <!-- Usuario o correo con el que el empleado se autentica -->
+          <label class="field">
+            <span class="field__label">Usuario o Correo</span>
+            <div class="field__control">
+              <input
+                type="text"
+                id="username"
+                name="username"
+                autocomplete="username"
+                placeholder="operador.caja04@uv.mx"
+                required
+              />
+            </div>
+          </label>
+
+          <!--
+            Contraseña del empleado. El botón "Mostrar/Ocultar" y la
+            validación de longitud mínima se manejan en login.js.
+          -->
+          <label class="field">
+            <span class="field__label">Contraseña</span>
+            <div class="field__control">
+              <input
+                type="password"
+                id="password"
+                name="password"
+                autocomplete="current-password"
+                placeholder="••••••••••••"
+                minlength="8"
+                required
+              />
+              <button type="button" class="field__toggle" id="togglePassword" aria-label="Mostrar contraseña">
+                Mostrar
+              </button>
+            </div>
+          </label>
+
+          <!--
+            Selección de rol, define qué vistas y
+            permisos tendrá el usuario tras iniciar sesión. El
+            marcado visual de "Seleccionado" lo controla login.js
+            para que siempre coincida con el radio activo.
+          -->
+          <fieldset class="roles">
+            <legend class="field__label">Rol / Perfil de acceso</legend>
+            <div class="roles__grid" role="radiogroup" aria-label="Selecciona tu rol">
+
+              <label class="role-card">
+                <input type="radio" name="role" value="administrador" checked />
+                <span class="role-card__title">Administrador</span>
+                <span class="role-card__sub">Control total</span>
+                <span class="role-card__tag">Seleccionado</span>
+              </label>
+
+              <label class="role-card">
+                <input type="radio" name="role" value="cajero" />
+                <span class="role-card__title">Cajero</span>
+                <span class="role-card__sub">Ventas y turno</span>
+              </label>
+
+              <label class="role-card">
+                <input type="radio" name="role" value="almacenista" />
+                <span class="role-card__title">Almacenista</span>
+                <span class="role-card__sub">Inventario</span>
+              </label>
+
+            </div>
+          </fieldset>
+
+          <button type="submit" class="btn btn--primary btn--block" id="submitBtn">
+            Iniciar Turno / Sesión
+          </button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script src="/js/login.js"></script>
+</body>
+</html>

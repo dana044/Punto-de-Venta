@@ -1,0 +1,301 @@
+/**
+ * Punto de Venta UV — Login.
+ * Paleta: verde institucional + acentos azul (acción) y rojo (error).
+ */
+
+:root {
+  --uv-green-900: #0b332c;
+  --uv-green-800: #0e3d35;
+  --uv-green-accent: #1f6f5c;
+
+  --uv-blue: #2f5fd0;
+  --uv-blue-hover: #2650b3;
+
+  --uv-red-bg: #fdecec;
+  --uv-red-border: #f3b9b9;
+  --uv-red-text: #a3261f;
+
+  --uv-ink: #17211f;
+  --uv-muted: #5c6b67;
+  --uv-line: #e4e8e6;
+  --uv-white: #ffffff;
+
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-card: 0 10px 30px rgba(11, 51, 44, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #f4f6f5;
+  color: var(--uv-ink);
+}
+
+/*Layout general*/
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  width: 100%;
+}
+
+/*Alerta de error de login*/
+.alert {
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.9rem;
+}
+
+.alert--error {
+  background: var(--uv-red-bg);
+  border: 1px solid var(--uv-red-border);
+  color: var(--uv-red-text);
+}
+
+/*Tarjeta de autenticación*/
+.auth-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--uv-white);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+@media (max-width: 720px) {
+  .auth-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+/*Panel de marca (izquierda)*/
+.brand-panel {
+  background: linear-gradient(180deg, var(--uv-green-800), var(--uv-green-900));
+  color: #eef4f2;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.brand-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-panel__header h1 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.muted {
+  color: #a9c2bb;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.logo--dark {
+  background: var(--uv-green-900);
+  color: #fff;
+}
+
+.tagline {
+  font-size: 1.4rem;
+  line-height: 1.25;
+  margin: 0.25rem 0 0;
+}
+
+.tagline-sub {
+  color: #c4d8d1;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/*Panel de formulario (derecha)*/
+.form-panel {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.form-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.form-panel__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.field__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.field__control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--uv-line);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.75rem;
+  background: #fbfcfc;
+}
+
+.field__control:focus-within {
+  border-color: var(--uv-green-accent);
+  box-shadow: 0 0 0 3px rgba(31, 111, 92, 0.15);
+}
+
+.field__control input {
+  border: none;
+  background: transparent;
+  outline: none;
+  flex: 1;
+  font-size: 0.95rem;
+}
+
+.field__toggle {
+  border: none;
+  background: none;
+  color: var(--uv-blue);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+/*Selector de rol*/
+.roles {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.roles__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.role-card {
+  position: relative;
+  border: 1px solid var(--uv-line);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 0.6rem;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.role-card input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.role-card:has(input:checked) {
+  border-color: var(--uv-blue);
+  background: #eef2fd;
+}
+
+.role-card__title {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.role-card__sub {
+  font-size: 0.72rem;
+  color: var(--uv-muted);
+}
+
+.role-card__tag {
+  font-size: 0.68rem;
+  background: var(--uv-green-accent);
+  color: #fff;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 480px) {
+  .roles__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/*Botones*/
+.btn {
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.65rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.btn--primary {
+  background: var(--uv-blue);
+  color: #fff;
+}
+
+.btn--primary:hover {
+  background: var(--uv-blue-hover);
+}
+
+.btn--primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btn--block {
+  width: 100%;
+}
