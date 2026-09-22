@@ -1,0 +1,95 @@
+<!--
+  Punto de Venta UV — Cálculo de subtotal, descuentos y total
+  Nota: esta pantalla solo cubre el cálculo del carrito.
+
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Punto de Venta UV - Calculadora de Venta</title>
+  <link rel="stylesheet" href="/css/01-variables.css" />
+  <link rel="stylesheet" href="/css/02-base.css" />
+  <link rel="stylesheet" href="/css/03-layout.css" />
+  <link rel="stylesheet" href="/css/04-components.css" />
+  <link rel="stylesheet" href="/css/05-modals.css" />
+  <link rel="stylesheet" href="/css/06-tables.css" />
+  <style>
+    .alert { padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-weight: 600; }
+    .alert--error { background-color: #FEE2E2; color: var(--color-danger); border: 1px solid var(--color-danger); }
+    .carrito-toolbar { display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .carrito-toolbar .form-group { margin-bottom: 0; min-width: 160px; }
+    .btn-icon-delete-cell { text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="sidebar__brand">Punto de Venta UV</div>
+      <ul class="sidebar__nav" id="sidebarNav">
+        <li><a href="/inventario" class="sidebar__link">Inventario</a></li>
+        <li><a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a></li>
+        <li><a href="/pos" class="sidebar__link sidebar__link--active">Punto de Venta</a></li>
+        <li id="menuAdmin" hidden><a href="/dashboard-admin" class="sidebar__link">Administración</a></li>
+        <li><a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <h1>Venta — Subtotal, Descuentos y Total</h1>
+      <p class="text-muted" style="margin-bottom: 1.5rem;">Agrega productos al carrito; los totales se recalculan automáticamente cada vez que la lista cambia (HU-27).</p>
+
+      <div id="alertMessage" class="alert alert--error" hidden></div>
+
+      <div class="carrito-toolbar">
+        <div class="form-group">
+          <label class="form-label">Producto</label>
+          <select id="selectProducto" class="form-select"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cantidad</label>
+          <input type="number" id="inputCantidad" class="form-input" min="1" value="1" style="width: 100px;" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descuento</label>
+          <select id="selectDescuentoTipo" class="form-select" style="width: 130px;">
+            <option value="monto">$ Monto</option>
+            <option value="porcentaje">% Porcentaje</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor</label>
+          <input type="number" id="inputDescuentoValor" class="form-input" min="0" value="0" style="width: 100px;" />
+        </div>
+        <button class="btn btn--primary" id="btnAgregar">+ Agregar a la venta</button>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Cant.</th>
+            <th>Precio</th>
+            <th>Descuento</th>
+            <th>Total línea</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="carritoBody">
+          <tr><td colspan="6" class="text-muted">El carrito está vacío.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="totales-venta">
+        <div class="totales-venta__fila"><span>Subtotal</span><span id="totSubtotal">$0.00</span></div>
+        <div class="totales-venta__fila"><span>Descuentos</span><span id="totDescuentos">-$0.00</span></div>
+        <div class="totales-venta__fila"><span>IVA (16%)</span><span id="totIva">$0.00</span></div>
+        <div class="totales-venta__fila totales-venta__fila--total"><span>Total</span><span id="totTotal">$0.00</span></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/pos.js"></script>
+</body>
+</html>

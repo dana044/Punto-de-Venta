@@ -23,11 +23,17 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 /** Importación de rutas de la API. */
 const authRoutes = require('./routes/auth.routes.js');
 const inventoryRoutes = require('./routes/inventory.routes.js');
+const receivingRoutes = require('./routes/receiving.routes.js');
+const posRoutes = require('./routes/pos.routes.js');
 
 /** Montaje de la ruta base para autenticación. */
 app.use('/api/auth', authRoutes);
 /** Montaje de la ruta base para inventario. */
 app.use('/api/inventory', inventoryRoutes);
+/** Montaje de la ruta base para recepción de mercancía (HU-14). */
+app.use('/api/receiving', receivingRoutes);
+/** Montaje de la ruta base para el punto de venta (HU-27: cálculo de totales). */
+app.use('/api/pos', posRoutes);
 
 /**
  * Ruta raíz que redirige automáticamente a la pantalla de inicio de sesión.
@@ -56,6 +62,20 @@ app.get('/login', (req, res) => {
  */
 app.get('/inventario', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'view', 'inventario.html'));
+});
+
+/**
+ * Ruta para la interfaz de recepción de mercancía en almacén.
+ */
+app.get('/recepcion', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'recepcion.html'));
+});
+
+/**
+ * Ruta para la interfaz de calculadora de venta.
+ */
+app.get('/pos', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'pos.html'));
 });
 
 module.exports = app;

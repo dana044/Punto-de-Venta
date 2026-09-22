@@ -1,0 +1,73 @@
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.data-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.data-table input[type='number'] {
+  width: 90px;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+
+.pedido-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-card);
+}
+
+.pedido-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.pedido-card__folio {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* Totales de venta (HU-27) */
+.totales-venta {
+  max-width: 320px;
+  margin-left: auto;
+  margin-top: 1rem;
+}
+
+.totales-venta__fila {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.totales-venta__fila--total {
+  border-top: 2px solid var(--border-color);
+  margin-top: 0.5rem;
+  padding-top: 0.6rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-primary);
+}

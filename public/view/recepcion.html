@@ -1,0 +1,95 @@
+<!--
+  Punto de Venta UV — Recepción de Mercancía en Almacén
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Punto de Venta UV - Recepción de Mercancía</title>
+  <link rel="stylesheet" href="/css/01-variables.css" />
+  <link rel="stylesheet" href="/css/02-base.css" />
+  <link rel="stylesheet" href="/css/03-layout.css" />
+  <link rel="stylesheet" href="/css/04-components.css" />
+  <link rel="stylesheet" href="/css/05-modals.css" />
+  <link rel="stylesheet" href="/css/06-tables.css" />
+  <style>
+    .alert { padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-weight: 600; }
+    .alert--success { background-color: #E6F0EF; color: var(--color-primary); border: 1px solid var(--color-primary); }
+    .alert--error { background-color: #FEE2E2; color: var(--color-danger); border: 1px solid var(--color-danger); }
+    .modal-body { padding: 1.5rem; overflow-y: auto; }
+    .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+    .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.75rem; }
+    .modal-close { background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="sidebar__brand">Punto de Venta UV</div>
+      <ul class="sidebar__nav" id="sidebarNav">
+        <li><a href="/inventario" class="sidebar__link">Inventario</a></li>
+        <li><a href="/recepcion" class="sidebar__link sidebar__link--active">Recepción de Mercancía</a></li>
+        <li><a href="/pos" class="sidebar__link">Punto de Venta</a></li>
+        <li id="menuAdmin" hidden><a href="/dashboard-admin" class="sidebar__link">Administración</a></li>
+        <li><a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <h1>Recepción de Mercancía en Almacén</h1>
+      <p class="text-muted" style="margin-bottom: 2rem;">Valida los pedidos entrantes frente a la nota de entrega y actualiza las existencias del almacén (HU-14).</p>
+
+      <div id="alertMessage" class="alert" hidden></div>
+
+      <div id="pedidosContainer">
+        <span class="text-muted">Cargando pedidos pendientes...</span>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay modal--hidden" id="modalRecepcion">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <strong id="modalFolio">Recepción de Orden de Compra</strong>
+          <div class="text-muted" id="modalProveedor" style="font-size: 0.85rem;"></div>
+        </div>
+        <button class="modal-close" id="btnCerrarModal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Cant. Solicitada</th>
+              <th>Cant. Recibida</th>
+              <th>Costo Unit.</th>
+              <th>Subtotal</th>
+            </tr>
+          </thead>
+          <tbody id="modalItemsBody"></tbody>
+        </table>
+
+        <div class="form-group" style="margin-top: 1.5rem;">
+          <label class="form-label">¿Hacia dónde ingresa la mercancía?</label>
+          <input type="text" class="form-input" value="Almacén General" disabled />
+        </div>
+
+        <div class="pos-total-banner" style="margin-top: 1rem;">
+          <div class="text-muted" style="font-size: 0.8rem;">Total a pagar por lo recibido</div>
+          <div class="pos-total-banner__amount" id="modalTotal">$0.00</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn--danger" id="btnRechazar">Rechazar Pedido</button>
+        <button class="btn btn--primary" id="btnConfirmar">Confirmar Recepción y Actualizar Stock</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/recepcion.js"></script>
+</body>
+</html>

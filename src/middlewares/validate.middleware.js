@@ -31,6 +31,74 @@ const validateProduct = (req, res, next) => {
   next();
 };
 
+/**
+ * Valida el cuerpo de la petición para confirmar una recepción de mercancía.
+ *
+ * @function validateRecepcion
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ * @returns {Object|void}
+ */
+const validateRecepcion = (req, res, next) => {
+  const { items } = req.body;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({
+      mensaje: 'Debes capturar la cantidad recibida de al menos un producto.'
+    });
+  }
+
+  const itemInvalido = items.find(
+    (item) => item.productoId === undefined || item.cantidadRecibida === undefined || Number(item.cantidadRecibida) < 0
+  );
+
+  if (itemInvalido) {
+    return res.status(400).json({
+      mensaje: 'Cada producto debe incluir productoId y una cantidadRecibida válida (no negativa).'
+    });
+  }
+
+  next();
+};
+
+/**
+ * Valida el carrito enviado para recalcular subtotal, descuentos y total.
+ *
+ * @function validateCarrito
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ * @returns {Object|void}
+ */
+const validateCarrito = (req, res, next) => {
+  const { items } = req.body;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({
+      mensaje: 'La venta debe tener al menos un producto para calcular los totales.'
+    });
+  }
+
+  const tiposValidos = ['porcentaje', 'monto'];
+
+  const itemInvalido = items.find((item) => {
+    const cantidadInvalida = item.productoId === undefined || !item.cantidad || Number(item.cantidad) <= 0;
+    const descuentoInvalido = item.descuentoTipo !== undefined && !tiposValidos.includes(item.descuentoTipo);
+    return cantidadInvalida || descuentoInvalido;
+  });
+
+  if (itemInvalido) {
+    return res.status(400).json({
+      mensaje: 'Cada producto debe incluir productoId y una cantidad mayor a 0. El descuentoTipo, si se envía, debe ser "porcentaje" o "monto".'
+    });
+  }
+
+  next();
+};
+
 module.exports = {
-  validateProduct
+  validateProduct,
+  validateRecepcion,
+  validateCarrito
 };
