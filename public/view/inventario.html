@@ -1,41 +1,47 @@
+<!--
+  Punto de Venta UV — Vista de Inventario
+ 
+-->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Punto de Venta UV - Inventario</title>
-  <!-- Importar los estilos base-->
+  <!-- Hojas de estilo de la arquitectura desacoplada -->
   <link rel="stylesheet" href="/css/01-variables.css" />
   <link rel="stylesheet" href="/css/02-base.css" />
   <link rel="stylesheet" href="/css/03-layout.css" />
   <link rel="stylesheet" href="/css/04-components.css" />
   <style>
-    /* Estilos temporales para las alertas de éxito/error */
     .alert { padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-weight: 600; }
     .alert--success { background-color: #E6F0EF; color: var(--color-primary); border: 1px solid var(--color-primary); }
     .alert--error { background-color: #FEE2E2; color: var(--color-danger); border: 1px solid var(--color-danger); }
+    .checkbox-group { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; background: #fff; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+    .checkbox-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; }
   </style>
 </head>
 <body>
   <div class="app-container">
-    <!-- Menú lateral básico -->
+    <!-- Barra lateral con soporte dinámico para HU-03 -->
     <aside class="sidebar">
       <div class="sidebar__brand">Punto de Venta UV</div>
-      <ul class="sidebar__nav">
-        <li><a href="#" class="sidebar__link sidebar__link--active">📦 Inventario</a></li>
-        <li><a href="/" class="sidebar__link">🚪 Cerrar Sesión</a></li>
+      <ul class="sidebar__nav" id="sidebarNav">
+        <li><a href="/inventario" class="sidebar__link sidebar__link--active">Inventario</a></li>
+        <!-- Elementos condicionales según el rol -->
+        <li id="menuAdmin" hidden><a href="/dashboard-admin" class="sidebar__link">Administración</a></li>
+        <li id="menuPos" hidden><a href="/pos" class="sidebar__link">Punto de Venta</a></li>
+        <li><a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a></li>
       </ul>
     </aside>
 
-    <!-- Contenido principal -->
+    <!-- Contenido principal: Formulario de Alta y Asociación -->
     <main class="main-content">
       <h1>Registro de Nuevos Productos</h1>
-      <p class="text-muted" style="margin-bottom: 2rem;">Ingresa la información básica para dar de alta un producto en el sistema.</p>
+      <p class="text-muted" style="margin-bottom: 2rem;">Ingresa los datos generales y asocia los distribuidores correspondientes.</p>
 
-      <!-- Contenedor para mensajes de retroalimentación -->
       <div id="alertMessage" class="alert" hidden></div>
 
-      <!-- Formulario de HU-06 -->
       <form id="productForm" style="max-width: 500px; background: var(--bg-card); padding: 2rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-card);">
         
         <div class="form-group">
@@ -68,6 +74,14 @@
         <div class="form-group">
           <label class="form-label" for="precio">Precio Unitario ($)</label>
           <input type="number" id="precio" class="form-input" step="0.01" min="0" placeholder="0.00" required />
+        </div>
+
+        <!-- HU-11: Contenedor para la selección múltiple de distribuidores -->
+        <div class="form-group">
+          <label class="form-label">Distribuidores / Proveedores Asociados</label>
+          <div id="proveedoresContainer" class="checkbox-group">
+            <span class="text-muted">Cargando distribuidores...</span>
+          </div>
         </div>
 
         <button type="submit" class="btn btn--primary" id="submitBtn" style="margin-top: 1rem; width: 100%;">
