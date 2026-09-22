@@ -93,12 +93,57 @@ const validateCarrito = (req, res, next) => {
       mensaje: 'Cada producto debe incluir productoId y una cantidad mayor a 0. El descuentoTipo, si se envía, debe ser "porcentaje" o "monto".'
     });
   }
+}
 
+/**
+ * Roles válidos para un empleado, según RF02.
+ * @constant {string[]}
+ */
+const ROLES_VALIDOS = ['administrador', 'cajero', 'almacenista'];
+ 
+/**
+ * Valida que la petición para registrar un empleado traiga todos los
+ * campos obligatorios y que el rol sea uno de los tres permitidos (HU10).
+ *
+ * @function validateEmployee
+ * @param {import('express').Request} req - Objeto de petición de Express.
+ * @param {import('express').Response} res - Objeto de respuesta de Express.
+ * @param {import('express').NextFunction} next - Función para transferir el control al siguiente middleware.
+ * @returns {Object|void} Retorna respuesta con estado HTTP 400 en caso de validación fallida, o invoca next().
+ */
+const validateEmployee = (req, res, next) => {
+  const { nombreCompleto, puesto, username, password, confirmarPassword, role } = req.body;
+ 
+  if (!nombreCompleto || !puesto || !username || !password) {
+    return res.status(400).json({
+      mensaje: 'Falta información. Debes completar nombre completo, puesto, usuario y contraseña.'
+    });
+  }
+ 
+  if (!ROLES_VALIDOS.includes(role)) {
+    return res.status(400).json({
+      mensaje: 'El rol debe ser administrador, cajero o almacenista.'
+    });
+  }
+ 
+  if (password.length < 8) {
+    return res.status(400).json({
+      mensaje: 'La contraseña debe tener al menos 8 caracteres.'
+    });
+  }
+ 
+  if (password !== confirmarPassword) {
+    return res.status(400).json({
+      mensaje: 'Las contraseñas no coinciden.'
+    });
+  }
+ 
   next();
 };
 
 module.exports = {
   validateProduct,
   validateRecepcion,
-  validateCarrito
+  validateCarrito,
+  validateEmployee
 };

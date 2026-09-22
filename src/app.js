@@ -25,6 +25,7 @@ const authRoutes = require('./routes/auth.routes.js');
 const inventoryRoutes = require('./routes/inventory.routes.js');
 const receivingRoutes = require('./routes/receiving.routes.js');
 const posRoutes = require('./routes/pos.routes.js');
+const employeesRoutes = require('./routes/employees.routes.js');
 
 /** Montaje de la ruta base para autenticación. */
 app.use('/api/auth', authRoutes);
@@ -34,6 +35,8 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/receiving', receivingRoutes);
 /** Montaje de la ruta base para el punto de venta (HU-27: cálculo de totales). */
 app.use('/api/pos', posRoutes);
+/** Montaje de la ruta base para empleados. */
+app.use('/api/employees', employeesRoutes)
 
 /**
  * Ruta raíz que redirige automáticamente a la pantalla de inicio de sesión.
@@ -76,6 +79,13 @@ app.get('/recepcion', (req, res) => {
  */
 app.get('/pos', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'view', 'pos.html'));
+});
+
+/**
+ * Ruta para la interfaz de empleados.
+ */
+app.get('/empleados/nuevo', (req, res) => { 
+  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'empleados.html')); 
 });
 
 module.exports = app;

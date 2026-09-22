@@ -1,7 +1,5 @@
 <!--
-  Punto de Venta UV — Vista de Inicio de Sesión
-  Inicio de sesión con usuario y contraseña
-  para que pueda acceder a funciones correspondientes.
+  Punto de Venta UV — Vista de Inicio de Sesión (HU01)
 -->
 <!DOCTYPE html>
 <html lang="es">
@@ -9,130 +7,271 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Punto de Venta UV · Iniciar Sesión</title>
-  <link rel="stylesheet" href="/css/login.css" />
+  <link rel="stylesheet" href="/css/01-variables.css" />
+  <link rel="stylesheet" href="/css/02-base.css" />
+  <link rel="stylesheet" href="/css/04-components.css" />
+  <link rel="stylesheet" href="/css/05-modals.css" />
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--bg-body);
+      padding: 1.5rem;
+    }
+
+    .auth-card {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+      max-width: 900px;
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-modal);
+      overflow: hidden;
+    }
+
+    @media (max-width: 720px) {
+      .auth-card {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Panel de marca (izquierda): mismo verde institucional que los botones primarios */
+    .brand-panel {
+      background: linear-gradient(180deg, var(--color-primary), var(--color-primary-hover));
+      color: var(--text-white);
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .brand-panel__header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-panel__header h1 {
+      font-size: 1.1rem;
+      margin: 0;
+    }
+
+    .logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .logo--dark {
+      background: var(--color-primary);
+      color: var(--text-white);
+    }
+
+    .muted {
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 0.8rem;
+      margin: 0;
+    }
+
+    .tagline {
+      font-size: 1.4rem;
+      line-height: 1.25;
+      margin: 0.25rem 0 0;
+    }
+
+    .tagline-sub {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    /* Panel de formulario (derecha) */
+    .form-panel {
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
+
+    .form-panel__header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .form-panel__header h2 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .password-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .password-row .form-input {
+      flex: 1;
+    }
+
+    /* Selector de rol reutilizando .payment-card, con radio real encima */
+    .payment-card {
+      position: relative;
+    }
+
+    .payment-card input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      margin: 0;
+    }
+
+    .payment-card__sub {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    .alert {
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      margin-bottom: 0.25rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .alert--error {
+      background-color: #FEE2E2;
+      color: var(--color-danger);
+      border: 1px solid var(--color-danger);
+    }
+  </style>
 </head>
 <body>
 
-  <main class="page">
+  <div class="auth-card">
 
-    <!--
-      Alerta de error de credenciales
-      permanece vacía y oculta hasta que login.js la llene y la
-      muestre tras una respuesta fallida del servidor.
-    -->
-    <div class="alert alert--error" id="loginError" role="alert" hidden></div>
+    <!-- Panel de marca -->
+    <section class="brand-panel">
+      <div class="brand-panel__header">
+        <div class="logo">UV</div>
+        <div>
+          <h1>Punto de Venta UV</h1>
+          <p class="muted">Sistema institucional</p>
+        </div>
+      </div>
 
-    <div class="auth-card">
+      <h2 class="tagline">Turnos seguros, cajas sin fricción.</h2>
+      <p class="tagline-sub">
+        Control de personal, cortes de caja y auditoría en una sola consola para toda la red de sucursales.
+      </p>
+    </section>
 
-      <!-- Panel de marca -->
-      <section class="brand-panel">
-        <div class="brand-panel__header">
-          <div class="logo">UV</div>
-          <div>
-            <h1>Punto de Venta UV</h1>
-            <p class="muted">Sistema institucional</p>
-          </div>
+    <!-- Panel de formulario -->
+    <section class="form-panel">
+      <div class="form-panel__header">
+        <div class="logo logo--dark">UV</div>
+        <div>
+          <h2>Punto de Venta UV</h2>
+          <p class="muted" style="color: var(--text-muted);">Autenticación segura del personal</p>
+        </div>
+      </div>
+
+      <!--
+        Alerta de error de credenciales (criterio de aceptación HU01):
+        permanece vacía y oculta hasta que login.js la llene y la
+        muestre tras una respuesta fallida del servidor.
+      -->
+      <div class="alert alert--error" id="loginError" role="alert" hidden></div>
+
+      <!--
+        Formulario principal. novalidate: se desactiva la validación
+        nativa del navegador porque login.js hace su propia validación
+        y controla los mensajes de error.
+      -->
+      <form id="loginForm" novalidate>
+
+        <div class="form-group">
+          <label class="form-label" for="username">Usuario o Correo</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            class="form-input"
+            autocomplete="username"
+            placeholder="operador.caja04@uv.mx"
+            required
+          />
         </div>
 
-        <h2 class="tagline">Turnos seguros, cajas sin fricción.</h2>
-        <p class="tagline-sub">
-          Control de personal, cortes de caja y auditoría en una sola consola para toda la red de sucursales.
-        </p>
-      </section>
-
-      <!-- Panel de formulario -->
-      <section class="form-panel">
-        <div class="form-panel__header">
-          <div class="logo logo--dark">UV</div>
-          <div>
-            <h2>Punto de Venta UV</h2>
-            <p class="muted">Autenticación segura del personal</p>
+        <div class="form-group">
+          <label class="form-label" for="password">Contraseña</label>
+          <div class="password-row">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="form-input"
+              autocomplete="current-password"
+              placeholder="••••••••••••"
+              minlength="8"
+              required
+            />
+            <button type="button" class="btn-link-add" id="togglePassword" aria-label="Mostrar contraseña">
+              Mostrar
+            </button>
           </div>
         </div>
 
         <!--
-          Formulario principal, se desactiva la
-          validación nativa del navegador porque login.js hace su
-          propia validación y controla los mensajes de error.
+          Selección de rol: define qué vistas y permisos tendrá el
+          usuario tras iniciar sesión. login.js marca visualmente la
+          tarjeta seleccionada con .payment-card--active.
         -->
-        <form id="loginForm" novalidate>
+        <fieldset class="form-group" style="border: none; padding: 0; margin: 0;">
+          <legend class="form-label">Rol / Perfil de acceso</legend>
+          <div class="payment-methods-grid" role="radiogroup" aria-label="Selecciona tu rol">
 
-          <!-- Usuario o correo con el que el empleado se autentica -->
-          <label class="field">
-            <span class="field__label">Usuario o Correo</span>
-            <div class="field__control">
-              <input
-                type="text"
-                id="username"
-                name="username"
-                autocomplete="username"
-                placeholder="operador.caja04@uv.mx"
-                required
-              />
-            </div>
-          </label>
+            <label class="payment-card payment-card--active">
+              <input type="radio" name="role" value="administrador" checked />
+              Administrador
+              <span class="payment-card__sub">Control total</span>
+            </label>
 
-          <!--
-            Contraseña del empleado. El botón "Mostrar/Ocultar" y la
-            validación de longitud mínima se manejan en login.js.
-          -->
-          <label class="field">
-            <span class="field__label">Contraseña</span>
-            <div class="field__control">
-              <input
-                type="password"
-                id="password"
-                name="password"
-                autocomplete="current-password"
-                placeholder="••••••••••••"
-                minlength="8"
-                required
-              />
-              <button type="button" class="field__toggle" id="togglePassword" aria-label="Mostrar contraseña">
-                Mostrar
-              </button>
-            </div>
-          </label>
+            <label class="payment-card">
+              <input type="radio" name="role" value="cajero" />
+              Cajero
+              <span class="payment-card__sub">Ventas y turno</span>
+            </label>
 
-          <!--
-            Selección de rol, define qué vistas y
-            permisos tendrá el usuario tras iniciar sesión. El
-            marcado visual de "Seleccionado" lo controla login.js
-            para que siempre coincida con el radio activo.
-          -->
-          <fieldset class="roles">
-            <legend class="field__label">Rol / Perfil de acceso</legend>
-            <div class="roles__grid" role="radiogroup" aria-label="Selecciona tu rol">
+            <label class="payment-card">
+              <input type="radio" name="role" value="almacenista" />
+              Almacenista
+              <span class="payment-card__sub">Inventario</span>
+            </label>
 
-              <label class="role-card">
-                <input type="radio" name="role" value="administrador" checked />
-                <span class="role-card__title">Administrador</span>
-                <span class="role-card__sub">Control total</span>
-                <span class="role-card__tag">Seleccionado</span>
-              </label>
+          </div>
+        </fieldset>
 
-              <label class="role-card">
-                <input type="radio" name="role" value="cajero" />
-                <span class="role-card__title">Cajero</span>
-                <span class="role-card__sub">Ventas y turno</span>
-              </label>
-
-              <label class="role-card">
-                <input type="radio" name="role" value="almacenista" />
-                <span class="role-card__title">Almacenista</span>
-                <span class="role-card__sub">Inventario</span>
-              </label>
-
-            </div>
-          </fieldset>
-
-          <button type="submit" class="btn btn--primary btn--block" id="submitBtn">
-            Iniciar Turno / Sesión
-          </button>
-        </form>
-      </section>
-    </div>
-  </main>
+        <button type="submit" class="btn btn--primary" id="submitBtn" style="width: 100%; margin-top: 0.5rem;">
+          Iniciar Turno / Sesión
+        </button>
+      </form>
+    </section>
+  </div>
 
   <script src="/js/login.js"></script>
 </body>

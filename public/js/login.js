@@ -1,13 +1,5 @@
 /**
- * Punto de Venta UV — Vista de Inicio de Sesion.
- *
- * Se encarga de:
- *   1) Mostrar/ocultar la contraseña.
- *   2) Marcar visualmente el rol seleccionado (Administrador,
- *      Cajero, Almacenista).
- *   3) Validar el formulario del lado del cliente.
- *   4) Enviar las credenciales al backend y mostrar el mensaje de
- *      error de "credenciales invalidas".
+ * Punto de Venta UV — Vista de Inicio de Sesion (HU01).
  */
 
 /**
@@ -23,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const botonMostrarContrasena = document.getElementById("togglePassword");
   const botonEnviar = document.getElementById("submitBtn");
   const cajaError = document.getElementById("loginError");
-  const tarjetasRol = document.querySelectorAll(".role-card");
+  const tarjetasRol = document.querySelectorAll(".payment-card");
 
   inicializarAlternarContrasena();
   inicializarSeleccionRol();
@@ -50,8 +42,8 @@ document.addEventListener("DOMContentLoaded", () => {
   /**
    * Sincroniza la tarjeta de rol (Administrador / Cajero /
    * Almacenista) que el usuario selecciona: aplica la clase
-   * visual de seleccion y mueve la etiqueta "Seleccionado" a la
-   * tarjeta activa, quitandola de las demas.
+   * visual .payment-card--active a la tarjeta activa, quitandola
+   * de las demas.
    * @returns {void}
    */
   function inicializarSeleccionRol() {
@@ -61,16 +53,10 @@ document.addEventListener("DOMContentLoaded", () => {
       entradaRadio.addEventListener("change", () => {
         /** Limpia el estado visual de todas las tarjetas antes de marcar la nueva seleccion. */
         tarjetasRol.forEach((otraTarjeta) => {
-          otraTarjeta.classList.remove("role-card--selected");
-          const etiquetaExistente = otraTarjeta.querySelector(".role-card__tag");
-          if (etiquetaExistente) etiquetaExistente.remove();
+          otraTarjeta.classList.remove("payment-card--active");
         });
 
-        tarjeta.classList.add("role-card--selected");
-        const etiquetaSeleccionado = document.createElement("span");
-        etiquetaSeleccionado.className = "role-card__tag";
-        etiquetaSeleccionado.textContent = "Seleccionado";
-        tarjeta.appendChild(etiquetaSeleccionado);
+        tarjeta.classList.add("payment-card--active");
       });
     });
   }
@@ -162,21 +148,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /**
     * Procesa una respuesta exitosa de inicio de sesión, guarda las credenciales
-    * y redirige al panel.
+    * y redirige a la pantalla correspondiente según el rol.
     * @param {Object} datos - Respuesta del backend con los datos de sesión.
     * @param {string} datos.token - JWT o token temporal de sesión.
     * @param {Object} datos.usuario - Información del usuario (id, username, role).
     * @returns {void}
     */
   function manejarRespuestaInicioSesion(datos) {
-    console.log("Inicio de sesión correcto:", datos);
-
     localStorage.setItem("token", datos.token);
     localStorage.setItem("userRole", datos.usuario.role);
 
     switch (datos.usuario.role) {
       case 'administrador':
-        window.location.href = "/dashboard-admin";
+        window.location.href = "/empleados/nuevo";
         break;
       case 'cajero':
         window.location.href = "/pos";
