@@ -1,1 +1,2 @@
-# Archivos y carpetas que deben ser ignrados para el control de versiones git
+node_modules/
+.env
