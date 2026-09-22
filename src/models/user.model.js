@@ -1,5 +1,5 @@
 /**
- * Punto de Venta UV - Modelo de Usuario (En memoria).
+ * Punto de Venta UV - Modelo de Usuario.
  * Esto es un estructura temporal de usuarios para pruebas de autenticación y roles.
  */
 
