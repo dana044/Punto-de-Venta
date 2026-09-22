@@ -106,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
         /** Cubre tanto credenciales incorrectas (respuesta del servidor) como errores de red, por ejemplo si el endpoint aun no existe. */
         mostrarError(
           error.message ||
-            "No se pudo iniciar sesion. Verifica tu usuario y contrasena."
+          "No se pudo iniciar sesion. Verifica tu usuario y contrasena."
         );
       } finally {
         establecerCargando(false);
@@ -161,19 +161,32 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /**
-   * Procesa una respuesta exitosa de inicio de sesion.
-   *
-   * TODO EQUIPO: una vez que el backend entregue el token (JWT,
-   * RNF03), guardarlo y redirigir segun el rol autenticado, por
-   * ejemplo:
-   *   localStorage.setItem("token", datos.token);
-   *   window.location.href = "/dashboard";
-   *
-   * @param {Object} datos - Respuesta del backend con los datos de sesion.
-   * @returns {void}
-   */
+    * Procesa una respuesta exitosa de inicio de sesión, guarda las credenciales
+    * y redirige al panel.
+    * @param {Object} datos - Respuesta del backend con los datos de sesión.
+    * @param {string} datos.token - JWT o token temporal de sesión.
+    * @param {Object} datos.usuario - Información del usuario (id, username, role).
+    * @returns {void}
+    */
   function manejarRespuestaInicioSesion(datos) {
-    console.log("Inicio de sesion correcto:", datos);
+    console.log("Inicio de sesión correcto:", datos);
+
+    localStorage.setItem("token", datos.token);
+    localStorage.setItem("userRole", datos.usuario.role);
+
+    switch (datos.usuario.role) {
+      case 'administrador':
+        window.location.href = "/dashboard-admin";
+        break;
+      case 'cajero':
+        window.location.href = "/pos";
+        break;
+      case 'almacenista':
+        window.location.href = "/inventario";
+        break;
+      default:
+        mostrarError("Rol no reconocido en el sistema.");
+    }
   }
 
   /**
