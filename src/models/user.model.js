@@ -1,50 +1,42 @@
 /**
- * Punto de Venta UV - Modelo de Usuario.
- * Esto es un estructura temporal de usuarios para pruebas de autenticación y roles.
+ * @file user.model.js
+ * @description Modelo de usuarios/empleados, ahora respaldado por MySQL
+ * en vez del arreglo en memoria original.
  */
 
-/**
- * Arreglo temporal simulando la base de datos de usuarios.
- * @type {Array<Object>}
- */
-const users = [
-  { id: 1, username: 'admin@uv.mx', password: 'password123', role: 'administrador' },
-  { id: 2, username: 'caja01@uv.mx', password: 'password123', role: 'cajero' },
-  { id: 3, username: 'almacen@uv.mx', password: 'password123', role: 'almacenista' }
-];
+const pool = require('../config/db.js');
 
 /**
- * Contador para asignar un id incremental a cada usuario nuevo,
- * continuando después de los tres usuarios de prueba de arriba.
- * @type {number}
+ * Convierte una fila de la tabla `usuarios` (snake_case) al formato
+ * que ya usa el resto de la app (camelCase), para no tener que tocar
+ * los controladores que consumen estos campos.
  */
-let nextId = users.length + 1;
+function mapRowToUser(row) {
+  return {
+    id: row.id,
+    nombreCompleto: row.nombre_completo,
+    puesto: row.puesto,
+    username: row.username,
+    password: row.password,
+    role: row.role,
+    activo: !!row.activo
+  };
+}
 
 /**
- * Busca un usuario en la base de datos temporal usando su nombre de usuario o correo.
- * @param {string} username - Correo o nombre de usuario capturado en el login.
- * @returns {Object|undefined} El objeto del usuario si existe, o undefined si no se encuentra.
+ * Crea un nuevo empleado en la base de datos.
+ * @param {{nombreCompleto:string, puesto:string, username:string, password:string, role:string}} datos
+ * @returns {Promise<Object>} El empleado recién creado (incluye password, el controlador la oculta).
  */
-const findUserByUsername = (username) => {
-  return users.find(user => user.username === username);
-};
+async function createUser({ nombreCompleto, puesto, username, password, role }) {
+  const [result] = await pool.query(
+    `INSERT INTO usuarios (nombre_completo, puesto, username, password, role)
+     VALUES (?, ?, ?, ?, ?)`,
+    [nombreCompleto, puesto, username, password, role]
+  );
 
-/**
- * Crea un nuevo usuario/empleado y lo agrega al almacenamiento en memoria (HU10).
- * NOTA: la contraseña se guarda tal cual llega, igual que los usuarios de
- * prueba de arriba (sin cifrar). Cuando se conecte la base de datos real,
- * este es el lugar donde hay que aplicar bcrypt antes del "push".
- * @param {Object} datosUsuario
- * @param {string} datosUsuario.nombreCompleto - Nombre completo del empleado.
- * @param {string} datosUsuario.puesto - Puesto que ocupa en la tienda.
- * @param {string} datosUsuario.username - Usuario con el que iniciará sesión.
- * @param {string} datosUsuario.password - Contraseña asignada por el administrador.
- * @param {string} datosUsuario.role - Rol asignado: administrador, cajero o almacenista.
- * @returns {Object} El usuario creado, incluyendo su id.
- */
-const createUser = ({ nombreCompleto, puesto, username, password, role }) => {
-  const nuevoUsuario = {
-    id: nextId++,
+  return {
+    id: result.insertId,
     nombreCompleto,
     puesto,
     username,
@@ -52,21 +44,32 @@ const createUser = ({ nombreCompleto, puesto, username, password, role }) => {
     role,
     activo: true
   };
-
-  users.push(nuevoUsuario);
-  return nuevoUsuario;
-};
+}
 
 /**
- * Devuelve la lista completa de usuarios/empleados registrados.
- * @returns {Array<Object>}
+ * Devuelve todos los empleados registrados.
+ * @returns {Promise<Object[]>}
  */
-const getAllUsers = () => {
-  return users;
-};
+async function getAllUsers() {
+  const [rows] = await pool.query(`SELECT * FROM usuarios ORDER BY id`);
+  return rows.map(mapRowToUser);
+}
+
+/**
+ * Busca un empleado por su username (usado para evitar duplicados y para login).
+ * @param {string} username
+ * @returns {Promise<Object|null>}
+ */
+async function findUserByUsername(username) {
+  const [rows] = await pool.query(
+    `SELECT * FROM usuarios WHERE username = ? LIMIT 1`,
+    [username]
+  );
+  return rows.length ? mapRowToUser(rows[0]) : null;
+}
 
 module.exports = {
-  findUserByUsername,
   createUser,
-  getAllUsers
+  getAllUsers,
+  findUserByUsername
 };
