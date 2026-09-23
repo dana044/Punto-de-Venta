@@ -1,30 +1,29 @@
 /**
  * @file validate.middleware.js
- * @description Interceptores para la validación de integridad de datos de entrada.
- * @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
+ * @description Interceptores para la validacion de integridad de datos de entrada.
  */
 
 /**
- * Valida que la petición contenga los atributos del producto y al menos un distribuidor (HU-06 y HU-11).
+ * Valida que la peticion contenga los atributos del producto y al menos un distribuidor vinculado.
  *
  * @function validateProduct
- * @param {import('express').Request} req - Objeto de petición de Express.
+ * @param {import('express').Request} req - Objeto de peticion de Express.
  * @param {import('express').Response} res - Objeto de respuesta de Express.
- * @param {import('express').NextFunction} next - Función para transferir el control al siguiente middleware.
- * @returns {Object|void} Retorna respuesta con estado HTTP 400 en caso de validación fallida, o invoca next().
+ * @param {import('express').NextFunction} next - Funcion para transferir el control al siguiente middleware.
+ * @returns {Object|void} Retorna respuesta con estado HTTP 400 en caso de fallo, o continua con next().
  */
 const validateProduct = (req, res, next) => {
   const { nombre, codigo_barras, presentacion, unidad_medida, precio, proveedoresIds } = req.body;
 
-  if (!nombre || !codigo_barras || !presentacion || !unidad_medida || !precio) {
+  if (!nombre || !codigo_barras || !presentacion || !unidad_medida || precio === undefined || precio === null) {
     return res.status(400).json({
-      mensaje: 'Falta información. Debes completar nombre, código de barras, presentación, unidad de medida y precio.'
+      mensaje: 'Falta informacion basica. Debes completar nombre, codigo de barras, presentacion, unidad de medida y precio.'
     });
   }
 
   if (!proveedoresIds || !Array.isArray(proveedoresIds) || proveedoresIds.length === 0) {
     return res.status(400).json({
-      mensaje: 'Debes asociar al menos un distribuidor/proveedor al producto (HU-11).'
+      mensaje: 'Debes asociar al menos un distribuidor o proveedor al producto.'
     });
   }
 
@@ -32,7 +31,7 @@ const validateProduct = (req, res, next) => {
 };
 
 /**
- * Valida el cuerpo de la petición para confirmar una recepción de mercancía.
+ * Valida el cuerpo de la peticion para confirmar una recepcion de mercancia.
  *
  * @function validateRecepcion
  * @param {import('express').Request} req
@@ -55,7 +54,7 @@ const validateRecepcion = (req, res, next) => {
 
   if (itemInvalido) {
     return res.status(400).json({
-      mensaje: 'Cada producto debe incluir productoId y una cantidadRecibida válida (no negativa).'
+      mensaje: 'Cada producto debe incluir productoId y una cantidadRecibida valida (no negativa).'
     });
   }
 
@@ -90,54 +89,55 @@ const validateCarrito = (req, res, next) => {
 
   if (itemInvalido) {
     return res.status(400).json({
-      mensaje: 'Cada producto debe incluir productoId y una cantidad mayor a 0. El descuentoTipo, si se envía, debe ser "porcentaje" o "monto".'
+      mensaje: 'Cada producto debe incluir productoId y una cantidad mayor a 0. El descuentoTipo, si se envia, debe ser "porcentaje" o "monto".'
     });
   }
-}
+
+  next();
+};
 
 /**
- * Roles válidos para un empleado, según RF02.
+ * Roles autorizados para el registro de empleados.
  * @constant {string[]}
  */
 const ROLES_VALIDOS = ['administrador', 'cajero', 'almacenista'];
- 
+
 /**
- * Valida que la petición para registrar un empleado traiga todos los
- * campos obligatorios y que el rol sea uno de los tres permitidos (HU10).
+ * Valida la captura de datos y contrasenas al registrar empleados.
  *
  * @function validateEmployee
- * @param {import('express').Request} req - Objeto de petición de Express.
- * @param {import('express').Response} res - Objeto de respuesta de Express.
- * @param {import('express').NextFunction} next - Función para transferir el control al siguiente middleware.
- * @returns {Object|void} Retorna respuesta con estado HTTP 400 en caso de validación fallida, o invoca next().
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ * @returns {Object|void}
  */
 const validateEmployee = (req, res, next) => {
   const { nombreCompleto, puesto, username, password, confirmarPassword, role } = req.body;
- 
+
   if (!nombreCompleto || !puesto || !username || !password) {
     return res.status(400).json({
-      mensaje: 'Falta información. Debes completar nombre completo, puesto, usuario y contraseña.'
+      mensaje: 'Falta informacion. Debes completar nombre completo, puesto, usuario y contrasena.'
     });
   }
- 
+
   if (!ROLES_VALIDOS.includes(role)) {
     return res.status(400).json({
       mensaje: 'El rol debe ser administrador, cajero o almacenista.'
     });
   }
- 
+
   if (password.length < 8) {
     return res.status(400).json({
-      mensaje: 'La contraseña debe tener al menos 8 caracteres.'
+      mensaje: 'La contrasena debe tener al menos 8 caracteres.'
     });
   }
- 
+
   if (password !== confirmarPassword) {
     return res.status(400).json({
-      mensaje: 'Las contraseñas no coinciden.'
+      mensaje: 'Las contrasenas no coinciden.'
     });
   }
- 
+
   next();
 };
 

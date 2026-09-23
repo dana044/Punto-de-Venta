@@ -20,8 +20,21 @@
     <aside class="sidebar">
       <div class="sidebar__brand">La Number One</div>
       <ul class="sidebar__nav" id="sidebarNav">
-        <li><a href="/inventario" class="sidebar__link sidebar__link--active">Inventario</a></li>
-        <li><a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a></li>
+        <li id="menuPersonal" hidden>
+          <a href="/empleados/nuevo" class="sidebar__link">Administrar Personal</a>
+        </li>
+        <li id="menuInventario" hidden>
+          <a href="/inventario" class="sidebar__link sidebar__link--active">Inventario</a>
+        </li>
+        <li id="menuRecepcion" hidden>
+          <a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a>
+        </li>
+        <li id="menuPos" hidden>
+          <a href="/pos" class="sidebar__link">Punto de Venta</a>
+        </li>
+        <li>
+          <a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a>
+        </li>
       </ul>
     </aside>
 
@@ -60,11 +73,12 @@
                 <th>Categoría</th>
                 <th>Precio</th>
                 <th>Stock</th>
+                <th>Distribuidores</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody id="tablaProductosBody">
-              <!-- Carga dinámicamente desde inventario.js -->
+              <!-- Renderizado dinámicamente desde inventario.js -->
             </tbody>
           </table>
         </div>

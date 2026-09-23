@@ -9,10 +9,10 @@ const PORT = process.env.PORT || 3000;
 // hasta que alguien intente hacer una venta.
 db.query('SELECT 1')
     .then(() => {
-    console.log('Conectado a MySQL ✅');
+    console.log('Conectado a MySQL ');
     app.listen(PORT, () => console.log(`Servidor corriendo en http://localhost:${PORT}`));
     })
     .catch((err) => {
-    console.error('No se pudo conectar a MySQL ❌:', err.message);
+    console.error('No se pudo conectar a MySQL :', err.message);
     process.exit(1);
     });

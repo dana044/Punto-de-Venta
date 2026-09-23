@@ -22,16 +22,28 @@
     <aside class="sidebar">
       <div class="sidebar__brand">La Number One</div>
       <ul class="sidebar__nav" id="sidebarNav">
-        <li><a href="/empleados/nuevo" class="sidebar__link sidebar__link--active">Administrar Personal</a></li>
-        <li><a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a></li>
+        <li id="menuPersonal" hidden>
+          <a href="/empleados/nuevo" class="sidebar__link sidebar__link--active">Administrar Personal</a>
+        </li>
+        <li id="menuInventario" hidden>
+          <a href="/inventario" class="sidebar__link">Inventario</a>
+        </li>
+        <li id="menuRecepcion" hidden>
+          <a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a>
+        </li>
+        <li id="menuPos" hidden>
+          <a href="/pos" class="sidebar__link">Punto de Venta</a>
+        </li>
+        <li>
+          <a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a>
+        </li>
       </ul>
     </aside>
-
     <main class="main-content">
       <div class="page-header">
         <div>
           <h1>Gestión de Empleados</h1>
-          <p>Vincula a una persona física con su puesto, credenciales y administra sus accesos al sistema.</p>
+          <p>Vincula a una persona y administra sus accesos al sistema.</p>
         </div>
         <button type="button" class="btn btn--primary" id="btnNuevoEmpleado">+ Registrar Empleado</button>
       </div>
@@ -75,8 +87,7 @@
           <header class="stepped-card__header">
             <div>
               <strong id="formTitle">Ficha de Empleado</strong>
-              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;">Registro y edición de personal y
-                accesos</p>
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;">Registro y edición de personal</p>
             </div>
             <button type="button" id="btnCerrarModal" class="btn-close-modal">&times;</button>
           </header>
@@ -96,16 +107,17 @@
             </section>
 
             <section class="stepped-card__section">
-              <p><span class="step-badge">2</span><strong>Puesto y Rol de Acceso</strong></p>
+              <p><span class="step-badge">2</span><strong>Puesto</strong></p>
               <div class="field-row" style="margin-top: 1rem;">
+                <!-- Agregamos el campo puesto que faltaba -->
                 <div class="form-group">
-                  <label class="form-label" for="puesto">Puesto en tienda</label>
-                  <input type="text" id="puesto" class="form-input" placeholder="Cajera Mostrador" required />
+                  <label class="form-label" for="puesto">Nombre del Puesto</label>
+                  <input type="text" id="puesto" class="form-input" placeholder="Ej. Gerente de Ventas" />
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="role">Rol asignado</label>
+                  <label class="form-label" for="role">Rol en Sistema</label>
                   <select id="role" class="form-select" required>
-                    <option value="" disabled selected>Selecciona un rol...</option>
+                    <option value="" disabled selected>Selecciona un rol</option>
                     <option value="administrador">Administrador</option>
                     <option value="cajero">Cajero</option>
                     <option value="almacenista">Almacenista</option>
@@ -120,12 +132,13 @@
                 Esta contraseña la define el administrador.
               </p>
 
+              <!-- Se unifica el ID username para el inicio de sesión -->
               <div class="form-group">
-                <label class="form-label" for="username">Usuario de acceso</label>
-                <input type="text" id="username" class="form-input" placeholder="m.solis" required />
+                <label class="form-label" for="username">Correo Electrónico / Usuario</label>
+                <input type="email" id="username" class="form-input" placeholder="abc@uv.com" required />
               </div>
 
-              <!-- Campo nuevo: Contraseña Actual (solo visible al editar) -->
+              <!-- Contraseña Actual (solo visible al editar) -->
               <div class="form-group" id="groupOldPassword" style="display: none;">
                 <label class="form-label" for="oldPassword">Contraseña actual del usuario</label>
                 <input type="password" id="oldPassword" class="form-input"

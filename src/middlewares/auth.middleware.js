@@ -1,27 +1,26 @@
 /**
  * @file auth.middleware.js
- * @description Middleware de autorización y control de acceso basado en roles (HU-03).
+ * @description Middleware de autorizacion y control de acceso basado en roles.
  * Protege las rutas verificando el rol del usuario antes de permitir el paso al controlador.
- * @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
  */
 
 /**
- * Genera un middleware de Express para restringir el acceso a roles específicos.
+ * Genera un middleware de Express para restringir el acceso a roles especificos.
  *
  * @function permitirRoles
- * @param {...string} rolesPermitidos - Lista de roles autorizados para el recurso (ej. 'administrador', 'almacenista').
+ * @param {...string} rolesPermitidos - Lista de roles autorizados para el recurso.
  * @returns {function(import('express').Request, import('express').Response, import('express').NextFunction): (Object|void)} 
- * Función middleware de Express que autoriza la petición o retorna una respuesta con estado HTTP 401 o 403.
- * @throws {Error} Retorna un JSON 401 si no se envía la cabecera de rol o 403 si el rol no tiene privilegios.
+ * Funcion middleware de Express que autoriza la peticion o retorna estado HTTP 401 o 403.
+ * @throws {Error} Retorna JSON 401 si no se envia la cabecera de rol o 403 si el rol carece de privilegios.
  */
 const permitirRoles = (...rolesPermitidos) => {
   return (req, res, next) => {
-    /** @type {string|undefined} Rol enviado en las cabeceras HTTP de la petición */
+    /** @type {string|undefined} Rol enviado en las cabeceras HTTP o en el cuerpo */
     const rolUsuario = req.headers['x-user-role'] || req.body.userRole;
 
     if (!rolUsuario) {
       return res.status(401).json({
-        mensaje: 'Acceso no autenticado. Inicia sesión para continuar.'
+        mensaje: 'Acceso no autenticado. Inicia sesion para continuar.'
       });
     }
 

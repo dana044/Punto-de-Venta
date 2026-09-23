@@ -1,25 +1,13 @@
 /**
  * @file inventario.js
- * @description Controlador del lado del cliente para la vista de inventario.
+ * @description Controlador del lado del cliente para la gestión de inventario y proveedores (Unificado).
  */
 
-/**
- * Ruta base de la API para el recurso de productos.
- * @constant {string}
- */
-const API_INVENTARIO = '/api/inventory/productos';
-
-/**
- * Ruta base de la API para el catálogo de distribuidores.
- * @constant {string}
- */
+const API_PRODUCTOS = '/api/inventory/productos';
 const API_PROVEEDORES = '/api/inventory/proveedores';
 
 document.addEventListener('DOMContentLoaded', () => {
-  /** @type {string|null} Rol de usuario almacenado durante la autenticación */
   const userRole = localStorage.getItem('userRole');
-
-  /** @type {string|null} Token de sesión almacenado */
   const token = localStorage.getItem('token');
 
   // Validación de sesión
@@ -28,75 +16,92 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Restricción de acceso para rol cajero
+  // Restricción de acceso
   if (userRole === 'cajero') {
     alert('Acceso no autorizado para tu rol.');
     window.location.href = '/pos';
     return;
   }
 
-  //Despliegue condicional de módulos en la barra lateral
-  if (userRole === 'administrador') {
-    const menuAdmin = document.getElementById('menuAdmin');
-    const menuPos = document.getElementById('menuPos');
-    if (menuAdmin) menuAdmin.hidden = false;
-    if (menuPos) menuPos.hidden = false;
-  }
+  // Configuración de interfaz según rol
+  configurarMenuPorRol(userRole);
 
-  /**
-   * Listener para el cierre de sesión del usuario.
-   */
-  document.getElementById('btnLogout').addEventListener('click', (e) => {
+  document.getElementById('btnLogout')?.addEventListener('click', (e) => {
     e.preventDefault();
     localStorage.clear();
     window.location.href = '/login';
   });
 
-  const formulario = document.getElementById('productForm');
-  const alerta = document.getElementById('modalAlertMessage'); 
-  const btnSubmit = document.getElementById('submitBtn');
-  const proveedoresContainer = document.getElementById('proveedoresContainer');
-  const tablaProductosBody = document.getElementById('tablaProductosBody');
-  const inputBuscar = document.getElementById('buscarProducto');
-  const contadorProductos = document.getElementById('productosCount');
-  
+  // Referencias al DOM
   const modalOverlay = document.getElementById('modalOverlay');
   const btnNuevoProducto = document.getElementById('btnNuevoProducto');
   const btnCerrarModal = document.getElementById('btnCerrarModal');
   const cancelarBtn = document.getElementById('cancelarBtn');
-
+  const productForm = document.getElementById('productForm');
+  const modalAlert = document.getElementById('modalAlertMessage');
+  const btnSubmit = document.getElementById('submitBtn');
+  const proveedoresContainer = document.getElementById('proveedoresContainer');
+  const tablaBody = document.getElementById('tablaProductosBody');
+  const productosCount = document.getElementById('productosCount');
+  const buscarInput = document.getElementById('buscarProducto');
   const chkMostrarInactivos = document.getElementById('chkMostrarInactivos');
 
+  // Funciones del Modal
   const toggleModal = (mostrar) => {
     modalOverlay.style.display = mostrar ? 'flex' : 'none';
     if (!mostrar) {
-      formulario.reset();
-      alerta.hidden = true;
+      productForm.reset();
+      ocultarAlerta();
     }
   };
 
-  btnNuevoProducto.addEventListener('click', () => toggleModal(true));
-  btnCerrarModal.addEventListener('click', () => toggleModal(false));
-  cancelarBtn.addEventListener('click', () => toggleModal(false));
+  btnNuevoProducto?.addEventListener('click', () => toggleModal(true));
+  btnCerrarModal?.addEventListener('click', () => toggleModal(false));
+  cancelarBtn?.addEventListener('click', () => toggleModal(false));
 
+  // Carga inicial
   cargarProveedores();
-  cargarListaProductos();
+  cargarProductos();
 
   /**
-   * Consulta la API y renderiza los checkboxes de los distribuidores disponibles.
-   *
-   * @async
-   * @function cargarProveedores
-   * @returns {Promise<void>}
+   * Configura la visibilidad del menú lateral dependiendo del rol del usuario.
+   */
+  function configurarMenuPorRol(rol) {
+    const menuPersonal = document.getElementById('menuPersonal');
+    const menuInventario = document.getElementById('menuInventario');
+    const menuRecepcion = document.getElementById('menuRecepcion');
+    const menuPos = document.getElementById('menuPos');
+
+    if (rol === 'administrador') {
+      menuPersonal?.removeAttribute('hidden');
+      menuInventario?.removeAttribute('hidden');
+      menuRecepcion?.removeAttribute('hidden');
+      menuPos?.removeAttribute('hidden');
+    } else if (rol === 'almacenista') {
+      if (menuPersonal) menuPersonal.hidden = true;
+      menuInventario?.removeAttribute('hidden');
+      menuRecepcion?.removeAttribute('hidden');
+      if (menuPos) menuPos.hidden = true;
+    }
+  }
+
+  /**
+   * Carga la lista de proveedores para el formulario de registro.
    */
   async function cargarProveedores() {
     try {
       const res = await fetch(API_PROVEEDORES, { headers: { 'x-user-role': userRole } });
       const data = await res.json();
 
-      if (res.ok && data.proveedores) {
-        if (!proveedoresContainer) return; 
+      if (res.ok && Array.isArray(data.proveedores)) {
+        if (!proveedoresContainer) return;
         proveedoresContainer.innerHTML = '';
+        
+        if (data.proveedores.length === 0) {
+          proveedoresContainer.innerHTML = '<span class="text-muted">No hay distribuidores registrados.</span>';
+          return;
+        }
+
         data.proveedores.forEach((prov) => {
           const label = document.createElement('label');
           label.style.display = 'flex';
@@ -116,139 +121,137 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Consulta la API para obtener los productos activos y los renderiza en la tabla.
-   *
-   * @async
-   * @function cargarListaProductos
-   * @returns {Promise<void>}
+   * Carga los productos uniendo la búsqueda y el filtro de inactivos.
    */
-  async function cargarListaProductos() {
-    // Agrega el parámetro inactivos a la URL si el checkbox está marcado
-    const queryInactivos = chkMostrarInactivos.checked ? '?inactivos=true' : '';
+  async function cargarProductos(termino = '') {
     try {
-      const res = await fetch(`${API_INVENTARIO}${queryInactivos}`, { headers: { 'x-user-role': userRole } });
-      const data = await res.json();
+      let url = termino 
+        ? `/api/inventory/productos/buscar?q=${encodeURIComponent(termino)}` 
+        : API_PRODUCTOS;
       
-      if (res.ok) renderizarTabla(data.productos || []);
-      else tablaProductosBody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color: red;">Error: ${data.mensaje}</td></tr>`;
-    } catch (err) {
-      tablaProductosBody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color: red;">Error de conexión.</td></tr>`;
+      const queryInactivos = chkMostrarInactivos?.checked ? 'inactivos=true' : '';
+      if (queryInactivos) {
+        url += url.includes('?') ? `&${queryInactivos}` : `?${queryInactivos}`;
+      }
+
+      const res = await fetch(url, { headers: { 'x-user-role': userRole } });
+      const data = await res.json();
+
+      if (res.ok && Array.isArray(data.productos)) {
+        renderizarTabla(data.productos);
+      } else {
+        tablaBody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color: red; text-align:center;">Error: ${data.mensaje || 'Datos no válidos'}</td></tr>`;
+      }
+    } catch (error) {
+      console.error('Error al renderizar catálogo:', error);
+      tablaBody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color: red; text-align:center;">Error de conexión.</td></tr>`;
     }
   }
 
   /**
-   * Inyecta las filas HTML en el cuerpo de la tabla en base a la lista de productos.
-   *
-   * @function renderizarTabla
-   * @param {Array<Object>} lista - Arreglo de productos a renderizar.
+   * Dibuja los elementos en el cuerpo de la tabla.
    */
   function renderizarTabla(lista) {
-    tablaProductosBody.innerHTML = '';
-    contadorProductos.textContent = `${lista.length} producto(s) ${chkMostrarInactivos.checked ? 'inactivos' : 'activos'}`;
+    tablaBody.innerHTML = '';
+    const textoEstado = chkMostrarInactivos?.checked ? 'incluyendo inactivos' : 'activos';
+    productosCount.textContent = `${lista.length} producto(s) ${textoEstado}`;
 
     if (lista.length === 0) {
-      tablaProductosBody.innerHTML = `<tr><td colspan="6" class="empty-state">No se encontraron productos.</td></tr>`;
+      tablaBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No se encontraron productos.</td></tr>`;
       return;
     }
 
-    lista.forEach(prod => {
-      const tr = document.createElement('tr');
-      
-      // Lógica visual: Si está inactivo, mostrar badge gris/rojo y botón de reactivar
-      const badgeHTML = prod.activo 
-        ? `<span class="badge badge--success">${prod.categoria || 'Sin categoría'}</span>`
+    lista.forEach((p) => {
+      const fila = document.createElement('tr');
+      const opacidad = p.activo === false ? 'opacity: 0.6;' : ''; // Manejar posible estado undefined
+      const inactivo = p.activo === false;
+
+      const badgeHTML = !inactivo 
+        ? `<span class="badge badge--success">${p.categoria || 'General'}</span>`
         : `<span class="badge badge--danger">Inactivo</span>`;
         
-      const botonEstadoHTML = prod.activo
-        ? `<button class="btn-icon-delete btn-desactivar" data-id="${prod.id}" title="Desactivar" style="background-color: #FEF3C7; color: #B45309;">Desactivar</button>`
-        : `<button class="btn-icon-delete btn-activar" data-id="${prod.id}" title="Reactivar" style="background-color: #E6F0EF; color: var(--color-primary);">Reactivar</button>`;
+      const botonEstadoHTML = !inactivo
+        ? `<button class="btn-icon-delete btn-desactivar" data-id="${p.id}" title="Desactivar" style="background-color: #FEF3C7; color: #B45309;">Desactivar</button>`
+        : `<button class="btn-icon-delete btn-activar" data-id="${p.id}" title="Reactivar" style="background-color: #E6F0EF; color: var(--color-primary);">Reactivar</button>`;
 
-      tr.innerHTML = `
-        <td style="${!prod.activo ? 'opacity: 0.6;' : ''}">${prod.codigo_barras || 'N/A'}</td>
-        <td style="${!prod.activo ? 'opacity: 0.6;' : ''}">${prod.nombre}</td>
-        <td>${badgeHTML}</td>
-        <td style="${!prod.activo ? 'opacity: 0.6;' : ''}">$${Number(prod.precio).toFixed(2)}</td>
-        <td style="${!prod.activo ? 'opacity: 0.6;' : ''}">${prod.stock_almacen !== undefined ? prod.stock_almacen : 0}</td>
+      fila.innerHTML = `
+        <td style="${opacidad}"><code>${p.codigo_barras || 'N/A'}</code></td>
+        <td style="${opacidad}">
+          <strong>${p.nombre}</strong><br/>
+          <small class="text-muted">${p.presentacion || ''} ${p.unidad_medida ? `(${p.unidad_medida})` : ''}</small>
+        </td>
+        <td style="${opacidad}">${badgeHTML}</td>
+        <td style="${opacidad}">$${Number(p.precio).toFixed(2)}</td>
+        <td style="${opacidad}">${p.stock_almacen !== undefined ? p.stock_almacen : 0}</td>
+        <td style="${opacidad}">
+          <small class="text-muted">${p.proveedores_nombres || 'Sin proveedor'}</small>
+        </td>
         <td class="actions-cell">
           <button class="btn-icon-edit" title="Editar">Editar</button>
           ${botonEstadoHTML}
-          <button class="btn-icon-delete btn-eliminar" data-id="${prod.id}" title="Eliminar">Eliminar</button>
+          <button class="btn-icon-delete btn-eliminar" data-id="${p.id}" title="Eliminar">Eliminar</button>
         </td>
       `;
-      tablaProductosBody.appendChild(tr);
+      tablaBody.appendChild(fila);
     });
   }
 
-  /**
-   * Manejador de evento para filtrar productos en tiempo real.
-   */
-  inputBuscar.addEventListener('input', async (e) => {
-    const query = e.target.value.trim();
-    if (query === '') {
-      cargarListaProductos();
-      return;
-    }
-    const queryInactivos = chkMostrarInactivos.checked ? '&inactivos=true' : '';
-    try {
-      const res = await fetch(`/api/inventory/productos/buscar?q=${encodeURIComponent(query)}${queryInactivos}`, { headers: { 'x-user-role': userRole } });
-      const data = await res.json();
-      if (res.ok) renderizarTabla(data.productos || []);
-    } catch (error) {
-      console.error('Error en búsqueda:', error);
-    }
+  // Listeners de filtros
+  buscarInput?.addEventListener('input', (e) => {
+    cargarProductos(e.target.value.trim());
   });
 
-  // Escuchar el cambio en el checkbox para recargar la tabla
-  chkMostrarInactivos.addEventListener('change', () => {
-    cargarListaProductos();
-    // Si hay algo escrito en el buscador, lo limpiamos para evitar confusiones
-    inputBuscar.value = ''; 
+  chkMostrarInactivos?.addEventListener('change', () => {
+    cargarProductos(buscarInput.value.trim());
   });
 
-  /**
-   * Manejador de evento para el envío del formulario de registro de producto.
-   */
-  formulario.addEventListener('submit', async (e) => {
+  // Guardado de formulario
+  productForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const checkboxes = document.querySelectorAll('input[name="proveedor"]:checked');
-    const proveedoresSeleccionados = Array.from(checkboxes).map((cb) => cb.value);
+
+    const checks = document.querySelectorAll('input[name="proveedor"]:checked');
+    const proveedoresSeleccionados = Array.from(checks).map((cb) => Number(cb.value));
 
     if (proveedoresSeleccionados.length === 0) {
       mostrarAlerta('Debes asociar al menos un distribuidor al producto.', 'error');
-      return; 
+      return;
     }
 
-    const productoData = {
+    const payload = {
       nombre: document.getElementById('nombreProducto').value.trim(),
       codigo_barras: document.getElementById('codigoBarras').value.trim(),
       categoria: document.getElementById('categoria').value.trim(),
       presentacion: document.getElementById('presentacion').value.trim(),
       unidad_medida: document.getElementById('unidadMedida').value,
       precio: parseFloat(document.getElementById('precio').value),
-      stock_almacen: parseInt(document.getElementById('stock').value),
+      stock_almacen: parseInt(document.getElementById('stock').value, 10) || 0,
       proveedoresIds: proveedoresSeleccionados
     };
 
     btnSubmit.disabled = true;
     btnSubmit.textContent = 'Guardando...';
-    alerta.hidden = true;
+    ocultarAlerta();
 
     try {
-      const respuesta = await fetch(API_INVENTARIO, {
+      const res = await fetch(API_PRODUCTOS, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
-        body: JSON.stringify(productoData)
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': userRole
+        },
+        body: JSON.stringify(payload)
       });
-      const datos = await respuesta.json();
 
-      if (respuesta.ok) {
-        mostrarAlerta('Producto registrado exitosamente.', 'success');
-        cargarListaProductos(); 
-        setTimeout(() => toggleModal(false), 1500); 
+      const data = await res.json();
+
+      if (res.ok) {
+        mostrarAlerta(data.mensaje || 'Producto registrado exitosamente.', 'success');
+        cargarProductos(buscarInput?.value.trim());
+        setTimeout(() => toggleModal(false), 1200);
       } else {
-        mostrarAlerta(datos.mensaje || 'Error al registrar el producto.', 'error');
+        mostrarAlerta(data.mensaje || 'Error al registrar el producto.', 'error');
       }
-    } catch (error) {
+    } catch (err) {
       mostrarAlerta('Error de comunicación con el servidor.', 'error');
     } finally {
       btnSubmit.disabled = false;
@@ -256,24 +259,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  /**
-   * Muestra mensajes informativos, de éxito o de error en el modal.
-   *
-   * @function mostrarAlerta
-   * @param {string} mensaje - Contenido textual de la notificación.
-   * @param {'success'|'error'} tipo - Variante visual de la alerta.
-   */
-  function mostrarAlerta(mensaje, tipo) {
-    alerta.textContent = mensaje;
-    alerta.className = `alert alert--${tipo}`;
-    alerta.hidden = false;
-  }
-
-  /**
-   * Manejador de eventos delegado para procesar la baja de productos.
-   * Captura los clics en los botones de acción para procesar desactivaciones o eliminaciones.
-   */
-  tablaProductosBody.addEventListener('click', async (e) => {
+  // Listener para acciones en la tabla (delegación de eventos)
+  tablaBody.addEventListener('click', async (e) => {
     const btnDesactivar = e.target.closest('.btn-desactivar');
     const btnActivar = e.target.closest('.btn-activar');
     const btnEliminar = e.target.closest('.btn-eliminar');
@@ -299,9 +286,10 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify({ accion })
         });
         const datos = await respuesta.json();
+        
         if (respuesta.ok) {
           alert(datos.mensaje);
-          cargarListaProductos(); 
+          cargarProductos(buscarInput?.value.trim()); 
         } else {
           alert(datos.mensaje || `Error al procesar la acción.`);
         }
@@ -310,4 +298,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
+
+  // Utilidades de mensajes
+  function mostrarAlerta(mensaje, tipo) {
+    modalAlert.textContent = mensaje;
+    modalAlert.className = `alert alert--${tipo}`;
+    modalAlert.hidden = false;
+  }
+
+  function ocultarAlerta() {
+    if (modalAlert) {
+      modalAlert.hidden = true;
+      modalAlert.textContent = '';
+    }
+  }
 });

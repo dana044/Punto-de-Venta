@@ -1,6 +1,6 @@
 /**
  * @file inventory.routes.js
- * @description Definición de rutas y endpoints para inventario y distribuidores.
+ * @description Definición de rutas y endpoints para el módulo de catálogo de inventario y distribuidores.
  * @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
  */
 
@@ -18,7 +18,7 @@ const { permitirRoles } = require('../middlewares/auth.middleware.js');
 router.get('/productos/buscar', inventoryController.buscarProductos);
 
 /**
- * Ruta para obtener los distribuidores disponibles.
+ * Ruta para obtener los distribuidores disponibles para selección.
  * @name get/proveedores
  * @route {GET} /api/inventory/proveedores
  */
@@ -38,7 +38,7 @@ router.post(
 );
 
 /**
- * Ruta para consultar la totalidad de productos activos.
+ * Ruta para consultar la totalidad de productos (general o filtrada).
  * @name get/productos
  * @route {GET} /api/inventory/productos
  */
@@ -46,7 +46,7 @@ router.get('/productos', inventoryController.getProducto);
 
 /**
  * Ruta para gestionar la baja de un producto mediante eliminación o desactivación.
- * Operación restringida exclusivamente para personal de inventario.
+ * Operación restringida exclusivamente para personal de inventario ('administrador', 'almacenista').
  * @name patch/productos/:id/baja
  * @route {PATCH} /api/inventory/productos/:id/baja
  */

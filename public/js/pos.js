@@ -1,7 +1,6 @@
 /**
  * @file pos.js
- * @description Controlador para calcular subtotal,
- * descuentos y total
+ * @description Controlador para calcular subtotal, descuentos y total en la venta.
  */
 
 const API_PRODUCTOS = '/api/inventory/productos';
@@ -16,12 +15,15 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  if (userRole === 'administrador') {
-    const menuAdmin = document.getElementById('menuAdmin');
-    if (menuAdmin) menuAdmin.hidden = false;
+  if (userRole === 'almacenista') {
+    alert('Acceso no autorizado para tu rol.');
+    window.location.href = '/inventario';
+    return;
   }
 
-  document.getElementById('btnLogout').addEventListener('click', (e) => {
+  configurarMenuPorRol(userRole);
+
+  document.getElementById('btnLogout')?.addEventListener('click', (e) => {
     e.preventDefault();
     localStorage.clear();
     window.location.href = '/login';
@@ -35,20 +37,35 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnAgregar = document.getElementById('btnAgregar');
   const carritoBody = document.getElementById('carritoBody');
 
-  /**
-   * Carrito en memoria del navegador.
-   * @type {Array<{productoId:number, productoNombre:string, cantidad:number, descuentoTipo:string, descuentoValor:number}>}
-   */
   let carrito = [];
-
-  /** @type {Array<Object>} Catálogo de productos cargado desde el backend. */
   let catalogo = [];
 
   cargarProductos();
 
-  /**
-   * Carga el catálogo real de productos para poblar el selector.
-   */
+  function configurarMenuPorRol(rol) {
+    const menuPersonal = document.getElementById('menuPersonal');
+    const menuInventario = document.getElementById('menuInventario');
+    const menuRecepcion = document.getElementById('menuRecepcion');
+    const menuPos = document.getElementById('menuPos');
+
+    if (rol === 'administrador') {
+      menuPersonal?.removeAttribute('hidden');
+      menuInventario?.removeAttribute('hidden');
+      menuRecepcion?.removeAttribute('hidden');
+      menuPos?.removeAttribute('hidden');
+    } else if (rol === 'almacenista') {
+      if (menuPersonal) menuPersonal.hidden = true;
+      menuInventario?.removeAttribute('hidden');
+      menuRecepcion?.removeAttribute('hidden');
+      if (menuPos) menuPos.hidden = true;
+    } else if (rol === 'cajero') {
+      if (menuPersonal) menuPersonal.hidden = true;
+      if (menuInventario) menuInventario.hidden = true;
+      if (menuRecepcion) menuRecepcion.hidden = true;
+      menuPos?.removeAttribute('hidden');
+    }
+  }
+
   async function cargarProductos() {
     try {
       const res = await fetch(API_PRODUCTOS);
@@ -65,17 +82,17 @@ document.addEventListener('DOMContentLoaded', () => {
         .map((p) => `<option value="${p.id}">${p.nombre} — $${p.precio}</option>`)
         .join('');
     } catch (err) {
-      mostrarError('No se pudo cargar el catálogo de productos.');
+      mostrarError('No se pudo cargar el catalogo de productos.');
     }
   }
 
-  btnAgregar.addEventListener('click', () => {
+  btnAgregar?.addEventListener('click', () => {
     const productoId = Number(selectProducto.value);
     const producto = catalogo.find((p) => p.id === productoId);
     const cantidad = Number(inputCantidad.value);
 
     if (!producto || !cantidad || cantidad <= 0) {
-      mostrarError('Selecciona un producto y una cantidad válida.');
+      mostrarError('Selecciona un producto y una cantidad valida.');
       return;
     }
 
@@ -93,24 +110,14 @@ document.addEventListener('DOMContentLoaded', () => {
     recalcular();
   });
 
-  /**
-   * Quita una línea del carrito por su posición y vuelve a recalcular.
-   * @param {number} index
-   */
   function quitarLinea(index) {
     carrito.splice(index, 1);
     recalcular();
   }
 
-  /**
-   * Envía el carrito actual a /api/pos/calcular (HU-27) y pinta la tabla y
-   * los totales con la respuesta del backend. Se llama cada vez que el
-   * carrito cambia (agregar o quitar un producto), tal como pide el
-   * criterio de aceptación de la historia.
-   */
   async function recalcular() {
     if (carrito.length === 0) {
-      carritoBody.innerHTML = '<tr><td colspan="6" class="text-muted">El carrito está vacío.</td></tr>';
+      carritoBody.innerHTML = '<tr><td colspan="6" class="text-muted">El carrito esta vacio.</td></tr>';
       pintarTotales({ subtotal: 0, descuentos: 0, iva: 0, total: 0 });
       return;
     }
@@ -133,14 +140,10 @@ document.addEventListener('DOMContentLoaded', () => {
       pintarCarrito(data.items);
       pintarTotales(data);
     } catch (err) {
-      mostrarError('Error de comunicación con el servidor.');
+      mostrarError('Error de comunicacion con el servidor.');
     }
   }
 
-  /**
-   * Dibuja la tabla del carrito con los importes ya calculados por el backend.
-   * @param {Array<Object>} items
-   */
   function pintarCarrito(items) {
     carritoBody.innerHTML = items
       .map((item, index) => {
@@ -156,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${etiquetaDescuento} (-$${item.descuentoLinea.toFixed(2)})</td>
             <td>$${item.totalLinea.toFixed(2)}</td>
             <td class="btn-icon-delete-cell">
-              <button class="btn-icon-delete btn-quitar-linea" data-index="${index}" title="Quitar">🗑</button>
+              <button class="btn-icon-delete btn-quitar-linea" data-index="${index}" title="Quitar">Quitar</button>
             </td>
           </tr>
         `;
@@ -168,10 +171,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /**
-   * Actualiza el resumen de subtotal, descuentos, IVA y total.
-   * @param {{subtotal:number, descuentos:number, iva:number, total:number}} totales
-   */
   function pintarTotales(totales) {
     document.getElementById('totSubtotal').textContent = `$${totales.subtotal.toFixed(2)}`;
     document.getElementById('totDescuentos').textContent = `-$${totales.descuentos.toFixed(2)}`;

@@ -1,6 +1,6 @@
 /**
  * @file empleado.js
- * @description Controlador del lado del cliente para la gestión y registro de empleados (HU10 / HU04).
+ * @description Controlador del lado del cliente para la gestion y registro de empleados.
  */
 
 const API_EMPLEADOS = '/api/employees';
@@ -20,7 +20,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  document.getElementById('btnLogout').addEventListener('click', (e) => {
+  // Despliegue de accesos en el menu lateral
+  configurarMenuPorRol(userRole);
+
+  document.getElementById('btnLogout')?.addEventListener('click', (e) => {
     e.preventDefault();
     localStorage.clear();
     window.location.href = '/login';
@@ -37,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tablaBody = document.getElementById('tablaEmpleadosBody');
   const formTitle = document.getElementById('formTitle');
   const pwdHelpText = document.getElementById('pwdHelpText');
-  
+
   const inputBuscar = document.getElementById('buscarEmpleado');
   const contadorEmpleados = document.getElementById('empleadosCount');
   const groupOldPassword = document.getElementById('groupOldPassword');
@@ -55,13 +58,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function configurarMenuPorRol(rol) {
+    const menuPersonal = document.getElementById('menuPersonal');
+    const menuInventario = document.getElementById('menuInventario');
+    const menuRecepcion = document.getElementById('menuRecepcion');
+    const menuPos = document.getElementById('menuPos');
+
+    if (rol === 'administrador') {
+      menuPersonal?.removeAttribute('hidden');
+      menuInventario?.removeAttribute('hidden');
+      menuRecepcion?.removeAttribute('hidden');
+      menuPos?.removeAttribute('hidden');
+    } else if (rol === 'almacenista') {
+      if (menuPersonal) menuPersonal.hidden = true;
+      menuInventario?.removeAttribute('hidden');
+      menuRecepcion?.removeAttribute('hidden');
+      if (menuPos) menuPos.hidden = true;
+    } else if (rol === 'cajero') {
+      if (menuPersonal) menuPersonal.hidden = true;
+      if (menuInventario) menuInventario.hidden = true;
+      if (menuRecepcion) menuRecepcion.hidden = true;
+      menuPos?.removeAttribute('hidden');
+    }
+  }
+
   function mostrarModalNuevo() {
     modoEdicion = false;
     formulario.reset();
     document.getElementById('empleadoId').value = '';
     formTitle.textContent = 'Ficha de Empleado - Registro';
-    pwdHelpText.textContent = 'Esta contraseña la define el administrador.';
-    
+    pwdHelpText.textContent = 'Esta contrasena la define el administrador.';
+
     groupOldPassword.style.display = 'none';
     oldPasswordInput.required = false;
 
@@ -70,13 +97,10 @@ document.addEventListener('DOMContentLoaded', () => {
     modalOverlay.style.display = 'flex';
   }
 
-  btnNuevo.addEventListener('click', () => {
+  btnNuevo?.addEventListener('click', () => {
     mostrarModalNuevo();
   });
 
-  /**
-   * Oculta el modal de registro/edición de empleado y resetea los campos y alertas.
-   */
   const ocultarModal = () => {
     modalOverlay.style.display = 'none';
     formulario.reset();
@@ -84,8 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modalAlerta) modalAlerta.hidden = true;
   };
 
-  btnCerrarModal.addEventListener('click', ocultarModal);
-  btnCancelar.addEventListener('click', ocultarModal);
+  btnCerrarModal?.addEventListener('click', ocultarModal);
+  btnCancelar?.addEventListener('click', ocultarModal);
 
   async function cargarEmpleados() {
     try {
@@ -105,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarAlerta(data.mensaje || 'Error al obtener la lista de empleados.', 'error');
       }
     } catch (error) {
-      mostrarAlerta('Error de comunicación con el servidor.', 'error');
+      mostrarAlerta('Error de comunicacion con el servidor.', 'error');
     }
   }
 
@@ -131,62 +155,35 @@ document.addEventListener('DOMContentLoaded', () => {
     tablaBody.innerHTML = '';
 
     if (!empleados || empleados.length === 0) {
-      tablaBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No se encontraron empleados.</td></tr>`;
+      tablaBody.innerHTML = `<tr><td colspan="5" class="empty-state">No se encontraron empleados.</td></tr>`;
       return;
     }
 
     empleados.forEach((emp) => {
       const tr = document.createElement('tr');
+      const opacityStyle = emp.activo ? '' : 'opacity: 0.6;';
+      
       tr.innerHTML = `
-        <td>
+        <td style="${opacityStyle}">
           <strong>${emp.nombreCompleto}</strong>
           <div style="font-size: 0.8rem; color: #666;">${emp.puesto || 'Sin puesto'}</div>
         </td>
-        <td>${emp.username}</td>
-        <td><strong>${emp.role}</strong></td>
+        <td style="${opacityStyle}">${emp.username}</td>
+        <td style="${opacityStyle}"><strong>${emp.role}</strong></td>
         <td>
-          <span class="badge-status ${emp.activo ? 'badge-status--active' : 'badge-status--inactive'}">
+          <span class="badge ${emp.activo ? 'badge--success' : 'badge--danger'}">
             ${emp.activo ? 'Activo' : 'Inactivo'}
           </span>
         </td>
         <td class="actions-cell">
-          <button class="btn btn--secondary btn-sm btn-editar" data-id="${emp.id}">Editar</button>
-          <button class="btn ${emp.activo ? 'btn--warning' : 'btn--success'} btn-sm btn-estado" data-id="${emp.id}" data-activo="${emp.activo}">
-            ${emp.activo ? 'Desactivar' : 'Activar'}
+          <button type="button" class="btn-icon-edit btn-editar" data-id="${emp.id}" title="Editar">Editar</button>
+          <button type="button" class="btn-icon-delete btn-estado" data-id="${emp.id}" data-activo="${emp.activo}" title="${emp.activo ? 'Desactivar' : 'Reactivar'}" style="${emp.activo ? 'background-color: #FEF3C7; color: #B45309;' : 'background-color: #E6F0EF; color: var(--color-primary);'}">
+            ${emp.activo ? 'Desactivar' : 'Reactivar'}
           </button>
-          <button class="btn btn--danger btn-sm btn-eliminar" data-id="${emp.id}">Eliminar</button>
+          <button type="button" class="btn-icon-delete btn-eliminar" data-id="${emp.id}" title="Eliminar">Eliminar</button>
         </td>
       `;
       tablaBody.appendChild(tr);
-    });
-
-    asignarEventosAcciones(empleados);
-  }
-
-  function asignarEventosAcciones(empleados) {
-    document.querySelectorAll('.btn-editar').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        const id = e.target.getAttribute('data-id');
-        const emp = listaEmpleadosGlobal.find((u) => u.id == id);
-        if (emp) prepararFormularioEdicion(emp);
-      });
-    });
-
-    document.querySelectorAll('.btn-estado').forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        const id = e.target.getAttribute('data-id');
-        const activoActual = e.target.getAttribute('data-activo') === 'true';
-        await cambiarEstadoEmpleado(id, !activoActual);
-      });
-    });
-
-    document.querySelectorAll('.btn-eliminar').forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        const id = e.target.getAttribute('data-id');
-        if (confirm('¿Estás seguro de que deseas eliminar definitivamente a este empleado?')) {
-          await eliminarEmpleado(id);
-        }
-      });
     });
   }
 
@@ -198,7 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('role').value = emp.role;
     document.getElementById('username').value = emp.username;
 
-    // Mostrar el campo para ingresar la contraseña anterior
     groupOldPassword.style.display = 'block';
     oldPasswordInput.value = '';
 
@@ -208,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirmarPassword').required = false;
 
     formTitle.textContent = 'Ficha de Empleado - Editar';
-    pwdHelpText.textContent = 'Si deseas cambiar la contraseña, debes ingresar la contraseña actual.';
+    pwdHelpText.textContent = 'Si deseas cambiar la contrasena, debes ingresar la contrasena actual.';
     modalOverlay.style.display = 'flex';
   }
 
@@ -220,25 +216,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const password = document.getElementById('password').value;
     const confirmarPassword = document.getElementById('confirmarPassword').value;
 
-    // VALIDACIÓN AL EDITAR
     if (modoEdicion && password) {
       if (!oldPassword) {
-        mostrarAlerta('Debes ingresar la contraseña actual para establecer una nueva contraseña.', 'error');
+        mostrarAlerta('Debes ingresar la contrasena actual para establecer una nueva contrasena.', 'error');
         return;
       }
-      
-      // NUEVA VALIDACIÓN: Contraseña nueva igual a la anterior
+
       if (password === oldPassword) {
-        mostrarAlerta('La nueva contraseña no puede ser igual a la contraseña actual.', 'error');
+        mostrarAlerta('La nueva contrasena no puede ser igual a la contrasena actual.', 'error');
         return;
       }
 
       if (password !== confirmarPassword) {
-        mostrarAlerta('Las contraseñas nuevas no coinciden.', 'error');
+        mostrarAlerta('Las contrasenas nuevas no coinciden.', 'error');
         return;
       }
     } else if (!modoEdicion && password !== confirmarPassword) {
-      mostrarAlerta('Las contraseñas no coinciden.', 'error');
+      mostrarAlerta('Las contrasenas no coinciden.', 'error');
       return;
     }
 
@@ -263,8 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnSubmit.disabled = true;
     btnSubmit.textContent = 'Guardando...';
-    
-    // Al intentar enviar, se puede ocultar la alerta anterior
+
     if (alerta) alerta.hidden = true;
     if (modalAlerta) modalAlerta.hidden = true;
 
@@ -288,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarAlerta(datos.mensaje || 'Error al guardar el empleado.', 'error');
       }
     } catch (error) {
-      mostrarAlerta('Error de comunicación con el servidor.', 'error');
+      mostrarAlerta('Error de comunicacion con el servidor.', 'error');
     } finally {
       btnSubmit.disabled = false;
       btnSubmit.textContent = 'Guardar Empleado';
@@ -314,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarAlerta(data.mensaje || 'Error al cambiar estado.', 'error');
       }
     } catch (err) {
-      mostrarAlerta('Error de comunicación con el servidor.', 'error');
+      mostrarAlerta('Error de comunicacion con el servidor.', 'error');
     }
   }
 
@@ -333,24 +326,14 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarAlerta(data.mensaje || 'Error al eliminar empleado.', 'error');
       }
     } catch (err) {
-      mostrarAlerta('Error de comunicación con el servidor.', 'error');
+      mostrarAlerta('Error de comunicacion con el servidor.', 'error');
     }
   }
 
-  /**
-   * Muestra mensajes informativos, de éxito o de error en la interfaz.
-   * Si el modal está abierto, dirige la alerta al interior del modal.
-   *
-   * @function mostrarAlerta
-   * @param {string} mensaje - Contenido textual de la notificación.
-   * @param {'success'|'error'} tipo - Variante visual de la alerta.
-   * @returns {void}
-   */
   function mostrarAlerta(mensaje, tipo) {
     const esModalAbierto = modalOverlay && modalOverlay.style.display === 'flex';
     const objetivoAlerta = esModalAbierto ? modalAlerta : alerta;
 
-    // Ocultar la otra alerta para evitar inconsistencias visuales
     if (esModalAbierto && alerta) alerta.hidden = true;
     if (!esModalAbierto && modalAlerta) modalAlerta.hidden = true;
 
@@ -359,5 +342,38 @@ document.addEventListener('DOMContentLoaded', () => {
     objetivoAlerta.textContent = mensaje;
     objetivoAlerta.className = `alert alert--${tipo}`;
     objetivoAlerta.hidden = false;
+  }
+
+  if (tablaBody) {
+    tablaBody.addEventListener('click', async (e) => {
+      const btnEditar = e.target.closest('.btn-editar');
+      const btnEstado = e.target.closest('.btn-estado');
+      const btnEliminar = e.target.closest('.btn-eliminar');
+
+      if (btnEditar) {
+        e.preventDefault();
+        const id = btnEditar.getAttribute('data-id');
+        console.log('Clic en Editar detectado. ID:', id); // Rastreador
+        const emp = listaEmpleadosGlobal.find((u) => u.id == id);
+        if (emp) prepararFormularioEdicion(emp);
+      } 
+      
+      else if (btnEstado) {
+        e.preventDefault();
+        const id = btnEstado.getAttribute('data-id');
+        const activoActual = btnEstado.getAttribute('data-activo') === 'true';
+        console.log('Clic en Estado detectado. ID:', id, 'Activo:', activoActual); // Rastreador
+        await cambiarEstadoEmpleado(id, !activoActual);
+      } 
+      
+      else if (btnEliminar) {
+        e.preventDefault();
+        const id = btnEliminar.getAttribute('data-id');
+        console.log('Clic en Eliminar detectado. ID:', id); // Rastreador
+        if (confirm('¿Estás seguro de que deseas eliminar definitivamente a este empleado?')) {
+          await eliminarEmpleado(id);
+        }
+      }
+    });
   }
 });

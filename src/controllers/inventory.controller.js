@@ -4,7 +4,13 @@
  * @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
  */
 
-const { createProduct, getProducts, getProveedores, buscarProductos: buscarEnModelo, darDeBajaProducto } = require('../models/product.model.js');
+const { 
+  createProduct, 
+  getProducts, 
+  getProveedores, 
+  buscarProductos: buscarEnModelo, 
+  darDeBajaProducto 
+} = require('../models/product.model.js');
 
 /**
  * Procesa la solicitud para registrar un nuevo producto con distribuidores vinculados.
@@ -17,40 +23,60 @@ const { createProduct, getProducts, getProveedores, buscarProductos: buscarEnMod
  */
 const registrarProducto = async (req, res) => {
   try {
-    const newProduct = await createProduct(req.body);
+    const productData = req.body;
+    const nuevoProducto = await createProduct(productData);
+
     return res.status(201).json({
       mensaje: 'Producto registrado y distribuidores asociados exitosamente.',
-      producto: newProduct
+      producto: nuevoProducto
     });
   } catch (error) {
     console.error('Error al registrar producto:', error);
+    
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ mensaje: 'El código de barras ya está registrado en otro producto.' });
+      return res.status(409).json({
+        mensaje: 'Ya existe un producto registrado con ese código de barras.'
+      });
     }
     if (error.code === 'ER_DATA_TOO_LONG') {
-      return res.status(400).json({ mensaje: 'Un texto ingresado excede el límite de caracteres.' });
+      return res.status(400).json({ 
+        mensaje: 'Un texto ingresado excede el límite de caracteres permitidos.' 
+      });
     }
-    return res.status(500).json({ mensaje: 'Error al registrar el producto en la base de datos.' });
+    
+    return res.status(500).json({
+      mensaje: 'Error interno del servidor al registrar el producto en la base de datos.'
+    });
   }
 };
 
 /**
- * Consulta la lista general de productos registrados y activos en el sistema.
+ * Consulta la lista general de productos registrados en el sistema, soportando el filtrado por estado y búsquedas.
  *
  * @async
  * @function getProducto
- * @param {import('express').Request} req - Petición HTTP de Express.
+ * @param {import('express').Request} req - Petición HTTP de Express (soporta inactivos y q).
  * @param {import('express').Response} res - Respuesta HTTP con la colección de productos.
  * @returns {Promise<Object>} Respuesta JSON con estado 200 y la lista de productos.
  */
 const getProducto = async (req, res) => {
-  const mostrarInactivos = req.query.inactivos === 'true';
   try {
-    const lista = await getProducts(mostrarInactivos);
-    return res.status(200).json({ total: lista.length, productos: lista });
+    const mostrarInactivos = req.query.inactivos === 'true';
+    const { q } = req.query;
+    
+    const productos = q 
+      ? await buscarEnModelo(q, mostrarInactivos) 
+      : await getProducts(mostrarInactivos);
+
+    return res.status(200).json({ 
+      total: productos.length, 
+      productos 
+    });
   } catch (error) {
-    console.error('Error al obtener productos:', error);
-    return res.status(500).json({ mensaje: 'Error al obtener la lista de productos.' });
+    console.error('Error al consultar productos:', error);
+    return res.status(500).json({ 
+      mensaje: 'Error al consultar el catálogo de productos.' 
+    });
   }
 };
 
@@ -65,19 +91,21 @@ const getProducto = async (req, res) => {
  */
 const listarProveedores = async (req, res) => {
   try {
-    const lista = await getProveedores();
+    const proveedores = await getProveedores();
     return res.status(200).json({
-      total: lista.length,
-      proveedores: lista
+      total: proveedores.length,
+      proveedores
     });
   } catch (error) {
-    console.error('Error al obtener proveedores:', error);
-    return res.status(500).json({ mensaje: 'Error al obtener la lista de proveedores.' });
+    console.error('Error al listar proveedores:', error);
+    return res.status(500).json({ 
+      mensaje: 'Error al obtener la lista de proveedores.' 
+    });
   }
 };
 
 /**
- * Procesa la solicitud para buscar productos activos por coincidencias.
+ * Procesa la solicitud en un endpoint dedicado para buscar productos por coincidencias.
  *
  * @async
  * @function buscarProductos
@@ -104,7 +132,6 @@ const buscarProductos = async (req, res) => {
 
 /**
  * Procesa la solicitud para dar de baja un producto, permitiendo su eliminación o desactivación.
- * Una vez confirmada la operación, el producto quedará marcado como inactivo o será borrado definitivamente.
  *
  * @async
  * @function bajaProducto
