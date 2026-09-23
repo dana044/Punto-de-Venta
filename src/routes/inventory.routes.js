@@ -12,6 +12,13 @@ const { permitirRoles } = require('../middlewares/auth.middleware.js');
 
 /**
  * Ruta para obtener los distribuidores disponibles (HU-11).
+ * @name get/produtos/buscar
+ * @route {GET} /api/inventory/proveedores
+ */
+router.get('/productos/buscar', inventoryController.buscarProductos);
+
+/**
+ * Ruta para obtener los distribuidores disponibles (HU-11).
  * @name get/proveedores
  * @route {GET} /api/inventory/proveedores
  */

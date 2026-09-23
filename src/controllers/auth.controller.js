@@ -5,7 +5,7 @@
 const { findUserByUsername } = require('../models/user.model.js');
 
 /**
- * Valida las credenciales del usuario y devuelve el acceso según su rol (HU-02 y HU04).
+ * Valida las credenciales del usuario y devuelve el acceso según su rol.
  * @param {Object} req - Objeto de petición de Express, contiene el body con usuario, contrasena y rol.
  * @param {Object} res - Objeto de respuesta de Express.
  * @returns {Promise<Object>} Respuesta JSON con estado HTTP, mensaje y datos de sesión (o error).
@@ -22,7 +22,7 @@ const login = async (req, res) => {
       return res.status(401).json({ mensaje: 'Usuario o contraseña incorrectos.' });
     }
 
-    /** Criterio HU04: Si la cuenta está desactivada, no permitir el inicio de sesión */
+    /** Si la cuenta está desactivada, no permitir el inicio de sesión */
     if (!user.activo) {
       return res.status(403).json({ mensaje: 'Esta cuenta ha sido desactivada. Contacta al administrador.' });
     }

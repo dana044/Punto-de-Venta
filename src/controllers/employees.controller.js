@@ -1,6 +1,6 @@
 /**
  * @file employees.controller.js
- * @description Controlador para el alta de empleados y sus credenciales de acceso (HU10) y administración de cuentas (HU04).
+ * @description Controlador para el alta de empleados y sus credenciales de acceso y administración de cuentas.
  */
 
 const { 
@@ -15,7 +15,7 @@ const {
 
 /**
  * Registra un nuevo empleado vinculando su nombre, puesto y credenciales
- * de acceso (HU10). Solo debe llegar aquí una petición que ya pasó por
+ * de acceso. Solo debe llegar aquí una petición que ya pasó por
  * permitirRoles('administrador') y validateEmployee.
  *
  * @function registrarEmpleado
@@ -72,7 +72,7 @@ const listarEmpleados = async (req, res) => {
 };
 
 /**
- * Actualiza los datos generales de un empleado (HU04).
+ * Actualiza los datos generales de un empleado.
  *
  * @function actualizarEmpleado
  * @param {import('express').Request} req - Petición HTTP con los datos a actualizar en el body y el ID en params.
@@ -121,7 +121,7 @@ const actualizarEmpleado = async (req, res) => {
 };
 
 /**
- * Activa o desactiva la cuenta de un empleado (HU04).
+ * Activa o desactiva la cuenta de un empleado.
  *
  * @function cambiarEstadoEmpleado
  * @param {import('express').Request} req - Petición HTTP con el parámetro `activo` en el body.
@@ -150,7 +150,7 @@ const cambiarEstadoEmpleado = async (req, res) => {
 };
 
 /**
- * Elimina definitivamente la cuenta de un empleado (HU04).
+ * Elimina definitivamente la cuenta de un empleado.
  *
  * @function eliminarEmpleado
  * @param {import('express').Request} req - Petición HTTP con el ID del empleado en los parámetros.
