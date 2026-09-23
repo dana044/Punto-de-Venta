@@ -39,6 +39,7 @@ CREATE TABLE productos (
   id              INT AUTO_INCREMENT PRIMARY KEY,
   nombre          VARCHAR(150) NOT NULL,
   codigo_barras   VARCHAR(50) NOT NULL UNIQUE,
+  categoria       VARCHAR(100),
   presentacion    VARCHAR(50),
   unidad_medida   VARCHAR(50),
   precio          DECIMAL(10,2) NOT NULL,

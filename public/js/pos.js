@@ -179,6 +179,30 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('totTotal').textContent = `$${totales.total.toFixed(2)}`;
   }
 
+  function configurarMenuPorRol(rol) {
+  const menuPersonal = document.getElementById('menuPersonal');
+  const menuInventario = document.getElementById('menuInventario');
+  const menuRecepcion = document.getElementById('menuRecepcion');
+  const menuPos = document.getElementById('menuPos');
+
+  if (rol === 'administrador') {
+    menuPersonal?.removeAttribute('hidden');
+    menuInventario?.removeAttribute('hidden');
+    menuRecepcion?.removeAttribute('hidden');
+    menuPos?.removeAttribute('hidden');
+  } else if (rol === 'almacenista') {
+    if (menuPersonal) menuPersonal.hidden = true;
+    menuInventario?.removeAttribute('hidden');
+    menuRecepcion?.removeAttribute('hidden');
+    if (menuPos) menuPos.hidden = true;
+  } else if (rol === 'cajero') {
+    if (menuPersonal) menuPersonal.hidden = true;
+    if (menuInventario) menuInventario.hidden = true;
+    if (menuRecepcion) menuRecepcion.hidden = true;
+    menuPos?.removeAttribute('hidden');
+  }
+}
+
   function mostrarError(mensaje) {
     alerta.textContent = mensaje;
     alerta.hidden = false;

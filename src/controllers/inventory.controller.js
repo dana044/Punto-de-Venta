@@ -1,103 +1,95 @@
 /**
  * @file inventory.controller.js
- * @description Controlador para la gestión de productos y distribuidores en inventario.
- * @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
+ * @description Controlador HTTP para inventario y distribuidores vinculados (HU-06 y HU-11).
  */
 
-const { createProduct, getProducts, getProveedores, buscarProductos: buscarEnModelo } = require('../models/product.model.js');
+const {
+  createProduct,
+  getProducts,
+  getProveedores,
+  buscarProductos
+} = require('../models/product.model.js');
 
 /**
- * Procesa la solicitud para registrar un nuevo producto con distribuidores vinculados (HU-06 y HU-11).
+ * Registra un producto y asocia distribuidores en la base de datos (HU-11).
+ *
+ * @async
+ * @function registrarProducto
+ * @param {import('express').Request} req - Petición con los datos del producto.
+ * @param {import('express').Response} res - Respuesta HTTP.
  */
 const registrarProducto = async (req, res) => {
   try {
-    const newProduct = await createProduct(req.body);
+    const productData = req.body;
+    const nuevoProducto = await createProduct(productData);
+
     return res.status(201).json({
-      mensaje: 'Producto registrado exitosamente.',
-      producto: newProduct
+      mensaje: 'Producto registrado y distribuidores asociados exitosamente.',
+      producto: nuevoProducto
     });
   } catch (error) {
-    console.error('Error al registrar producto:', error);
-
-    // Traducción de errores de MySQL a mensajes amigables para el usuario
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ 
-        mensaje: 'El código de barras ingresado ya está registrado en otro producto.' 
+      return res.status(409).json({
+        mensaje: 'Ya existe un producto registrado con ese código de barras.'
       });
     }
-    
-    if (error.code === 'ER_DATA_TOO_LONG') {
-      return res.status(400).json({ 
-        mensaje: 'Uno de los textos ingresados excede el límite de caracteres permitidos por la base de datos.' 
-      });
-    }
-
-    if (error.code === 'ER_TRUNCATED_WRONG_VALUE_FOR_FIELD' || error.code === 'ER_WARN_DATA_OUT_OF_RANGE') {
-      return res.status(400).json({ 
-        mensaje: 'Se ingresó un tipo de dato incorrecto (ej. letras en un campo numérico o un precio negativo).' 
-      });
-    }
-
-    // Mensaje de respaldo por si es un error de conexión u otro fallo no contemplado
-    return res.status(500).json({ 
-      mensaje: 'Error interno del servidor al procesar la solicitud.' 
+    console.error('Error al registrar producto:', error);
+    return res.status(500).json({
+      mensaje: 'Error interno del servidor al registrar el producto.'
     });
   }
 };
 
 /**
- * Consulta la lista general de productos registrados en el sistema.
+ * Obtiene los productos con soporte para búsqueda opcional por querystring (?q=...) (HU-09).
+ *
+ * @async
+ * @function getProducto
+ * @param {import('express').Request} req - Petición con parámetro opcional req.query.q.
+ * @param {import('express').Response} res - Respuesta con listado de productos.
  */
 const getProducto = async (req, res) => {
   try {
-    const lista = await getProducts();
+    const { q } = req.query;
+    const productos = q ? await buscarProductos(q) : await getProducts();
+
     return res.status(200).json({
-      total: lista.length,
-      productos: lista
+      total: productos.length,
+      productos
     });
   } catch (error) {
-    console.error('Error al obtener productos:', error);
-    return res.status(500).json({ mensaje: 'Error al obtener la lista de productos.' });
+    console.error('Error al consultar productos:', error);
+    return res.status(500).json({
+      mensaje: 'Error al consultar el catálogo de productos.'
+    });
   }
 };
 
 /**
- * Consulta el catálogo de proveedores disponibles para su asociación (HU-11).
+ * Retorna todos los proveedores disponibles para el selector múltiple (HU-11).
+ *
+ * @async
+ * @function listarProveedores
+ * @param {import('express').Request} req - Petición HTTP.
+ * @param {import('express').Response} res - Respuesta HTTP con array de distribuidores.
  */
 const listarProveedores = async (req, res) => {
   try {
-    const lista = await getProveedores();
+    const proveedores = await getProveedores();
     return res.status(200).json({
-      total: lista.length,
-      proveedores: lista
+      total: proveedores.length,
+      proveedores
     });
   } catch (error) {
-    console.error('Error al obtener proveedores:', error);
-    return res.status(500).json({ mensaje: 'Error al obtener la lista de proveedores.' });
-  }
-};
-
-/**
- * Procesa la solicitud de búsqueda de productos por término (HU-09).
- */
-const buscarProductos = async (req, res) => {
-  const termino = req.query.q;
-  if (!termino) {
-    return res.status(400).json({ mensaje: 'Término de búsqueda requerido' });
-  }
-
-  try {
-    const resultados = await buscarEnModelo(termino);
-    return res.status(200).json({ productos: resultados });
-  } catch (error) {
-    console.error('Error al buscar productos:', error);
-    return res.status(500).json({ mensaje: 'Error interno al buscar productos' });
+    console.error('Error al listar proveedores:', error);
+    return res.status(500).json({
+      mensaje: 'Error al obtener la lista de proveedores.'
+    });
   }
 };
 
 module.exports = {
   registrarProducto,
   getProducto,
-  listarProveedores,
-  buscarProductos
+  listarProveedores
 };

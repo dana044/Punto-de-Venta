@@ -25,16 +25,26 @@
 </head>
 <body>
   <div class="app-container">
-    <aside class="sidebar">
-      <div class="sidebar__brand">Punto de Venta UV</div>
-      <ul class="sidebar__nav" id="sidebarNav">
-        <li><a href="/inventario" class="sidebar__link">Inventario</a></li>
-        <li><a href="/recepcion" class="sidebar__link sidebar__link--active">Recepción de Mercancía</a></li>
-        <li><a href="/pos" class="sidebar__link">Punto de Venta</a></li>
-        <li id="menuAdmin" hidden><a href="/dashboard-admin" class="sidebar__link">Administración</a></li>
-        <li><a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a></li>
-      </ul>
-    </aside>
+  <aside class="sidebar">
+        <div class="sidebar__brand">La Number One</div>
+        <ul class="sidebar__nav" id="sidebarNav">
+          <li id="menuPersonal" hidden>
+            <a href="/empleados/nuevo" class="sidebar__link">Administrar Personal</a>
+          </li>
+          <li id="menuInventario" hidden>
+            <a href="/inventario" class="sidebar__link">Inventario</a>
+          </li>
+          <li id="menuRecepcion" hidden>
+            <a href="/recepcion" class="sidebar__link sidebar__link--active">Recepción de Mercancía</a>
+          </li>
+          <li id="menuPos" hidden>
+            <a href="/pos" class="sidebar__link">Punto de Venta</a>
+          </li>
+          <li>
+            <a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a>
+          </li>
+        </ul>
+      </aside>
 
     <main class="main-content">
       <h1>Recepción de Mercancía en Almacén</h1>
