@@ -42,8 +42,13 @@
               <h2>Catálogo de Productos</h2>
               <span class="table-card__count" id="productosCount">&nbsp;</span>
             </div>
-            <div class="table-search">
-              <input type="text" id="buscarProducto" placeholder="Buscar por nombre, código o categoría..." />
+            <div style="display: flex; gap: 1rem; align-items: center;">
+              <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                <input type="checkbox" id="chkMostrarInactivos"> Ver inactivos
+              </label>
+              <div class="table-search">
+                <input type="text" id="buscarProducto" placeholder="Buscar por nombre, código o categoría..." />
+              </div>
             </div>
           </div>
 

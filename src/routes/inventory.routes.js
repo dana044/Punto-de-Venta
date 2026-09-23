@@ -11,22 +11,22 @@ const { validateProduct } = require('../middlewares/validate.middleware.js');
 const { permitirRoles } = require('../middlewares/auth.middleware.js');
 
 /**
- * Ruta para obtener los distribuidores disponibles (HU-11).
- * @name get/produtos/buscar
- * @route {GET} /api/inventory/proveedores
+ * Ruta para buscar y filtrar productos.
+ * @name get/productos/buscar
+ * @route {GET} /api/inventory/productos/buscar
  */
 router.get('/productos/buscar', inventoryController.buscarProductos);
 
 /**
- * Ruta para obtener los distribuidores disponibles (HU-11).
+ * Ruta para obtener los distribuidores disponibles.
  * @name get/proveedores
  * @route {GET} /api/inventory/proveedores
  */
 router.get('/proveedores', inventoryController.listarProveedores);
 
 /**
- * Ruta para registrar un producto y asociar distribuidores (HU-03, HU-06 y HU-11).
- * Restringido a los roles 'administrador' y 'almacenista'[cite: 1, 2].
+ * Ruta para registrar un producto y asociar distribuidores.
+ * Restringido a los roles 'administrador' y 'almacenista'.
  * @name post/productos
  * @route {POST} /api/inventory/productos
  */
@@ -38,10 +38,22 @@ router.post(
 );
 
 /**
- * Ruta para consultar la totalidad de productos.
+ * Ruta para consultar la totalidad de productos activos.
  * @name get/productos
  * @route {GET} /api/inventory/productos
  */
 router.get('/productos', inventoryController.getProducto);
+
+/**
+ * Ruta para gestionar la baja de un producto mediante eliminación o desactivación.
+ * Operación restringida exclusivamente para personal de inventario.
+ * @name patch/productos/:id/baja
+ * @route {PATCH} /api/inventory/productos/:id/baja
+ */
+router.patch(
+  '/productos/:id/baja', 
+  permitirRoles('administrador', 'almacenista'), 
+  inventoryController.bajaProducto
+);
 
 module.exports = router;

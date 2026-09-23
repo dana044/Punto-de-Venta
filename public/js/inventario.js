@@ -3,11 +3,23 @@
  * @description Controlador del lado del cliente para la vista de inventario.
  */
 
+/**
+ * Ruta base de la API para el recurso de productos.
+ * @constant {string}
+ */
 const API_INVENTARIO = '/api/inventory/productos';
+
+/**
+ * Ruta base de la API para el catálogo de distribuidores.
+ * @constant {string}
+ */
 const API_PROVEEDORES = '/api/inventory/proveedores';
 
 document.addEventListener('DOMContentLoaded', () => {
+  /** @type {string|null} Rol de usuario almacenado durante la autenticación */
   const userRole = localStorage.getItem('userRole');
+
+  /** @type {string|null} Token de sesión almacenado */
   const token = localStorage.getItem('token');
 
   // Validación de sesión
@@ -16,14 +28,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // HU-03: Restricción de acceso
+  // Restricción de acceso para rol cajero
   if (userRole === 'cajero') {
-    alert('Acceso no autorizado para tu rol (HU-03).');
+    alert('Acceso no autorizado para tu rol.');
     window.location.href = '/pos';
     return;
   }
 
-  // HU-03: Despliegue condicional de módulos
+  //Despliegue condicional de módulos en la barra lateral
   if (userRole === 'administrador') {
     const menuAdmin = document.getElementById('menuAdmin');
     const menuPos = document.getElementById('menuPos');
@@ -31,13 +43,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (menuPos) menuPos.hidden = false;
   }
 
+  /**
+   * Listener para el cierre de sesión del usuario.
+   */
   document.getElementById('btnLogout').addEventListener('click', (e) => {
     e.preventDefault();
     localStorage.clear();
     window.location.href = '/login';
   });
 
-  // Elementos del DOM
   const formulario = document.getElementById('productForm');
   const alerta = document.getElementById('modalAlertMessage'); 
   const btnSubmit = document.getElementById('submitBtn');
@@ -46,13 +60,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputBuscar = document.getElementById('buscarProducto');
   const contadorProductos = document.getElementById('productosCount');
   
-  // Elementos del Modal
   const modalOverlay = document.getElementById('modalOverlay');
   const btnNuevoProducto = document.getElementById('btnNuevoProducto');
   const btnCerrarModal = document.getElementById('btnCerrarModal');
   const cancelarBtn = document.getElementById('cancelarBtn');
 
-  // Lógica del Modal
+  const chkMostrarInactivos = document.getElementById('chkMostrarInactivos');
+
   const toggleModal = (mostrar) => {
     modalOverlay.style.display = mostrar ? 'flex' : 'none';
     if (!mostrar) {
@@ -65,23 +79,23 @@ document.addEventListener('DOMContentLoaded', () => {
   btnCerrarModal.addEventListener('click', () => toggleModal(false));
   cancelarBtn.addEventListener('click', () => toggleModal(false));
 
-  // Cargar datos iniciales
   cargarProveedores();
   cargarListaProductos();
 
-  // -----------------------------------------------------
-  // Cargar Proveedores (Checkboxes)
-  // -----------------------------------------------------
+  /**
+   * Consulta la API y renderiza los checkboxes de los distribuidores disponibles.
+   *
+   * @async
+   * @function cargarProveedores
+   * @returns {Promise<void>}
+   */
   async function cargarProveedores() {
     try {
-      const res = await fetch(API_PROVEEDORES, {
-        headers: { 'x-user-role': userRole }
-      });
+      const res = await fetch(API_PROVEEDORES, { headers: { 'x-user-role': userRole } });
       const data = await res.json();
 
       if (res.ok && data.proveedores) {
         if (!proveedoresContainer) return; 
-        
         proveedoresContainer.innerHTML = '';
         data.proveedores.forEach((prov) => {
           const label = document.createElement('label');
@@ -97,107 +111,111 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
     } catch (err) {
-      console.error('Error al cargar proveedores:', err);
       proveedoresContainer.innerHTML = '<span class="text-muted">Error al cargar proveedores.</span>';
     }
   }
 
-  // -----------------------------------------------------
-  // Renderizar Tabla de Productos
-  // -----------------------------------------------------
+  /**
+   * Consulta la API para obtener los productos activos y los renderiza en la tabla.
+   *
+   * @async
+   * @function cargarListaProductos
+   * @returns {Promise<void>}
+   */
   async function cargarListaProductos() {
+    // Agrega el parámetro inactivos a la URL si el checkbox está marcado
+    const queryInactivos = chkMostrarInactivos.checked ? '?inactivos=true' : '';
     try {
-      const res = await fetch(API_INVENTARIO, {
-        headers: { 'x-user-role': userRole }
-      });
+      const res = await fetch(`${API_INVENTARIO}${queryInactivos}`, { headers: { 'x-user-role': userRole } });
       const data = await res.json();
       
-      if (res.ok) {
-        renderizarTabla(data.productos || []);
-      } else {
-        tablaProductosBody.innerHTML = `
-          <tr>
-            <td colspan="6" class="empty-state" style="color: var(--color-danger);">
-              <strong>Error del servidor:</strong> ${data.mensaje || 'Fallo desconocido'}
-            </td>
-          </tr>`;
-      }
+      if (res.ok) renderizarTabla(data.productos || []);
+      else tablaProductosBody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color: red;">Error: ${data.mensaje}</td></tr>`;
     } catch (err) {
-      console.error('Error al cargar productos:', err);
-      tablaProductosBody.innerHTML = `
-        <tr>
-          <td colspan="6" class="empty-state" style="color: var(--color-danger);">
-            <strong>Error de conexión.</strong> Revisa la consola del navegador.
-          </td>
-        </tr>`;
+      tablaProductosBody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color: red;">Error de conexión.</td></tr>`;
     }
   }
 
+  /**
+   * Inyecta las filas HTML en el cuerpo de la tabla en base a la lista de productos.
+   *
+   * @function renderizarTabla
+   * @param {Array<Object>} lista - Arreglo de productos a renderizar.
+   */
   function renderizarTabla(lista) {
     tablaProductosBody.innerHTML = '';
-    contadorProductos.textContent = `${lista.length} producto(s)`;
+    contadorProductos.textContent = `${lista.length} producto(s) ${chkMostrarInactivos.checked ? 'inactivos' : 'activos'}`;
 
     if (lista.length === 0) {
-      tablaProductosBody.innerHTML = `
-        <tr>
-          <td colspan="6" class="empty-state">No se encontraron productos en el inventario.</td>
-        </tr>`;
+      tablaProductosBody.innerHTML = `<tr><td colspan="6" class="empty-state">No se encontraron productos.</td></tr>`;
       return;
     }
 
     lista.forEach(prod => {
       const tr = document.createElement('tr');
+      
+      // Lógica visual: Si está inactivo, mostrar badge gris/rojo y botón de reactivar
+      const badgeHTML = prod.activo 
+        ? `<span class="badge badge--success">${prod.categoria || 'Sin categoría'}</span>`
+        : `<span class="badge badge--danger">Inactivo</span>`;
+        
+      const botonEstadoHTML = prod.activo
+        ? `<button class="btn-icon-delete btn-desactivar" data-id="${prod.id}" title="Desactivar" style="background-color: #FEF3C7; color: #B45309;">Desactivar</button>`
+        : `<button class="btn-icon-delete btn-activar" data-id="${prod.id}" title="Reactivar" style="background-color: #E6F0EF; color: var(--color-primary);">Reactivar</button>`;
+
       tr.innerHTML = `
-        <td>${prod.codigo_barras || 'N/A'}</td>
-        <td>${prod.nombre}</td>
-        <td><span class="badge badge--success">${prod.categoria || 'Sin categoría'}</span></td>
-        <td>$${Number(prod.precio).toFixed(2)}</td>
-        <td>${prod.stock_almacen !== undefined ? prod.stock_almacen : 0}</td>
+        <td style="${!prod.activo ? 'opacity: 0.6;' : ''}">${prod.codigo_barras || 'N/A'}</td>
+        <td style="${!prod.activo ? 'opacity: 0.6;' : ''}">${prod.nombre}</td>
+        <td>${badgeHTML}</td>
+        <td style="${!prod.activo ? 'opacity: 0.6;' : ''}">$${Number(prod.precio).toFixed(2)}</td>
+        <td style="${!prod.activo ? 'opacity: 0.6;' : ''}">${prod.stock_almacen !== undefined ? prod.stock_almacen : 0}</td>
         <td class="actions-cell">
           <button class="btn-icon-edit" title="Editar">Editar</button>
-          <button class="btn-icon-delete" title="Eliminar">Eliminar</button>
+          ${botonEstadoHTML}
+          <button class="btn-icon-delete btn-eliminar" data-id="${prod.id}" title="Eliminar">Eliminar</button>
         </td>
       `;
       tablaProductosBody.appendChild(tr);
     });
   }
 
-  // -----------------------------------------------------
-  // HU-09: Buscar productos
-  // -----------------------------------------------------
+  /**
+   * Manejador de evento para filtrar productos en tiempo real.
+   */
   inputBuscar.addEventListener('input', async (e) => {
     const query = e.target.value.trim();
     if (query === '') {
       cargarListaProductos();
       return;
     }
-    
+    const queryInactivos = chkMostrarInactivos.checked ? '&inactivos=true' : '';
     try {
-      const res = await fetch(`/api/inventory/productos/buscar?q=${encodeURIComponent(query)}`, {
-        headers: { 'x-user-role': userRole }
-      });
+      const res = await fetch(`/api/inventory/productos/buscar?q=${encodeURIComponent(query)}${queryInactivos}`, { headers: { 'x-user-role': userRole } });
       const data = await res.json();
-      if (res.ok) {
-        renderizarTabla(data.productos || []);
-      }
+      if (res.ok) renderizarTabla(data.productos || []);
     } catch (error) {
       console.error('Error en búsqueda:', error);
     }
   });
 
-  // -----------------------------------------------------
-  // Guardar Nuevo Producto
-  // -----------------------------------------------------
+  // Escuchar el cambio en el checkbox para recargar la tabla
+  chkMostrarInactivos.addEventListener('change', () => {
+    cargarListaProductos();
+    // Si hay algo escrito en el buscador, lo limpiamos para evitar confusiones
+    inputBuscar.value = ''; 
+  });
+
+  /**
+   * Manejador de evento para el envío del formulario de registro de producto.
+   */
   formulario.addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    // Validar que se seleccionó al menos un proveedor
     const checkboxes = document.querySelectorAll('input[name="proveedor"]:checked');
     const proveedoresSeleccionados = Array.from(checkboxes).map((cb) => cb.value);
 
     if (proveedoresSeleccionados.length === 0) {
       mostrarAlerta('Debes asociar al menos un distribuidor al producto.', 'error');
-      return; // Detiene el envío
+      return; 
     }
 
     const productoData = {
@@ -218,13 +236,9 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const respuesta = await fetch(API_INVENTARIO, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': userRole
-        },
+        headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
         body: JSON.stringify(productoData)
       });
-
       const datos = await respuesta.json();
 
       if (respuesta.ok) {
@@ -242,9 +256,58 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  /**
+   * Muestra mensajes informativos, de éxito o de error en el modal.
+   *
+   * @function mostrarAlerta
+   * @param {string} mensaje - Contenido textual de la notificación.
+   * @param {'success'|'error'} tipo - Variante visual de la alerta.
+   */
   function mostrarAlerta(mensaje, tipo) {
     alerta.textContent = mensaje;
     alerta.className = `alert alert--${tipo}`;
     alerta.hidden = false;
   }
+
+  /**
+   * Manejador de eventos delegado para procesar la baja de productos.
+   * Captura los clics en los botones de acción para procesar desactivaciones o eliminaciones.
+   */
+  tablaProductosBody.addEventListener('click', async (e) => {
+    const btnDesactivar = e.target.closest('.btn-desactivar');
+    const btnActivar = e.target.closest('.btn-activar');
+    const btnEliminar = e.target.closest('.btn-eliminar');
+    
+    let id = null, accion = null, mensajeConfirmacion = '';
+
+    if (btnDesactivar) {
+      id = btnDesactivar.dataset.id; accion = 'desactivar';
+      mensajeConfirmacion = '¿Estás seguro de que deseas desactivar este producto?';
+    } else if (btnActivar) {
+      id = btnActivar.dataset.id; accion = 'activar';
+      mensajeConfirmacion = '¿Deseas reactivar este producto para que vuelva a estar disponible?';
+    } else if (btnEliminar) {
+      id = btnEliminar.dataset.id; accion = 'eliminar';
+      mensajeConfirmacion = '¿Estás seguro de que deseas eliminar DEFINITIVAMENTE este producto?';
+    }
+
+    if (id && accion && confirm(mensajeConfirmacion)) {
+      try {
+        const respuesta = await fetch(`/api/inventory/productos/${id}/baja`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
+          body: JSON.stringify({ accion })
+        });
+        const datos = await respuesta.json();
+        if (respuesta.ok) {
+          alert(datos.mensaje);
+          cargarListaProductos(); 
+        } else {
+          alert(datos.mensaje || `Error al procesar la acción.`);
+        }
+      } catch (error) {
+        alert('Error de comunicación con el servidor.');
+      }
+    }
+  });
 });
