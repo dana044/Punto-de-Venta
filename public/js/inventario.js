@@ -1,45 +1,34 @@
 /**
  * @file inventario.js
- * @description Controlador del lado del cliente para la gestion de inventario.
- * Gestiona el control de acceso, adaptacion de la barra lateral segun rol,
- * consulta de catalogo y persistencia de distribuidores asociados en MySQL.
- * @author Stephanie Elizdeth Hernandez Prieto (Tracker / Programadora XP)
+ * @description Controlador del lado del cliente para la gestion de inventario y proveedores.
  */
 
 const API_PRODUCTOS = '/api/inventory/productos';
 const API_PROVEEDORES = '/api/inventory/proveedores';
 
 document.addEventListener('DOMContentLoaded', () => {
-  /** @type {string|null} Rol de usuario obtenido del almacenamiento de sesion */
   const userRole = localStorage.getItem('userRole');
-
-  /** @type {string|null} Token de sesion */
   const token = localStorage.getItem('token');
 
-  // Control de sesion
   if (!token || !userRole) {
     window.location.href = '/login';
     return;
   }
 
-  // Restriccion de acceso para cajeros
   if (userRole === 'cajero') {
-    alert('Acceso no autorizado para tu rol de usuario.');
+    alert('Acceso no autorizado para tu rol.');
     window.location.href = '/pos';
     return;
   }
 
-  // Adaptar opciones visibles en la barra lateral segun el perfil
   configurarMenuPorRol(userRole);
 
-  // Cierre de sesion
   document.getElementById('btnLogout')?.addEventListener('click', (e) => {
     e.preventDefault();
     localStorage.clear();
     window.location.href = '/login';
   });
 
-  // Referencias a elementos del DOM
   const modalOverlay = document.getElementById('modalOverlay');
   const btnNuevoProducto = document.getElementById('btnNuevoProducto');
   const btnCerrarModal = document.getElementById('btnCerrarModal');
@@ -52,7 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const productosCount = document.getElementById('productosCount');
   const buscarInput = document.getElementById('buscarProducto');
 
-  // Control de apertura y cierre del modal
   const abrirModal = () => {
     productForm.reset();
     ocultarAlerta();
@@ -63,24 +51,18 @@ document.addEventListener('DOMContentLoaded', () => {
     modalOverlay.style.display = 'none';
   };
 
-  btnNuevoProducto.addEventListener('click', abrirModal);
-  btnCerrarModal.addEventListener('click', cerrarModal);
-  cancelarBtn.addEventListener('click', cerrarModal);
+  btnNuevoProducto?.addEventListener('click', abrirModal);
+  btnCerrarModal?.addEventListener('click', cerrarModal);
+  cancelarBtn?.addEventListener('click', cerrarModal);
 
-  // Inicializacion de datos
   cargarProveedores();
   cargarProductos();
 
-  // Busqueda en tiempo real
   buscarInput?.addEventListener('input', (e) => {
     const termino = e.target.value.trim();
     cargarProductos(termino);
   });
 
-/**
-   * Configura la visibilidad del menú lateral según el rol del usuario autenticado.
-   * @param {string} rol - Rol actual obtenido de la sesión.
-   */
   function configurarMenuPorRol(rol) {
     const menuPersonal = document.getElementById('menuPersonal');
     const menuInventario = document.getElementById('menuInventario');
@@ -88,27 +70,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuPos = document.getElementById('menuPos');
 
     if (rol === 'administrador') {
-      // El administrador tiene acceso a todos los módulos
       menuPersonal?.removeAttribute('hidden');
       menuInventario?.removeAttribute('hidden');
       menuRecepcion?.removeAttribute('hidden');
       menuPos?.removeAttribute('hidden');
     } else if (rol === 'almacenista') {
-      // El almacenista solo accede a Inventario y Recepción
+      if (menuPersonal) menuPersonal.hidden = true;
       menuInventario?.removeAttribute('hidden');
       menuRecepcion?.removeAttribute('hidden');
-      if (menuPersonal) menuPersonal.hidden = true;
       if (menuPos) menuPos.hidden = true;
+    } else if (rol === 'cajero') {
+      if (menuPersonal) menuPersonal.hidden = true;
+      if (menuInventario) menuInventario.hidden = true;
+      if (menuRecepcion) menuRecepcion.hidden = true;
+      menuPos?.removeAttribute('hidden');
     }
   }
 
-  /**
-   * Carga los distribuidores desde MySQL y genera las casillas de verificacion.
-   *
-   * @async
-   * @function cargarProveedores
-   * @returns {Promise<void>}
-   */
   async function cargarProveedores() {
     try {
       const res = await fetch(API_PROVEEDORES);
@@ -139,14 +117,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /**
-   * Obtiene y renderiza el catalogo de productos en la tabla.
-   *
-   * @async
-   * @function cargarProductos
-   * @param {string} [termino=''] - Criterio opcional de filtrado.
-   * @returns {Promise<void>}
-   */
   async function cargarProductos(termino = '') {
     try {
       const url = termino ? `${API_PRODUCTOS}?q=${encodeURIComponent(termino)}` : API_PRODUCTOS;
@@ -185,9 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /**
-   * Gestiona el registro del formulario, recolectando la seleccion de proveedores.
-   */
   productForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 

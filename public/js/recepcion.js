@@ -1,6 +1,6 @@
 /**
  * @file recepcion.js
- * @description Controlador del lado del cliente para la vista de recepción de mercancía.
+ * @description Controlador del lado del cliente para la vista de recepcion de mercancia.
  */
 
 const API_PEDIDOS = '/api/receiving/pedidos';
@@ -15,17 +15,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (userRole === 'cajero') {
-    alert('Acceso no autorizado para tu rol (HU-03).');
+    alert('Acceso no autorizado para tu rol.');
     window.location.href = '/pos';
     return;
   }
 
-  if (userRole === 'administrador') {
-    const menuAdmin = document.getElementById('menuAdmin');
-    if (menuAdmin) menuAdmin.hidden = false;
-  }
+  configurarMenuPorRol(userRole);
 
-  document.getElementById('btnLogout').addEventListener('click', (e) => {
+  document.getElementById('btnLogout')?.addEventListener('click', (e) => {
     e.preventDefault();
     localStorage.clear();
     window.location.href = '/login';
@@ -45,6 +42,30 @@ document.addEventListener('DOMContentLoaded', () => {
   let pedidoActual = null;
 
   cargarPedidosPendientes();
+
+  function configurarMenuPorRol(rol) {
+    const menuPersonal = document.getElementById('menuPersonal');
+    const menuInventario = document.getElementById('menuInventario');
+    const menuRecepcion = document.getElementById('menuRecepcion');
+    const menuPos = document.getElementById('menuPos');
+
+    if (rol === 'administrador') {
+      menuPersonal?.removeAttribute('hidden');
+      menuInventario?.removeAttribute('hidden');
+      menuRecepcion?.removeAttribute('hidden');
+      menuPos?.removeAttribute('hidden');
+    } else if (rol === 'almacenista') {
+      if (menuPersonal) menuPersonal.hidden = true;
+      menuInventario?.removeAttribute('hidden');
+      menuRecepcion?.removeAttribute('hidden');
+      if (menuPos) menuPos.hidden = true;
+    } else if (rol === 'cajero') {
+      if (menuPersonal) menuPersonal.hidden = true;
+      if (menuInventario) menuInventario.hidden = true;
+      if (menuRecepcion) menuRecepcion.hidden = true;
+      menuPos?.removeAttribute('hidden');
+    }
+  }
 
   async function cargarPedidosPendientes() {
     try {
@@ -71,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </span>
           </div>
           <button class="btn btn--primary btn-abrir-recepcion" data-folio="${pedido.folio}">
-            Registrar Recepción
+            Registrar Recepcion
           </button>
         `;
         pedidosContainer.appendChild(card);
@@ -81,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => abrirModal(btn.dataset.folio));
       });
     } catch (err) {
-      pedidosContainer.innerHTML = '<span class="text-muted">Error de conexión al obtener los pedidos.</span>';
+      pedidosContainer.innerHTML = '<span class="text-muted">Error de conexion al obtener los pedidos.</span>';
     }
   }
 
@@ -96,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       pedidoActual = data.pedido;
-      modalFolio.textContent = `Recepción de Orden de Compra — ${pedidoActual.folio}`;
+      modalFolio.textContent = `Recepcion de Orden de Compra — ${pedidoActual.folio}`;
       modalProveedor.textContent = pedidoActual.proveedorNombre;
 
       modalItemsBody.innerHTML = '';
@@ -128,33 +149,9 @@ document.addEventListener('DOMContentLoaded', () => {
       recalcularTotal();
       modal.classList.remove('modal--hidden');
     } catch (err) {
-      mostrarAlerta('Error de conexión al obtener el detalle del pedido.', 'error');
+      mostrarAlerta('Error de conexion al obtener el detalle del pedido.', 'error');
     }
   }
-
-  function configurarMenuPorRol(rol) {
-  const menuPersonal = document.getElementById('menuPersonal');
-  const menuInventario = document.getElementById('menuInventario');
-  const menuRecepcion = document.getElementById('menuRecepcion');
-  const menuPos = document.getElementById('menuPos');
-
-  if (rol === 'administrador') {
-    menuPersonal?.removeAttribute('hidden');
-    menuInventario?.removeAttribute('hidden');
-    menuRecepcion?.removeAttribute('hidden');
-    menuPos?.removeAttribute('hidden');
-  } else if (rol === 'almacenista') {
-    if (menuPersonal) menuPersonal.hidden = true;
-    menuInventario?.removeAttribute('hidden');
-    menuRecepcion?.removeAttribute('hidden');
-    if (menuPos) menuPos.hidden = true;
-  } else if (rol === 'cajero') {
-    if (menuPersonal) menuPersonal.hidden = true;
-    if (menuInventario) menuInventario.hidden = true;
-    if (menuRecepcion) menuRecepcion.hidden = true;
-    menuPos?.removeAttribute('hidden');
-  }
-}
 
   function recalcularTotal() {
     let total = 0;
@@ -174,10 +171,10 @@ document.addEventListener('DOMContentLoaded', () => {
     pedidoActual = null;
   }
 
-  btnCerrarModal.addEventListener('click', cerrarModal);
-  btnRechazar.addEventListener('click', cerrarModal);
+  btnCerrarModal?.addEventListener('click', cerrarModal);
+  btnRechazar?.addEventListener('click', cerrarModal);
 
-  btnConfirmar.addEventListener('click', async () => {
+  btnConfirmar?.addEventListener('click', async () => {
     if (!pedidoActual) return;
 
     const items = Array.from(document.querySelectorAll('.input-cantidad-recibida')).map((input) => ({
@@ -202,13 +199,13 @@ document.addEventListener('DOMContentLoaded', () => {
         cerrarModal();
         cargarPedidosPendientes();
       } else {
-        mostrarAlerta(data.mensaje || 'Error al registrar la recepción.', 'error');
+        mostrarAlerta(data.mensaje || 'Error al registrar la recepcion.', 'error');
       }
     } catch (err) {
-      mostrarAlerta('Error de comunicación con el servidor.', 'error');
+      mostrarAlerta('Error de comunicacion con el servidor.', 'error');
     } finally {
       btnConfirmar.disabled = false;
-      btnConfirmar.textContent = 'Confirmar Recepción y Actualizar Stock';
+      btnConfirmar.textContent = 'Confirmar Recepcion y Actualizar Stock';
     }
   });
 
