@@ -68,8 +68,67 @@ async function findUserByUsername(username) {
   return rows.length ? mapRowToUser(rows[0]) : null;
 }
 
+/**
+ * Busca un empleado por su id.
+ * @param {number|string} id
+ * @returns {Promise<Object|null>}
+ */
+async function getUserById(id) {
+  const [rows] = await pool.query(`SELECT * FROM usuarios WHERE id = ? LIMIT 1`, [id]);
+  return rows.length ? mapRowToUser(rows[0]) : null;
+}
+
+/**
+ * Actualiza los datos generales de un empleado (HU04: editar cuenta).
+ * La contraseña solo se modifica si se envía una nueva; de lo contrario
+ * conserva la que ya tenía.
+ * @param {number|string} id
+ * @param {{nombreCompleto:string, puesto:string, username:string, role:string, password?:string}} datos
+ * @returns {Promise<Object|null>} El empleado actualizado, o null si no existe.
+ */
+async function updateUser(id, { nombreCompleto, puesto, username, role, password }) {
+  if (password) {
+    await pool.query(
+      `UPDATE usuarios SET nombre_completo = ?, puesto = ?, username = ?, role = ?, password = ? WHERE id = ?`,
+      [nombreCompleto, puesto, username, role, password, id]
+    );
+  } else {
+    await pool.query(
+      `UPDATE usuarios SET nombre_completo = ?, puesto = ?, username = ?, role = ? WHERE id = ?`,
+      [nombreCompleto, puesto, username, role, id]
+    );
+  }
+  return getUserById(id);
+}
+
+/**
+ * Activa o desactiva la cuenta de un empleado (HU04). Una cuenta desactivada
+ * no debe permitir el inicio de sesión (ver auth.controller.js).
+ * @param {number|string} id
+ * @param {boolean} activo
+ * @returns {Promise<Object|null>} El empleado actualizado, o null si no existe.
+ */
+async function setUserActivo(id, activo) {
+  await pool.query(`UPDATE usuarios SET activo = ? WHERE id = ?`, [activo, id]);
+  return getUserById(id);
+}
+
+/**
+ * Elimina definitivamente la cuenta de un empleado (HU04).
+ * @param {number|string} id
+ * @returns {Promise<boolean>} true si existía una fila y fue eliminada.
+ */
+async function deleteUser(id) {
+  const [result] = await pool.query(`DELETE FROM usuarios WHERE id = ?`, [id]);
+  return result.affectedRows > 0;
+}
+
 module.exports = {
   createUser,
   getAllUsers,
-  findUserByUsername
+  findUserByUsername,
+  getUserById,
+  updateUser,
+  setUserActivo,
+  deleteUser
 };

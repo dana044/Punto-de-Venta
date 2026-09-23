@@ -1,120 +1,161 @@
 <!--
-  Punto de Venta UV — Registrar Empleado (HU10)
+  Punto de Venta UV — Registrar y Administrar Empleados
 -->
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Punto de Venta UV - Registrar Empleado</title>
+  <title>La Number One - Gestión de Empleados</title>
   <link rel="stylesheet" href="/css/01-variables.css" />
   <link rel="stylesheet" href="/css/02-base.css" />
   <link rel="stylesheet" href="/css/03-layout.css" />
   <link rel="stylesheet" href="/css/04-components.css" />
   <link rel="stylesheet" href="/css/05-modals.css" />
-  <style>
-    /* La tarjeta se muestra dentro del contenido principal, no como overlay flotante */
-    .employee-card {
-      max-width: 620px;
-      margin: 0 auto;
-      /* Anula los límites de .modal-card pensados para el overlay flotante */
-      max-height: none;
-      overflow: visible;
-    }
-    .employee-card__header { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem; border-bottom: 1px solid var(--border-color); }
-    .employee-card__section { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color); }
-    .employee-card__section:last-of-type { border-bottom: none; }
-    .employee-card__footer { display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1.25rem 1.5rem; }
-    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  </style>
+  <link rel="stylesheet" href="/css/06-tables.css" />
 </head>
+
 <body>
   <div class="app-container">
     <!-- Barra lateral -->
     <aside class="sidebar">
-      <div class="sidebar__brand">Punto de Venta UV</div>
+      <div class="sidebar__brand">La Number One</div>
       <ul class="sidebar__nav" id="sidebarNav">
-        <li><a href="/empleados/nuevo" class="sidebar__link sidebar__link--active">Personal</a></li>
+        <li><a href="/empleados/nuevo" class="sidebar__link sidebar__link--active">Administrar Personal</a></li>
         <li><a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a></li>
       </ul>
     </aside>
 
     <main class="main-content">
-      <h1>Registrar Empleado</h1>
-      <p class="text-muted" style="margin-bottom: 2rem;">Vincula a una persona física con su puesto y sus credenciales de acceso.</p>
+      <div class="page-header">
+        <div>
+          <h1>Gestión de Empleados</h1>
+          <p>Vincula a una persona física con su puesto, credenciales y administra sus accesos al sistema.</p>
+        </div>
+        <button type="button" class="btn btn--primary" id="btnNuevoEmpleado">+ Registrar Empleado</button>
+      </div>
 
       <div id="alertMessage" class="alert" hidden></div>
 
-      <div class="modal-card employee-card">
-
-        <header class="employee-card__header">
-          <div>
-            <strong>Ficha de Empleado</strong>
-            <p class="text-muted" style="font-size: 0.85rem;">Registro de personal y accesos</p>
+      <!-- Tabla de empleados registrados -->
+      <section class="table-section">
+        <div class="table-card">
+          <div class="table-card__toolbar">
+            <div>
+              <h2>Personal registrado</h2>
+              <span class="table-card__count" id="empleadosCount">&nbsp;</span>
+            </div>
+            <div class="table-search">
+              <input type="text" id="buscarEmpleado" placeholder="Buscar por nombre o usuario..." />
+            </div>
           </div>
-        </header>
 
-        <form id="employeeForm">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Empleado</th>
+                <th>Usuario</th>
+                <th>Rol</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaEmpleadosBody">
+              <!-- Carga dinámicamente desde empleado.js -->
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-          <section class="employee-card__section">
-            <p><span class="step-badge">1</span><strong>Datos Personales</strong></p>
-            <div class="form-group" style="margin-top: 1rem;">
-              <label class="form-label" for="nombreCompleto">Nombre completo</label>
-              <input type="text" id="nombreCompleto" class="form-input" placeholder="Mariana Solís Hernández" required />
+      <!-- Overlay/Modal Ficha de Empleado -->
+      <div id="modalOverlay" class="modal-overlay" style="display:none;">
+        <div class="modal-card stepped-card">
+
+          <header class="stepped-card__header">
+            <div>
+              <strong id="formTitle">Ficha de Empleado</strong>
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;">Registro y edición de personal y
+                accesos</p>
             </div>
-          </section>
+            <button type="button" id="btnCerrarModal" class="btn-close-modal">&times;</button>
+          </header>
 
-          <section class="employee-card__section">
-            <p><span class="step-badge">2</span><strong>Puesto y Rol de Acceso</strong></p>
-            <div class="field-row" style="margin-top: 1rem;">
-              <div class="form-group">
-                <label class="form-label" for="puesto">Puesto en tienda</label>
-                <input type="text" id="puesto" class="form-input" placeholder="Cajera Mostrador" required />
+          <div id="modalAlertMessage" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
+
+          <form id="employeeForm">
+            <input type="hidden" id="empleadoId" />
+
+            <section class="stepped-card__section">
+              <p><span class="step-badge">1</span><strong>Datos Personales</strong></p>
+              <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label" for="nombreCompleto">Nombre completo</label>
+                <input type="text" id="nombreCompleto" class="form-input" placeholder="Mariana Solís Hernández"
+                  required />
               </div>
-              <div class="form-group">
-                <label class="form-label" for="role">Rol asignado</label>
-                <select id="role" class="form-select" required>
-                  <option value="" disabled selected>Selecciona un rol...</option>
-                  <option value="administrador">Administrador</option>
-                  <option value="cajero">Cajero</option>
-                  <option value="almacenista">Almacenista</option>
-                </select>
+            </section>
+
+            <section class="stepped-card__section">
+              <p><span class="step-badge">2</span><strong>Puesto y Rol de Acceso</strong></p>
+              <div class="field-row" style="margin-top: 1rem;">
+                <div class="form-group">
+                  <label class="form-label" for="puesto">Puesto en tienda</label>
+                  <input type="text" id="puesto" class="form-input" placeholder="Cajera Mostrador" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="role">Rol asignado</label>
+                  <select id="role" class="form-select" required>
+                    <option value="" disabled selected>Selecciona un rol...</option>
+                    <option value="administrador">Administrador</option>
+                    <option value="cajero">Cajero</option>
+                    <option value="almacenista">Almacenista</option>
+                  </select>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          <section class="employee-card__section">
-            <p><span class="step-badge">3</span><strong>Credenciales de Acceso</strong></p>
-            <p class="text-muted" style="font-size: 0.8rem; margin: 0.5rem 0 1rem;">
-              Esta contraseña la define el administrador.
-            </p>
+            <section class="stepped-card__section">
+              <p><span class="step-badge">3</span><strong>Credenciales de Acceso</strong></p>
+              <p class="text-muted" id="pwdHelpText" style="font-size: 0.8rem; margin: 0.5rem 0 1rem;">
+                Esta contraseña la define el administrador.
+              </p>
 
-            <div class="form-group">
-              <label class="form-label" for="username">Usuario de acceso</label>
-              <input type="text" id="username" class="form-input" placeholder="m.solis" required />
-            </div>
-
-            <div class="field-row">
               <div class="form-group">
-                <label class="form-label" for="password">Contraseña</label>
-                <input type="password" id="password" class="form-input" minlength="8" required />
+                <label class="form-label" for="username">Usuario de acceso</label>
+                <input type="text" id="username" class="form-input" placeholder="m.solis" required />
               </div>
-              <div class="form-group">
-                <label class="form-label" for="confirmarPassword">Confirmar contraseña</label>
-                <input type="password" id="confirmarPassword" class="form-input" minlength="8" required />
-              </div>
-            </div>
-          </section>
 
-          <footer class="employee-card__footer">
-            <button type="button" class="btn btn--secondary" id="cancelarBtn">Cancelar</button>
-            <button type="submit" class="btn btn--primary" id="submitBtn">Guardar Empleado</button>
-          </footer>
-        </form>
+              <!-- Campo nuevo: Contraseña Actual (solo visible al editar) -->
+              <div class="form-group" id="groupOldPassword" style="display: none;">
+                <label class="form-label" for="oldPassword">Contraseña actual del usuario</label>
+                <input type="password" id="oldPassword" class="form-input"
+                  placeholder="Ingresa la contraseña actual para cambiarla" />
+              </div>
+
+              <div class="field-row">
+                <div class="form-group">
+                  <label class="form-label" for="password">Nueva contraseña</label>
+                  <input type="password" id="password" class="form-input" minlength="8" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="confirmarPassword">Confirmar nueva contraseña</label>
+                  <input type="password" id="confirmarPassword" class="form-input" minlength="8" required />
+                </div>
+              </div>
+            </section>
+
+            <footer class="stepped-card__footer">
+              <button type="button" class="btn btn--secondary" id="cancelarBtn">Cancelar</button>
+              <button type="submit" class="btn btn--primary" id="submitBtn">Guardar Empleado</button>
+            </footer>
+          </form>
+        </div>
       </div>
+
     </main>
   </div>
 
   <script src="/js/empleado.js"></script>
 </body>
+
 </html>
