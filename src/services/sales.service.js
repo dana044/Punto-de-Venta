@@ -6,7 +6,7 @@
  * @author Jetzaly Josmery Tello Campos
  */
 
-const { products } = require('../models/product.model.js');
+const { findById } = require('../models/product.model.js');
 
 /** Tasa de IVA usada por el punto de venta */
 const IVA_RATE = 0.16;
@@ -16,7 +16,9 @@ const IVA_RATE = 0.16;
  * @param {number} productoId
  * @returns {Object|undefined}
  */
-const buscarProducto = (productoId) => products.find((p) => p.id === Number(productoId));
+const buscarProducto = async (productoId) => {
+  return await findById(productoId);
+};
 
 /**
  * Calcula el descuento en pesos de una línea, según su tipo.
@@ -44,18 +46,18 @@ const calcularDescuentoLinea = (subtotalLinea, descuentoTipo, descuentoValor) =>
  * @param {Array<{productoId: number, cantidad: number, descuentoTipo?: 'porcentaje'|'monto', descuentoValor?: number}>} items
  * @returns {{ok: true, resultado: Object} | {ok: false, mensaje: string}}
  */
-const calcularVenta = (items) => {
+const calcularVenta = async (items) => {
   if (!Array.isArray(items) || items.length === 0) {
     return { ok: false, mensaje: 'El carrito no tiene productos.' };
   }
 
   let subtotal = 0;
   let descuentos = 0;
-
   const itemsCalculados = [];
 
   for (const item of items) {
-    const producto = buscarProducto(item.productoId);
+    // Agrega 'await' aquí
+    const producto = await buscarProducto(item.productoId);
 
     if (!producto) {
       return { ok: false, mensaje: `No existe el producto con id ${item.productoId}.` };
