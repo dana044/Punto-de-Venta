@@ -56,4 +56,18 @@ router.patch(
   inventoryController.bajaProducto
 );
 
+/**
+ * Ruta para editar un producto existente: datos generales, distribuidores
+ * asociados y fecha de caducidad.
+ * Restringida a los roles 'administrador' y 'almacenista'.
+ * @name put/productos/:id
+ * @route {PUT} /api/inventory/productos/:id
+ */
+router.put(
+  '/productos/:id',
+  permitirRoles('administrador', 'almacenista'),
+  validateProduct,
+  inventoryController.actualizarProducto
+);
+
 module.exports = router;

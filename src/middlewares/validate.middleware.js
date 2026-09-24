@@ -4,7 +4,8 @@
  */
 
 /**
- * Valida que la peticion contenga los atributos del producto y al menos un distribuidor vinculado.
+ * Valida que la peticion contenga los atributos del producto, al menos un distribuidor vinculado y
+ * que la fecha de caducidad tenga un formato válido
  *
  * @function validateProduct
  * @param {import('express').Request} req - Objeto de peticion de Express.
@@ -13,7 +14,7 @@
  * @returns {Object|void} Retorna respuesta con estado HTTP 400 en caso de fallo, o continua con next().
  */
 const validateProduct = (req, res, next) => {
-  const { nombre, codigo_barras, presentacion, unidad_medida, precio, proveedoresIds } = req.body;
+  const { nombre, codigo_barras, presentacion, unidad_medida, precio, proveedoresIds, fecha_caducidad } = req.body;
 
   if (!nombre || !codigo_barras || !presentacion || !unidad_medida || precio === undefined || precio === null) {
     return res.status(400).json({
@@ -26,6 +27,13 @@ const validateProduct = (req, res, next) => {
       mensaje: 'Debes asociar al menos un distribuidor o proveedor al producto.'
     });
   }
+
+  if (fecha_caducidad !== undefined && fecha_caducidad !== null && fecha_caducidad !== '') {
+  const fechaValida = !isNaN(Date.parse(fecha_caducidad));
+  if (!fechaValida) {
+    return res.status(400).json({ mensaje: 'La fecha de caducidad no es válida.' });
+  }
+}
 
   next();
 };

@@ -9,7 +9,9 @@ const {
   getProducts, 
   getProveedores, 
   buscarProductos: buscarEnModelo, 
-  darDeBajaProducto 
+  darDeBajaProducto,
+  updateProduct,
+  findById 
 } = require('../models/product.model.js');
 
 /**
@@ -47,6 +49,41 @@ const registrarProducto = async (req, res) => {
     return res.status(500).json({
       mensaje: 'Error interno del servidor al registrar el producto en la base de datos.'
     });
+  }
+};
+
+/**
+ * Procesa la solicitud para editar un producto existente, incluyendo sus
+ * datos generales, distribuidores asociados y fecha de caducidad.
+ *
+ * @async
+ * @function actualizarProducto
+ * @param {import('express').Request} req - Petición HTTP con el id en params y los datos validados en el body.
+ * @param {import('express').Response} res - Respuesta HTTP de Express.
+ * @returns {Promise<Object>} Respuesta JSON con el producto actualizado, 404 si no existe
+ *   o 409 si el nuevo código de barras ya pertenece a otro producto.
+ */
+const actualizarProducto = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const productoExiste = await findById(id);
+    if (!productoExiste) {
+      return res.status(404).json({ mensaje: 'El producto no existe.' });
+    }
+
+    const productoActualizado = await updateProduct(id, req.body);
+
+    return res.status(200).json({
+      mensaje: 'Producto actualizado correctamente.',
+      producto: productoActualizado
+    });
+  } catch (error) {
+    console.error('Error al actualizar producto:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ mensaje: 'Ese código de barras ya lo usa otro producto.' });
+    }
+    return res.status(500).json({ mensaje: 'Error interno al actualizar el producto.' });
   }
 };
 
@@ -161,5 +198,6 @@ module.exports = {
   getProducto,
   listarProveedores,
   buscarProductos,
-  bajaProducto
+  bajaProducto,
+  actualizarProducto
 };

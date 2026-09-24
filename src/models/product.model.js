@@ -23,6 +23,7 @@ const db = require('../config/db.js');
  * @property {string} unidad_medida - Unidad física de cuantificación.
  * @property {number} precio - Precio unitario de venta.
  * @property {number} stock_almacen - Existencias actuales en inventario.
+ * @property {string} fecha_caducidad - Fecha de expiración del productos.
  * @property {boolean} activo - Estado lógico del producto (Activo/Inactivo).
  * @property {Array<number>} [proveedoresIds] - Identificadores de distribuidores vinculados.
  * @property {string} [proveedores_nombres] - Cadena agrupada con nombres de proveedores.
@@ -46,6 +47,7 @@ const createProduct = async (productData) => {
     unidad_medida,
     precio,
     stock_almacen,
+    fecha_caducidad,
     proveedoresIds
   } = productData;
 
@@ -56,7 +58,7 @@ const createProduct = async (productData) => {
 
     const [result] = await connection.execute(
       `INSERT INTO productos (nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         nombre,
         codigo_barras,
@@ -64,7 +66,8 @@ const createProduct = async (productData) => {
         presentacion || 'N/A',
         unidad_medida || 'Pieza',
         precio,
-        stock_almacen || 0
+        stock_almacen || 0,
+        fecha_caducidad || null
       ]
     );
 
@@ -92,8 +95,62 @@ const createProduct = async (productData) => {
       unidad_medida: unidad_medida || 'Pieza',
       precio,
       stock_almacen: stock_almacen || 0,
+      fecha_caducidad: fecha_caducidad || nul,
       proveedoresIds: proveedoresIds ? proveedoresIds.map(Number) : []
     };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
+/**
+ * Actualiza la información general de un producto existente y resincroniza
+ * sus distribuidores asociados en una sola transacción. También
+ * permite registrar o modificar la fecha de caducidad del producto.
+ *
+ * @async
+ * @function updateProduct
+ * @param {number|string} id - Identificador del producto a actualizar.
+ * @param {Object} productData - Datos capturados en el formulario de edición.
+ * @param {string} [productData.fecha_caducidad] - Nueva fecha de caducidad (YYYY-MM-DD) o null si no aplica.
+ * @returns {Promise<Producto>} Datos del producto ya actualizado.
+ * @throws {Error} Lanza error si falla la transacción o si el código de barras ya está en uso.
+ */
+const updateProduct = async (id, productData) => {
+  const {
+    nombre, codigo_barras, categoria, presentacion, unidad_medida,
+    precio, stock_almacen, fecha_caducidad, proveedoresIds
+  } = productData;
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    await connection.execute(
+      `UPDATE productos SET nombre=?, codigo_barras=?, categoria=?, presentacion=?, 
+       unidad_medida=?, precio=?, stock_almacen=?, fecha_caducidad=? WHERE id=?`,
+      [nombre, codigo_barras, categoria || 'Sin categoría', presentacion || 'N/A',
+       unidad_medida || 'Pieza', precio, stock_almacen || 0, fecha_caducidad || null, id]
+    );
+
+    // Resincroniza proveedores: borra los vínculos viejos e inserta los nuevos
+    await connection.execute('DELETE FROM producto_proveedor WHERE producto_id = ?', [id]);
+
+    if (Array.isArray(proveedoresIds) && proveedoresIds.length > 0) {
+      const unicos = [...new Set(proveedoresIds.map(Number))];
+      for (const provId of unicos) {
+        await connection.execute(
+          `INSERT INTO producto_proveedor (producto_id, proveedor_id) VALUES (?, ?)`,
+          [id, provId]
+        );
+      }
+    }
+
+    await connection.commit();
+    return { id: Number(id), ...productData };
   } catch (error) {
     await connection.rollback();
     throw error;
@@ -134,6 +191,7 @@ const getProducts = async (mostrarInactivos = false) => {
       p.unidad_medida,
       p.precio,
       p.stock_almacen,
+      p.fecha_caducidad,
       p.activo,
       GROUP_CONCAT(prov.nombre SEPARATOR ', ') AS proveedores_nombres
     FROM productos p
@@ -181,6 +239,7 @@ const buscarProductos = async (termino, mostrarInactivos = false) => {
       p.unidad_medida,
       p.precio,
       p.stock_almacen,
+      p.fecha_caducidad,
       p.activo,
       GROUP_CONCAT(prov.nombre SEPARATOR ', ') AS proveedores_nombres
     FROM productos p
@@ -220,5 +279,6 @@ module.exports = {
   getProducts,
   findById,
   buscarProductos,
-  darDeBajaProducto
+  darDeBajaProducto,
+  updateProduct
 };
