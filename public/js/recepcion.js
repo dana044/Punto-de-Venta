@@ -1,9 +1,11 @@
 /**
  * @file recepcion.js
- * @description Controlador del lado del cliente para la vista de recepcion de mercancia.
+ * @description Controlador del cliente para emisión (HU-31) y seguimiento/recepción de pedidos (HU-32).
  */
 
 const API_PEDIDOS = '/api/receiving/pedidos';
+const API_PROVEEDORES = '/api/inventory/proveedores';
+const API_PRODUCTOS = '/api/inventory/productos';
 
 document.addEventListener('DOMContentLoaded', () => {
   const userRole = localStorage.getItem('userRole');
@@ -30,7 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const pedidosContainer = document.getElementById('pedidosContainer');
   const alerta = document.getElementById('alertMessage');
-  const modal = document.getElementById('modalRecepcion');
+
+  // Modal Recepción (HU-32)
+  const modalRecepcion = document.getElementById('modalRecepcion');
   const modalFolio = document.getElementById('modalFolio');
   const modalProveedor = document.getElementById('modalProveedor');
   const modalItemsBody = document.getElementById('modalItemsBody');
@@ -38,6 +42,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnConfirmar = document.getElementById('btnConfirmar');
   const btnRechazar = document.getElementById('btnRechazar');
   const btnCerrarModal = document.getElementById('btnCerrarModal');
+
+  // Modal Nuevo Pedido (HU-31)
+  const modalNuevoPedido = document.getElementById('modalNuevoPedido');
+  const btnNuevoPedido = document.getElementById('btnNuevoPedido');
+  const btnCerrarModalNuevo = document.getElementById('btnCerrarModalNuevo');
+  const btnCancelarNuevo = document.getElementById('btnCancelarNuevo');
+  const btnGuardarPedido = document.getElementById('btnGuardarPedido');
+  const selectProveedorPedido = document.getElementById('selectProveedorPedido');
+  const selectProductoPedido = document.getElementById('selectProductoPedido');
+  const inputCantidadSolicitada = document.getElementById('inputCantidadSolicitada');
+  const inputCostoUnitario = document.getElementById('inputCostoUnitario');
+  const alertaModalPedido = document.getElementById('alertaModalPedido');
 
   let pedidoActual = null;
 
@@ -59,17 +75,17 @@ document.addEventListener('DOMContentLoaded', () => {
       menuInventario?.removeAttribute('hidden');
       menuRecepcion?.removeAttribute('hidden');
       if (menuPos) menuPos.hidden = true;
-    } else if (rol === 'cajero') {
-      if (menuPersonal) menuPersonal.hidden = true;
-      if (menuInventario) menuInventario.hidden = true;
-      if (menuRecepcion) menuRecepcion.hidden = true;
-      menuPos?.removeAttribute('hidden');
     }
   }
 
+  // ==========================================================================
+  // HU-32: LISTADO Y CONFIRMACIÓN DE RECEPCIÓN
+  // ==========================================================================
   async function cargarPedidosPendientes() {
     try {
-      const res = await fetch(API_PEDIDOS);
+      const res = await fetch(API_PEDIDOS, {
+        headers: { 'x-user-role': userRole }
+      });
       const data = await res.json();
 
       if (!res.ok || !data.pedidos || data.pedidos.length === 0) {
@@ -92,23 +108,25 @@ document.addEventListener('DOMContentLoaded', () => {
             </span>
           </div>
           <button class="btn btn--primary btn-abrir-recepcion" data-folio="${pedido.folio}">
-            Registrar Recepcion
+            Registrar Recepción
           </button>
         `;
         pedidosContainer.appendChild(card);
       });
 
       document.querySelectorAll('.btn-abrir-recepcion').forEach((btn) => {
-        btn.addEventListener('click', () => abrirModal(btn.dataset.folio));
+        btn.addEventListener('click', () => abrirModalRecepcion(btn.dataset.folio));
       });
     } catch (err) {
-      pedidosContainer.innerHTML = '<span class="text-muted">Error de conexion al obtener los pedidos.</span>';
+      pedidosContainer.innerHTML = '<span class="text-muted">Error de conexión al obtener los pedidos.</span>';
     }
   }
 
-  async function abrirModal(folio) {
+  async function abrirModalRecepcion(folio) {
     try {
-      const res = await fetch(`${API_PEDIDOS}/${folio}`);
+      const res = await fetch(`${API_PEDIDOS}/${folio}`, {
+        headers: { 'x-user-role': userRole }
+      });
       const data = await res.json();
 
       if (!res.ok || !data.pedido) {
@@ -117,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       pedidoActual = data.pedido;
-      modalFolio.textContent = `Recepcion de Orden de Compra — ${pedidoActual.folio}`;
+      modalFolio.textContent = `Recepción de Orden de Compra — ${pedidoActual.folio}`;
       modalProveedor.textContent = pedidoActual.proveedorNombre;
 
       modalItemsBody.innerHTML = '';
@@ -136,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
               value="${item.cantidadSolicitada}"
             />
           </td>
-          <td>$${item.costoUnitario.toFixed(2)}</td>
+          <td>$${Number(item.costoUnitario).toFixed(2)}</td>
           <td class="subtotal-linea">$${(item.cantidadSolicitada * item.costoUnitario).toFixed(2)}</td>
         `;
         modalItemsBody.appendChild(fila);
@@ -147,9 +165,9 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       recalcularTotal();
-      modal.classList.remove('modal--hidden');
+      modalRecepcion.classList.remove('modal--hidden');
     } catch (err) {
-      mostrarAlerta('Error de conexion al obtener el detalle del pedido.', 'error');
+      mostrarAlerta('Error de conexión al obtener el detalle del pedido.', 'error');
     }
   }
 
@@ -166,13 +184,13 @@ document.addEventListener('DOMContentLoaded', () => {
     modalTotal.textContent = `$${total.toFixed(2)}`;
   }
 
-  function cerrarModal() {
-    modal.classList.add('modal--hidden');
+  function cerrarModalRecepcion() {
+    modalRecepcion.classList.add('modal--hidden');
     pedidoActual = null;
   }
 
-  btnCerrarModal?.addEventListener('click', cerrarModal);
-  btnRechazar?.addEventListener('click', cerrarModal);
+  btnCerrarModal?.addEventListener('click', cerrarModalRecepcion);
+  btnRechazar?.addEventListener('click', cerrarModalRecepcion);
 
   btnConfirmar?.addEventListener('click', async () => {
     if (!pedidoActual) return;
@@ -188,7 +206,10 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch(`${API_PEDIDOS}/${pedidoActual.folio}/confirmar`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': userRole
+        },
         body: JSON.stringify({ items })
       });
 
@@ -196,16 +217,119 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (res.ok) {
         mostrarAlerta(data.mensaje, 'success');
-        cerrarModal();
+        cerrarModalRecepcion();
         cargarPedidosPendientes();
       } else {
-        mostrarAlerta(data.mensaje || 'Error al registrar la recepcion.', 'error');
+        mostrarAlerta(data.mensaje || 'Error al registrar la recepción.', 'error');
       }
     } catch (err) {
-      mostrarAlerta('Error de comunicacion con el servidor.', 'error');
+      mostrarAlerta('Error de comunicación con el servidor.', 'error');
     } finally {
       btnConfirmar.disabled = false;
-      btnConfirmar.textContent = 'Confirmar Recepcion y Actualizar Stock';
+      btnConfirmar.textContent = 'Confirmar Recepción y Actualizar Stock';
+    }
+  });
+
+  // ==========================================================================
+  // HU-31: GENERAR NUEVO PEDIDO DE REABASTECIMIENTO
+  // ==========================================================================
+  async function cargarCatalogosNuevoPedido() {
+    try {
+      const [resProv, resProd] = await Promise.all([
+        fetch(API_PROVEEDORES),
+        fetch(API_PRODUCTOS)
+      ]);
+
+      const dataProv = await resProv.json();
+      const dataProd = await resProd.json();
+
+      if (dataProv.proveedores) {
+        selectProveedorPedido.innerHTML = '<option value="">Selecciona un proveedor...</option>';
+        dataProv.proveedores.forEach((p) => {
+          selectProveedorPedido.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
+        });
+      }
+
+      if (dataProd.productos) {
+        selectProductoPedido.innerHTML = '<option value="">Selecciona un producto...</option>';
+        dataProd.productos.forEach((prod) => {
+          selectProductoPedido.innerHTML += `<option value="${prod.id}">${prod.nombre} (Stock actual: ${prod.stock_almacen})</option>`;
+        });
+      }
+    } catch (e) {
+      console.error('Error al cargar selectores de pedido:', e);
+    }
+  }
+
+  btnNuevoPedido?.addEventListener('click', () => {
+    cargarCatalogosNuevoPedido();
+    alertaModalPedido.hidden = true;
+    modalNuevoPedido.classList.remove('modal--hidden');
+  });
+
+  function cerrarModalNuevo() {
+    modalNuevoPedido.classList.add('modal--hidden');
+    document.getElementById('formNuevoPedido').reset();
+  }
+
+  btnCerrarModalNuevo?.addEventListener('click', cerrarModalNuevo);
+  btnCancelarNuevo?.addEventListener('click', cerrarModalNuevo);
+
+  btnGuardarPedido?.addEventListener('click', async () => {
+    const proveedorId = selectProveedorPedido.value;
+    const productoId = selectProductoPedido.value;
+    const cantidadSolicitada = Number(inputCantidadSolicitada.value);
+    const costoUnitario = Number(inputCostoUnitario.value);
+
+    if (!proveedorId || !productoId || cantidadSolicitada <= 0 || costoUnitario <= 0) {
+      alertaModalPedido.textContent = 'Completa todos los campos con valores mayores a cero.';
+      alertaModalPedido.className = 'alert alert--error';
+      alertaModalPedido.hidden = false;
+      return;
+    }
+
+    const payload = {
+      proveedorId: Number(proveedorId),
+      items: [
+        {
+          productoId: Number(productoId),
+          cantidadSolicitada,
+          costoUnitario
+        }
+      ]
+    };
+
+    btnGuardarPedido.disabled = true;
+    btnGuardarPedido.textContent = 'Emitiendo...';
+
+    try {
+      const res = await fetch(API_PEDIDOS, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': userRole
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        mostrarAlerta(data.mensaje, 'success');
+        cerrarModalNuevo();
+        cargarPedidosPendientes();
+      } else {
+        alertaModalPedido.textContent = data.mensaje || 'Error al emitir el pedido.';
+        alertaModalPedido.className = 'alert alert--error';
+        alertaModalPedido.hidden = false;
+      }
+    } catch (e) {
+      alertaModalPedido.textContent = 'Error de comunicación al emitir la orden.';
+      alertaModalPedido.className = 'alert alert--error';
+      alertaModalPedido.hidden = false;
+    } finally {
+      btnGuardarPedido.disabled = false;
+      btnGuardarPedido.textContent = 'Emitir Orden';
     }
   });
 

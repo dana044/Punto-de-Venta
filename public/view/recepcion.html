@@ -1,12 +1,9 @@
-<!--
-  Punto de Venta UV — Recepción de Mercancía en Almacén
--->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Punto de Venta UV - Recepción de Mercancía</title>
+  <title>La Number One - Recepción de Mercancía</title>
   <link rel="stylesheet" href="/css/01-variables.css" />
   <link rel="stylesheet" href="/css/02-base.css" />
   <link rel="stylesheet" href="/css/03-layout.css" />
@@ -17,38 +14,44 @@
     .alert { padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-weight: 600; }
     .alert--success { background-color: #E6F0EF; color: var(--color-primary); border: 1px solid var(--color-primary); }
     .alert--error { background-color: #FEE2E2; color: var(--color-danger); border: 1px solid var(--color-danger); }
-    .modal-body { padding: 1.5rem; overflow-y: auto; }
+    .modal-body { padding: 1.5rem; overflow-y: auto; max-height: 75vh; }
     .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
     .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.75rem; }
     .modal-close { background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-muted); }
+    .header-actions { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
   </style>
 </head>
 <body>
   <div class="app-container">
-  <aside class="sidebar">
-        <div class="sidebar__brand">La Number One</div>
-        <ul class="sidebar__nav" id="sidebarNav">
-          <li id="menuPersonal" hidden>
-            <a href="/empleados/nuevo" class="sidebar__link">Administrar Personal</a>
-          </li>
-          <li id="menuInventario" hidden>
-            <a href="/inventario" class="sidebar__link">Inventario</a>
-          </li>
-          <li id="menuRecepcion" hidden>
-            <a href="/recepcion" class="sidebar__link sidebar__link--active">Recepción de Mercancía</a>
-          </li>
-          <li id="menuPos" hidden>
-            <a href="/pos" class="sidebar__link">Punto de Venta</a>
-          </li>
-          <li>
-            <a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a>
-          </li>
-        </ul>
-      </aside>
+    <aside class="sidebar">
+      <div class="sidebar__brand">La Number One</div>
+      <ul class="sidebar__nav" id="sidebarNav">
+        <li id="menuPersonal" hidden>
+          <a href="/empleados/nuevo" class="sidebar__link">Administrar Personal</a>
+        </li>
+        <li id="menuInventario" hidden>
+          <a href="/inventario" class="sidebar__link">Inventario</a>
+        </li>
+        <li id="menuRecepcion" hidden>
+          <a href="/recepcion" class="sidebar__link sidebar__link--active">Recepción de Mercancía</a>
+        </li>
+        <li id="menuPos" hidden>
+          <a href="/pos" class="sidebar__link">Punto de Venta</a>
+        </li>
+        <li>
+          <a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a>
+        </li>
+      </ul>
+    </aside>
 
     <main class="main-content">
-      <h1>Recepción de Mercancía en Almacén</h1>
-      <p class="text-muted" style="margin-bottom: 2rem;">Valida los pedidos entrantes frente a la nota de entrega y actualiza las existencias del almacén.</p>
+      <div class="header-actions">
+        <div>
+          <h1>Recepción de Mercancía en Almacén</h1>
+          <p class="text-muted">Gestiona pedidos a distribuidores y valida entregas para actualizar inventario.</p>
+        </div>
+        <button class="btn btn--primary" id="btnNuevoPedido">+ Generar Pedido de Reabastecimiento</button>
+      </div>
 
       <div id="alertMessage" class="alert" hidden></div>
 
@@ -58,6 +61,50 @@
     </main>
   </div>
 
+  <!-- MODAL HU-31: GENERAR PEDIDO DE REABASTECIMIENTO -->
+  <div class="modal-overlay modal--hidden" id="modalNuevoPedido">
+    <div class="modal-card" style="max-width: 650px;">
+      <div class="modal-header">
+        <strong>Nueva Orden de Pedido a Distribuidor</strong>
+        <button class="modal-close" id="btnCerrarModalNuevo">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="alertaModalPedido" class="alert" hidden></div>
+        <form id="formNuevoPedido">
+          <div class="form-group">
+            <label class="form-label" for="selectProveedorPedido">Distribuidor / Proveedor</label>
+            <select id="selectProveedorPedido" class="form-input" required>
+              <option value="">Selecciona un proveedor...</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-top: 1rem;">
+            <label class="form-label" for="selectProductoPedido">Producto a Solicitar</label>
+            <select id="selectProductoPedido" class="form-input" required>
+              <option value="">Selecciona un producto...</option>
+            </select>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+            <div class="form-group">
+              <label class="form-label" for="inputCantidadSolicitada">Cantidad Solicitada</label>
+              <input type="number" id="inputCantidadSolicitada" class="form-input" min="1" value="10" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputCostoUnitario">Costo Unitario Pactado ($)</label>
+              <input type="number" id="inputCostoUnitario" class="form-input" min="0.5" step="0.5" value="10.00" required />
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn--secondary" id="btnCancelarNuevo">Cancelar</button>
+        <button type="button" class="btn btn--primary" id="btnGuardarPedido">Emitir Orden</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL HU-32: RECEPCIÓN Y COTEJO DE MERCANCÍA -->
   <div class="modal-overlay modal--hidden" id="modalRecepcion">
     <div class="modal-card">
       <div class="modal-header">
@@ -94,7 +141,7 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn--danger" id="btnRechazar">Rechazar Pedido</button>
+        <button class="btn btn--danger" id="btnRechazar">Cancelar</button>
         <button class="btn btn--primary" id="btnConfirmar">Confirmar Recepción y Actualizar Stock</button>
       </div>
     </div>

@@ -57,7 +57,7 @@ const createProduct = async (productData) => {
     await connection.beginTransaction();
 
     const [result] = await connection.execute(
-      `INSERT INTO productos (nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen) 
+      `INSERT INTO productos (nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen, fecha_caducidad) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         nombre,
