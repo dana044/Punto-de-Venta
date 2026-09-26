@@ -3,6 +3,7 @@
 -->
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,6 +15,7 @@
   <link rel="stylesheet" href="/css/05-modals.css" />
   <link rel="stylesheet" href="/css/06-tables.css" />
 </head>
+
 <body>
   <div class="app-container">
     <!-- Barra lateral -->
@@ -91,7 +93,8 @@
           <header class="stepped-card__header">
             <div>
               <strong id="formTitle">Registro de Nuevos Productos</strong>
-              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;">Ingresa los datos generales y asocia los distribuidores correspondientes.</p>
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;">Ingresa los datos generales y
+                asocia los distribuidores correspondientes.</p>
             </div>
             <button type="button" id="btnCerrarModal" class="btn-close-modal">&times;</button>
           </header>
@@ -103,10 +106,11 @@
 
             <section class="stepped-card__section">
               <p><span class="step-badge">1</span><strong>Información General</strong></p>
-              
+
               <div class="form-group" style="margin-top: 1rem;">
                 <label class="form-label" for="nombreProducto">Nombre del Producto</label>
-                <input type="text" id="nombreProducto" class="form-input" placeholder="Ej. Libreta Universitaria" required />
+                <input type="text" id="nombreProducto" class="form-input" placeholder="Ej. Libreta Universitaria"
+                  required />
               </div>
 
               <div class="field-row">
@@ -123,7 +127,8 @@
               <div class="field-row">
                 <div class="form-group">
                   <label class="form-label" for="presentacion">Presentación</label>
-                  <input type="text" id="presentacion" class="form-input" placeholder="Ej. Cuadro Chico 100 hojas" required />
+                  <input type="text" id="presentacion" class="form-input" placeholder="Ej. Cuadro Chico 100 hojas"
+                    required />
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="unidadMedida">Unidad de Medida</label>
@@ -140,7 +145,7 @@
 
             <section class="stepped-card__section">
               <p><span class="step-badge">2</span><strong>Precios, Inventario y Proveedores</strong></p>
-              
+
               <div class="field-row" style="margin-top: 1rem;">
                 <div class="form-group">
                   <label class="form-label" for="precio">Precio Unitario ($)</label>
@@ -160,7 +165,8 @@
               <div class="form-group" style="margin-top: 1rem;">
                 <label class="form-label">Distribuidores / Proveedores Asociados</label>
                 <!-- Contenedor donde JS inyectará los checkboxes -->
-                <div id="proveedoresContainer" class="form-input" style="min-height: 60px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; background-color: #FAFAFA;">
+                <div id="proveedoresContainer" class="form-input"
+                  style="min-height: 60px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; background-color: #FAFAFA;">
                   <span class="text-muted">Cargando distribuidores...</span>
                 </div>
               </div>
@@ -173,10 +179,60 @@
           </form>
         </div>
       </div>
+      
+      <div id="modalAjusteOverlay" class="modal-overlay" style="display:none;">
+        <div class="modal-card stepped-card">
+          <header class="stepped-card__header">
+            <div>
+              <strong id="ajusteTitle">Ajuste Manual de Inventario</strong>
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;">Registra mermas, daños o corrige el
+                stock físico.</p>
+            </div>
+            <button type="button" id="btnCerrarModalAjuste" class="btn-close-modal">&times;</button>
+          </header>
+          <div id="modalAlertAjuste" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
+
+          <form id="formAjuste">
+            <input type="hidden" id="ajusteProductoId" />
+            <section class="stepped-card__section">
+              <p><span class="step-badge">!</span><strong id="nombreProductoAjuste">Producto Seleccionado</strong></p>
+
+              <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label" for="tipoAjuste">Tipo de Ajuste</label>
+                <select id="tipoAjuste" class="form-select" required>
+                  <option value="" disabled selected>Selecciona la operación...</option>
+                  <option value="merma">Merma (restar unidades al stock)</option>
+                  <option value="daño">Daño/Caducidad (restar unidades al stock)</option>
+                  <option value="ingreso_manual">Ingreso Manual (sumar unidades al stock)</option>
+                  <option value="conteo">Conteo Físico (reemplazar total del stock)</option>
+                </select>
+              </div>
+
+              <div class="field-row">
+                <div class="form-group">
+                  <label class="form-label" for="cantidadAjuste">Cantidad</label>
+                  <input type="number" id="cantidadAjuste" class="form-input" min="0" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="motivoAjuste">Motivo (Auditoría)</label>
+                  <input type="text" id="motivoAjuste" class="form-input"
+                    placeholder="Ej. Inventario mensual, caja rota..." required />
+                </div>
+              </div>
+            </section>
+
+            <footer class="stepped-card__footer">
+              <button type="button" class="btn btn--secondary" id="btnCancelarAjuste">Cancelar</button>
+              <button type="submit" class="btn btn--primary" id="btnGuardarAjuste">Registrar Ajuste</button>
+            </footer>
+          </form>
+        </div>
+      </div>
 
     </main>
   </div>
 
   <script src="/js/inventario.js"></script>
 </body>
+
 </html>

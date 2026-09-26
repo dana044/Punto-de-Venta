@@ -230,6 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <small class="text-muted">${p.proveedores_nombres || 'Sin proveedor'}</small>
         </td>
         <td class="actions-cell">
+          <button class="btn-icon-edit btn-ajustar" data-id="${p.id}" title="Ajustar Stock" style="background-color: #F3E8FF; color: #7E22CE;">Ajustar</button>
           <button class="btn-icon-edit" data-id="${p.id}" title="Editar">Editar</button>
           ${botonEstadoHTML}
           <button class="btn-icon-delete btn-eliminar" data-id="${p.id}" title="Eliminar">Eliminar</button>
@@ -409,4 +410,80 @@ document.addEventListener('DOMContentLoaded', () => {
       modalAlert.textContent = '';
     }
   }
+
+  const modalAjuste = document.getElementById('modalAjusteOverlay');
+  const formAjuste = document.getElementById('formAjuste');
+  const alertAjuste = document.getElementById('modalAlertAjuste');
+  const btnGuardarAjuste = document.getElementById('btnGuardarAjuste');
+
+  const toggleModalAjuste = (mostrar) => {
+    modalAjuste.style.display = mostrar ? 'flex' : 'none';
+    if (!mostrar) {
+      formAjuste.reset();
+      alertAjuste.hidden = true;
+    }
+  };
+
+  document.getElementById('btnCerrarModalAjuste')?.addEventListener('click', () => toggleModalAjuste(false));
+  document.getElementById('btnCancelarAjuste')?.addEventListener('click', () => toggleModalAjuste(false));
+
+  function abrirModalAjuste(producto) {
+    document.getElementById('ajusteProductoId').value = producto.id;
+    document.getElementById('nombreProductoAjuste').textContent = `${producto.nombre} (Stock actual: ${producto.stock_almacen})`;
+    toggleModalAjuste(true);
+  }
+
+  tablaBody.addEventListener('click', (e) => {
+    const btnAjustar = e.target.closest('.btn-ajustar');
+    if (btnAjustar) {
+      e.preventDefault();
+      const producto = productosCache.find((p) => p.id == btnAjustar.dataset.id);
+      if (producto) abrirModalAjuste(producto);
+    }
+  });
+
+  formAjuste.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('ajusteProductoId').value;
+    const payload = {
+      tipoAjuste: document.getElementById('tipoAjuste').value,
+      cantidad: Number(document.getElementById('cantidadAjuste').value),
+      motivo: document.getElementById('motivoAjuste').value.trim()
+    };
+
+    btnGuardarAjuste.disabled = true;
+    btnGuardarAjuste.textContent = 'Procesando...';
+    alertAjuste.hidden = true;
+
+    try {
+      const res = await fetch(`/api/inventory/productos/${id}/ajuste`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': userRole
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        alertAjuste.textContent = data.mensaje;
+        alertAjuste.className = 'alert alert--success';
+        alertAjuste.hidden = false;
+        cargarProductos(document.getElementById('buscarProducto')?.value.trim());
+        setTimeout(() => toggleModalAjuste(false), 1500);
+      } else {
+        alertAjuste.textContent = data.mensaje || 'Error al realizar el ajuste.';
+        alertAjuste.className = 'alert alert--error';
+        alertAjuste.hidden = false;
+      }
+    } catch (err) {
+      alertAjuste.textContent = 'Error de comunicación con el servidor.';
+      alertAjuste.className = 'alert alert--error';
+      alertAjuste.hidden = false;
+    } finally {
+      btnGuardarAjuste.disabled = false;
+      btnGuardarAjuste.textContent = 'Registrar Ajuste';
+    }
+  });
 });

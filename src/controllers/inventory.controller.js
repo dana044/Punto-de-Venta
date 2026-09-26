@@ -11,7 +11,8 @@ const {
   buscarProductos: buscarEnModelo, 
   darDeBajaProducto,
   updateProduct,
-  findById 
+  findById, 
+  ajustarStock
 } = require('../models/product.model.js');
 
 /**
@@ -193,11 +194,34 @@ const bajaProducto = async (req, res) => {
   }
 };
 
+const registrarAjuste = async (req, res) => {
+  const { id } = req.params;
+  const { cantidad, tipoAjuste, motivo } = req.body;
+
+  // Para el HU-50: Conectar este 'motivo' y 'tipoAjuste' a la tabla de auditoría cuando esté lista.
+  //console.log(`[Ajuste de Inventario] ID: ${id} | Tipo: ${tipoAjuste} | Cantidad: ${cantidad} | Motivo: ${motivo}`);
+
+  try {
+    const productoActualizado = await ajustarStock(id, cantidad, tipoAjuste);
+    return res.status(200).json({
+      mensaje: `Ajuste por '${motivo}' registrado. Nuevo stock: ${productoActualizado.stock_almacen}`,
+      producto: productoActualizado
+    });
+  } catch (error) {
+    console.error('Error al ajustar stock:', error);
+    if (error.message === 'Producto no encontrado') {
+      return res.status(404).json({ mensaje: `No se encontró el producto con ID ${id}.` });
+    }
+    return res.status(500).json({ mensaje: 'Error interno al registrar el ajuste de inventario.' });
+  }
+};
+
 module.exports = {
   registrarProducto,
   getProducto,
   listarProveedores,
   buscarProductos,
   bajaProducto,
-  actualizarProducto
+  actualizarProducto,
+  registrarAjuste
 };

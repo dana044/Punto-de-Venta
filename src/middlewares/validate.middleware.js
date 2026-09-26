@@ -149,9 +149,26 @@ const validateEmployee = (req, res, next) => {
   next();
 };
 
+const validateAjuste = (req, res, next) => {
+  const { cantidad, tipoAjuste, motivo } = req.body;
+  const tiposValidos = ['merma', 'daño', 'ingreso_manual', 'conteo'];
+
+  if (cantidad === undefined || isNaN(cantidad) || Number(cantidad) < 0) {
+    return res.status(400).json({ mensaje: 'Debes enviar una cantidad válida mayor o igual a cero.' });
+  }
+  if (!tiposValidos.includes(tipoAjuste)) {
+    return res.status(400).json({ mensaje: `El tipo de ajuste debe ser uno de: ${tiposValidos.join(', ')}.` });
+  }
+  if (!motivo || motivo.trim() === '') {
+    return res.status(400).json({ mensaje: 'Debes incluir un motivo para auditar este ajuste.' });
+  }
+  next();
+};
+
 module.exports = {
   validateProduct,
   validateRecepcion,
   validateCarrito,
-  validateEmployee
+  validateEmployee,
+  validateAjuste
 };

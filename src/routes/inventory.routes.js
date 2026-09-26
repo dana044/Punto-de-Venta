@@ -7,8 +7,9 @@
 const express = require('express');
 const router = express.Router();
 const inventoryController = require('../controllers/inventory.controller.js');
-const { validateProduct } = require('../middlewares/validate.middleware.js');
+const { validateProduct, validateAjuste } = require('../middlewares/validate.middleware.js');
 const { permitirRoles } = require('../middlewares/auth.middleware.js');
+
 
 /**
  * Ruta para buscar y filtrar productos.
@@ -68,6 +69,19 @@ router.put(
   permitirRoles('administrador', 'almacenista'),
   validateProduct,
   inventoryController.actualizarProducto
+);
+
+/**
+ * Ruta para registrar ajustes manuales (HU-17).
+ * Restringida a los roles 'administrador' y 'almacenista'.
+ * @name post/productos/:id/ajuste
+ * @route {POST} /api/inventory/productos/:id/ajuste
+ */
+router.post(
+  '/productos/:id/ajuste',
+  permitirRoles('administrador', 'almacenista'),
+  validateAjuste,
+  inventoryController.registrarAjuste
 );
 
 module.exports = router;

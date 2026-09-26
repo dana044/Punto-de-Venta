@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS producto_proveedor (
 );
 
 -- ------------------------------------------------------------
--- Pedidos a proveedor (HU-31 y HU-32)
+-- Pedidos a proveedor
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS pedidos (
   id                INT AUTO_INCREMENT PRIMARY KEY,
@@ -135,3 +135,12 @@ INSERT IGNORE INTO productos (id, nombre, codigo_barras, categoria, presentacion
 INSERT IGNORE INTO producto_proveedor (producto_id, proveedor_id) VALUES
   (1, 1),
   (2, 2);
+  
+INSERT INTO pedidos (folio, proveedor_id, fecha, destino, estado) VALUES
+('OC-2026-001', 1, NOW(), 'almacen', 'pendiente'),
+('OC-2026-002', 2, NOW(), 'almacen', 'pendiente');
+
+INSERT INTO pedido_detalle (pedido_id, producto_id, cantidad_solicitada, cantidad_recibida, costo_unitario, estado_linea) VALUES
+(1, 1, 50, 0, 10.00, 'pendiente'),
+(2, 1, 30, 0, 10.00, 'pendiente'),
+(2, 2, 20, 0, 18.00, 'pendiente');

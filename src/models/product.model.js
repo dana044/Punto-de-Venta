@@ -273,6 +273,48 @@ const darDeBajaProducto = async (id, accion) => {
   }
 };
 
+/**
+ * Registra un ajuste manual en el inventario afectando la base de datos (HU-17).
+ */
+const ajustarStock = async (id, cantidad, tipoAjuste) => {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [rows] = await connection.execute(
+      'SELECT stock_almacen FROM productos WHERE id = ? FOR UPDATE',
+      [Number(id)]
+    );
+    
+    if (rows.length === 0) throw new Error('Producto no encontrado');
+    
+    let nuevoStock = rows[0].stock_almacen;
+
+    if (tipoAjuste === 'ingreso_manual') {
+      nuevoStock += Number(cantidad);
+    } else if (tipoAjuste === 'merma' || tipoAjuste === 'daño') {
+      nuevoStock -= Number(cantidad);
+    } else if (tipoAjuste === 'conteo') {
+      nuevoStock = Number(cantidad); 
+    }
+
+    if (nuevoStock < 0) nuevoStock = 0;
+
+    await connection.execute(
+      'UPDATE productos SET stock_almacen = ? WHERE id = ?',
+      [nuevoStock, Number(id)]
+    );
+
+    await connection.commit();
+    return await findById(id);
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
 module.exports = {
   createProduct,
   getProveedores,
@@ -280,5 +322,6 @@ module.exports = {
   findById,
   buscarProductos,
   darDeBajaProducto,
-  updateProduct
+  updateProduct,
+  ajustarStock
 };
