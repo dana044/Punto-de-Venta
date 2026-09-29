@@ -26,6 +26,7 @@ const inventoryRoutes = require('./routes/inventory.routes.js');
 const receivingRoutes = require('./routes/receiving.routes.js');
 const posRoutes = require('./routes/pos.routes.js');
 const employeesRoutes = require('./routes/employees.routes.js');
+const suppliersRoutes = require('./routes/suppliers.routes.js');
 
 /** Montaje de la ruta base para autenticación. */
 app.use('/api/auth', authRoutes);
@@ -36,7 +37,9 @@ app.use('/api/receiving', receivingRoutes);
 /** Montaje de la ruta base para el punto de venta (HU-27: cálculo de totales). */
 app.use('/api/pos', posRoutes);
 /** Montaje de la ruta base para empleados. */
-app.use('/api/employees', employeesRoutes)
+app.use('/api/employees', employeesRoutes);
+/** Montaje de la ruta base para proveedores. (HU-18, HU-19) */
+app.use('/api/suppliers', suppliersRoutes);
 
 /**
  * Ruta raíz que redirige automáticamente a la pantalla de inicio de sesión.
