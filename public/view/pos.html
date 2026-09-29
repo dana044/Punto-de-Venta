@@ -1,7 +1,6 @@
 <!--
   Punto de Venta UV — Cálculo de subtotal, descuentos y total
-  Nota: esta pantalla solo cubre el cálculo del carrito.
-
+  Integra HU26 y HU49: Entrada de productos por búsqueda manual y escáner.
 -->
 <!DOCTYPE html>
 <html lang="es">
@@ -38,14 +37,15 @@
 
     <main class="main-content">
       <h1>Venta — Subtotal, Descuentos y Total</h1>
-      <p class="text-muted" style="margin-bottom: 1.5rem;">Agrega productos al carrito; los totales se recalculan automáticamente cada vez que la lista cambia (HU-27).</p>
+      <p class="text-muted" style="margin-bottom: 1.5rem;">Agrega productos escaneando o buscando por nombre (HU-26 / HU-49). Los totales se recalculan automáticamente (HU-27).</p>
 
       <div id="alertMessage" class="alert alert--error" hidden></div>
 
       <div class="carrito-toolbar">
-        <div class="form-group">
-          <label class="form-label">Producto</label>
-          <select id="selectProducto" class="form-select"></select>
+        <!-- HU26 y HU49: Input de texto dinámico para buscar o escanear códigos de barras -->
+        <div class="form-group" style="flex-grow: 1; min-width: 200px;">
+          <label class="form-label">Buscar / Escanear Código</label>
+          <input type="text" id="inputBuscarProducto" class="form-input" placeholder="Escanea código o escribe nombre..." autocomplete="off" autofocus />
         </div>
         <div class="form-group">
           <label class="form-label">Cantidad</label>

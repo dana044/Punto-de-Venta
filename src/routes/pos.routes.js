@@ -19,7 +19,7 @@ const { permitirRoles } = require('../middlewares/auth.middleware.js');
 router.post(
   '/calcular',
   permitirRoles('cajero', 'administrador'),
-  validateCarrito,
+  //validateCarrito,
   posController.calcularTotales
 );
 

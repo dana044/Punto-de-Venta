@@ -1,61 +1,23 @@
 /**
  * @file product.model.js
- * @description Modelo de datos y catálogo en memoria para productos y distribuidores (HU-06 y HU-11).
+ * @description Modelo de datos para productos y distribuidores.
  * @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
+ * @author Diego Rafael Jiménez Trujano (Programador XP)
  */
 
-/**
- * @typedef {Object} Distribuidor
- * @property {number} id - Identificador único del distribuidor.
- * @property {string} nombre - Nombre comercial o razón social.
- */
+// Importamos tu conexión a MySQL configurada en server.js
+const db = require('../config/db');
 
-/**
- * @typedef {Object} Producto
- * @property {number} id - Identificador único autoincremental del producto.
- * @property {string} nombre - Denominación comercial del producto.
- * @property {string} codigo_barras - Identificador numérico o SKU del producto.
- * @property {string} presentacion - Descripción de la presentación física.
- * @property {string} unidad_medida - Unidad física de cuantificación.
- * @property {number} precio - Precio unitario de venta.
- * @property {Array<number>} proveedoresIds - Lista de IDs de distribuidores asociados.
- */
-
-/**
- * Catálogo en memoria de distribuidores registrados (HU-11).
- * @type {Array<Distribuidor>}
- */
+// --- CÓDIGO EN MEMORIA EXISTENTE ---
 const proveedores = [
   { id: 1, nombre: 'Distribuidora Central Papelera S.A.' },
   { id: 2, nombre: 'Abarrotes y Suministros del Golfo' },
   { id: 3, nombre: 'Comercializadora Universitaria UV' }
 ];
 
-/**
- * Lista en memoria que almacena los productos registrados.
- * @type {Array<Producto>}
- */
 const products = [];
-
-/**
- * Contador para simular la asignación autoincremental del identificador primario.
- * @type {number}
- */
 let nextId = 1;
 
-/**
- * Registra un nuevo producto y vincula sus distribuidores asociados (HU-11).
- *
- * @function createProduct
- * @param {Object} productData - Datos del producto capturados desde el cliente.
- * @param {string} productData.nombre - Nombre del artículo.
- * @param {string} productData.codigo_barras - Código de barras.
- * @param {string} productData.presentacion - Presentación comercial.
- * @param {string} productData.unidad_medida - Unidad de medida.
- * @param {number} productData.precio - Precio unitario.
- * @param {Array<number|string>} productData.proveedoresIds - Arreglo de IDs de distribuidores vinculados.
- * @returns {Producto} El registro del producto creado con su identificador asignado.
- */
 const createProduct = (productData) => {
   const distribuidoresUnicos = Array.isArray(productData.proveedoresIds)
     ? [...new Set(productData.proveedoresIds.map(Number))]
@@ -75,18 +37,35 @@ const createProduct = (productData) => {
   return newProduct;
 };
 
-/**
- * Retorna la totalidad de proveedores disponibles en el catálogo.
- *
- * @function getProveedores
- * @returns {Array<Distribuidor>} Lista de distribuidores registrados.
- */
 const getProveedores = () => {
   return proveedores;
+};
+
+// --- NUEVO CÓDIGO CON MYSQL (HU-26 / HU-49) ---
+
+/**
+ * Busca un producto activo en la base de datos MySQL por código de barras exacto o coincidencia de nombre.
+ * @param {string} termino - Código de barras o fragmento del nombre del producto.
+ * @returns {Promise<Object|null>} El objeto del producto o null si no se encuentra.
+ */
+const findProductForPOS = async (termino) => {
+  const query = `
+    SELECT id, nombre, codigo_barras, precio 
+    FROM productos 
+    WHERE (codigo_barras = ? OR nombre LIKE ?) 
+      AND activo = 1 
+    LIMIT 1
+  `;
+  
+  // Usamos el término exacto para el código de barras, y con comodines (%) para el nombre
+  const [rows] = await db.query(query, [termino, `%${termino}%`]);
+  
+  return rows.length > 0 ? rows[0] : null;
 };
 
 module.exports = {
   createProduct,
   getProveedores,
-  products
+  products,
+  findProductForPOS
 };

@@ -1,10 +1,10 @@
 /**
  * @file pos.js
- * @description Controlador para calcular subtotal,
- * descuentos y total
+ * @description Controlador para calcular subtotal, descuentos y total (HU-27),
+ * e ingresar productos mediante código de barras o búsqueda manual (HU-26, HU-49).
  */
 
-const API_PRODUCTOS = '/api/inventory/productos';
+const API_BUSCAR_PRODUCTO = '/api/inventory/productos/buscar';
 const API_CALCULAR = '/api/pos/calcular';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const alerta = document.getElementById('alertMessage');
-  const selectProducto = document.getElementById('selectProducto');
+  const inputBuscarProducto = document.getElementById('inputBuscarProducto');
   const inputCantidad = document.getElementById('inputCantidad');
   const selectDescuentoTipo = document.getElementById('selectDescuentoTipo');
   const inputDescuentoValor = document.getElementById('inputDescuentoValor');
@@ -41,57 +41,71 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   let carrito = [];
 
-  /** @type {Array<Object>} Catálogo de productos cargado desde el backend. */
-  let catalogo = [];
-
-  cargarProductos();
+  /**
+   * HU26 / HU49: Escucha el escáner de código de barras (tecla Enter).
+   * Al escanear, busca directamente y agrega el producto.
+   */
+  inputBuscarProducto.addEventListener('keypress', async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Evitar que el enter haga submit de un formulario accidentalmente
+      await buscarYAgregarProducto(inputBuscarProducto.value.trim());
+    }
+  });
 
   /**
-   * Carga el catálogo real de productos para poblar el selector.
+   * HU26: También permite agregar el producto haciendo clic en el botón.
    */
-  async function cargarProductos() {
-    try {
-      const res = await fetch(API_PRODUCTOS);
-      const data = await res.json();
-      catalogo = data.productos || [];
+  btnAgregar.addEventListener('click', async () => {
+    await buscarYAgregarProducto(inputBuscarProducto.value.trim());
+  });
 
-      if (catalogo.length === 0) {
-        selectProducto.innerHTML = '<option value="">No hay productos registrados</option>';
-        btnAgregar.disabled = true;
-        return;
-      }
-
-      selectProducto.innerHTML = catalogo
-        .map((p) => `<option value="${p.id}">${p.nombre} — $${p.precio}</option>`)
-        .join('');
-    } catch (err) {
-      mostrarError('No se pudo cargar el catálogo de productos.');
-    }
-  }
-
-  btnAgregar.addEventListener('click', () => {
-    const productoId = Number(selectProducto.value);
-    const producto = catalogo.find((p) => p.id === productoId);
-    const cantidad = Number(inputCantidad.value);
-
-    if (!producto || !cantidad || cantidad <= 0) {
-      mostrarError('Selecciona un producto y una cantidad válida.');
+  /**
+   * HU26 / HU49: Realiza la búsqueda del producto en el backend por código o nombre
+   * y lo añade a la lista de cobro.
+   * @param {string} query Término de búsqueda (código de barras o nombre)
+   */
+  async function buscarYAgregarProducto(query) {
+    if (!query) {
+      mostrarError('Ingresa un código de barras o nombre de producto.');
       return;
     }
 
-    carrito.push({
-      productoId,
-      productoNombre: producto.nombre,
-      cantidad,
-      descuentoTipo: selectDescuentoTipo.value,
-      descuentoValor: Number(inputDescuentoValor.value) || 0
-    });
+    try {
+      // Llamada al nuevo endpoint de búsqueda que crearemos en el backend
+      const res = await fetch(`${API_BUSCAR_PRODUCTO}?q=${encodeURIComponent(query)}`, {
+        headers: { 'x-user-role': userRole }
+      });
+      
+      const data = await res.json();
 
-    inputCantidad.value = 1;
-    inputDescuentoValor.value = 0;
+      if (!res.ok || !data.producto) {
+        mostrarError(data.mensaje || 'Producto no encontrado o inactivo.');
+        return;
+      }
 
-    recalcular();
-  });
+      const producto = data.producto;
+      const cantidad = Number(inputCantidad.value) || 1;
+
+      // Agrega el producto al carrito
+      carrito.push({
+        productoId: producto.id,
+        productoNombre: producto.nombre,
+        cantidad,
+        descuentoTipo: selectDescuentoTipo.value,
+        descuentoValor: Number(inputDescuentoValor.value) || 0
+      });
+
+      // Limpia los inputs para permitir un nuevo escaneo inmediatamente (HU-49)
+      inputBuscarProducto.value = '';
+      inputCantidad.value = 1;
+      inputDescuentoValor.value = 0;
+      inputBuscarProducto.focus();
+
+      recalcular();
+    } catch (err) {
+      mostrarError('Error al comunicarse con el servidor para buscar el producto.');
+    }
+  }
 
   /**
    * Quita una línea del carrito por su posición y vuelve a recalcular.
@@ -100,13 +114,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function quitarLinea(index) {
     carrito.splice(index, 1);
     recalcular();
+    inputBuscarProducto.focus(); // Retorna el foco al escáner tras eliminar (HU49)
   }
 
   /**
    * Envía el carrito actual a /api/pos/calcular (HU-27) y pinta la tabla y
-   * los totales con la respuesta del backend. Se llama cada vez que el
-   * carrito cambia (agregar o quitar un producto), tal como pide el
-   * criterio de aceptación de la historia.
+   * los totales con la respuesta del backend.
    */
   async function recalcular() {
     if (carrito.length === 0) {
@@ -129,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      alerta.hidden = true;
+      alerta.hidden = true; // Ocultar alerta si todo sale bien
       pintarCarrito(data.items);
       pintarTotales(data);
     } catch (err) {

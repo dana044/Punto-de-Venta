@@ -4,15 +4,38 @@
  * @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
  */
 
-const { createProduct, products, getProveedores } = require('../models/product.model.js');
+const { createProduct, products, getProveedores, findProductForPOS } = require('../models/product.model.js');
+
+/**
+ * Busca un producto por código de barras o nombre para agregarlo a la venta (HU-26 y HU-49).
+ *
+ * @function buscarProductoPOS
+ * @param {import('express').Request} req - Petición HTTP que incluye el query 'q'.
+ * @param {import('express').Response} res - Respuesta HTTP.
+ */
+const buscarProductoPOS = async (req, res) => {
+  try {
+    const termino = req.query.q;
+    
+    if (!termino) {
+      return res.status(400).json({ mensaje: 'Ingresa un término de búsqueda válido.' });
+    }
+
+    const producto = await findProductForPOS(termino);
+
+    if (!producto) {
+      return res.status(404).json({ mensaje: 'Producto no encontrado o inactivo.' });
+    }
+
+    return res.status(200).json({ producto });
+  } catch (error) {
+    console.error('Error en buscarProductoPOS:', error);
+    return res.status(500).json({ mensaje: 'Error interno al buscar el producto.' });
+  }
+};
 
 /**
  * Procesa la solicitud para registrar un nuevo producto con distribuidores vinculados (HU-06 y HU-11).
- *
- * @function registrarProducto
- * @param {import('express').Request} req - Petición HTTP con los datos validados del producto.
- * @param {import('express').Response} res - Respuesta HTTP de Express.
- * @returns {Object} Respuesta JSON con código 201 y la entidad creada.
  */
 const registrarProducto = (req, res) => {
   const productData = req.body;
@@ -26,11 +49,6 @@ const registrarProducto = (req, res) => {
 
 /**
  * Consulta la lista general de productos registrados en el sistema.
- *
- * @function getProducto
- * @param {import('express').Request} req - Petición HTTP de Express.
- * @param {import('express').Response} res - Respuesta HTTP con la colección de productos.
- * @returns {Object} Respuesta JSON con estado 200 y la lista de productos.
  */
 const getProducto = (req, res) => {
   return res.status(200).json({
@@ -41,11 +59,6 @@ const getProducto = (req, res) => {
 
 /**
  * Consulta el catálogo de proveedores disponibles para su asociación (HU-11).
- *
- * @function listarProveedores
- * @param {import('express').Request} req - Petición HTTP de Express.
- * @param {import('express').Response} res - Respuesta HTTP con la lista de proveedores.
- * @returns {Object} Respuesta JSON con estado 200 y el arreglo de distribuidores.
  */
 const listarProveedores = (req, res) => {
   const lista = getProveedores();
@@ -58,5 +71,6 @@ const listarProveedores = (req, res) => {
 module.exports = {
   registrarProducto,
   getProducto,
-  listarProveedores
+  listarProveedores,
+  buscarProductoPOS
 };
