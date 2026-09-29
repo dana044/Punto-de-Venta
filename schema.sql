@@ -139,10 +139,6 @@ INSERT IGNORE INTO productos (id, nombre, codigo_barras, categoria, presentacion
 INSERT IGNORE INTO producto_proveedor (producto_id, proveedor_id) VALUES
   (1, 1),
   (2, 2);
-<<<<<<< HEAD
-
-  use punto_de_venta;
-ALTER TABLE productos ADD COLUMN activo BOOLEAN NOT NULL DEFAULT TRUE;
 
 -- 1. Insertar los encabezados de los pedidos
 INSERT INTO pedidos (folio, proveedor_id, fecha, destino, estado) VALUES
@@ -156,21 +152,8 @@ INSERT INTO pedidos (folio, proveedor_id, fecha, destino, estado) VALUES
 INSERT INTO pedido_detalle (pedido_id, producto_id, cantidad_solicitada, cantidad_recibida, costo_unitario, estado_linea) VALUES
   -- Ítems para el pedido 1 (OC-2026-001)
   (1, 1, 50, 0, 10.00, 'pendiente'),
-
-  -- Ítems para el pedido 2 (OC-2026-002)
   (2, 1, 30, 0, 10.00, 'pendiente'),
   (2, 2, 20, 0, 18.00, 'pendiente');
-
-  ALTER TABLE productos ADD COLUMN fecha_caducidad DATE NULL;
-
-USE punto_de_venta;
-
-ALTER TABLE proveedores 
-ADD COLUMN direccion VARCHAR(255) NULL AFTER nombre,
-ADD COLUMN telefono VARCHAR(20) NULL AFTER direccion,
-ADD COLUMN email VARCHAR(100) NULL AFTER telefono,
-ADD COLUMN activo BOOLEAN NOT NULL DEFAULT TRUE AFTER email;
-=======
   
 INSERT INTO pedidos (folio, proveedor_id, fecha, destino, estado) VALUES
 ('OC-2026-001', 1, NOW(), 'almacen', 'pendiente'),
