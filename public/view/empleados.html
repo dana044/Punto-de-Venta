@@ -109,11 +109,6 @@
             <section class="stepped-card__section">
               <p><span class="step-badge">2</span><strong>Puesto</strong></p>
               <div class="field-row" style="margin-top: 1rem;">
-                <!-- Agregamos el campo puesto que faltaba -->
-                <div class="form-group">
-                  <label class="form-label" for="puesto">Nombre del Puesto</label>
-                  <input type="text" id="puesto" class="form-input" placeholder="Ej. Gerente de Ventas" />
-                </div>
                 <div class="form-group">
                   <label class="form-label" for="role">Rol en Sistema</label>
                   <select id="role" class="form-select" required>
@@ -134,9 +129,12 @@
 
               <!-- Se unifica el ID username para el inicio de sesión -->
               <div class="form-group">
-                <label class="form-label" for="username">Correo Electrónico / Usuario</label>
-                <input type="email" id="username" class="form-input" placeholder="abc@uv.com" required />
+                <label class="form-label" for="correo">Correo Electrónico</label>
+                <input type="email" id="correo" class="form-input" placeholder="abc@uv.com" required />
               </div>
+
+              <!-- Advertencias previas al guardado -->
+              <div id="preAlertMessage" class="alert alert--warning" hidden style="margin-top: 0.75rem;"></div>
 
               <!-- Contraseña Actual (solo visible al editar) -->
               <div class="form-group" id="groupOldPassword" style="display: none;">

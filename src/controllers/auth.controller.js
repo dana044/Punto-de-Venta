@@ -1,25 +1,27 @@
 /**
- * ontrolador de Autenticación.
+ * Controlador de Autenticación.
  * Se encarga de procesar las peticiones de inicio de sesión y validar credenciales.
+ * El inicio de sesión se hace únicamente con correo electrónico (HU01): no
+ * existe una vía de acceso por nombre de usuario.
  */
-const { findUserByUsername } = require('../models/user.model.js');
+const { findUserByCorreo } = require('../models/user.model.js');
 
 /**
  * Valida las credenciales del usuario y devuelve el acceso según su rol.
- * @param {Object} req - Objeto de petición de Express, contiene el body con usuario, contrasena y rol.
+ * @param {Object} req - Objeto de petición de Express, contiene el body con correo, contrasena y rol.
  * @param {Object} res - Objeto de respuesta de Express.
  * @returns {Promise<Object>} Respuesta JSON con estado HTTP, mensaje y datos de sesión (o error).
  */
 const login = async (req, res) => {
-  const { usuario, contrasena, rol } = req.body;
+  const { correo, contrasena, rol } = req.body;
 
   try {
-    /** Busca al usuario por username */
-    const user = await findUserByUsername(usuario);
+    /** Busca al usuario únicamente por correo */
+    const user = await findUserByCorreo(correo);
 
     /** Verifica si existe y si la contraseña coincide */
     if (!user || user.password !== contrasena) {
-      return res.status(401).json({ mensaje: 'Usuario o contraseña incorrectos.' });
+      return res.status(401).json({ mensaje: 'Correo o contraseña incorrectos.' });
     }
 
     /** Si la cuenta está desactivada, no permitir el inicio de sesión */
@@ -38,7 +40,7 @@ const login = async (req, res) => {
       token: 'token_falso_12345',
       usuario: {
         id: user.id,
-        username: user.username,
+        correo: user.correo,
         role: user.role
       }
     });

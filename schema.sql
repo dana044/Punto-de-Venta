@@ -15,12 +15,12 @@ USE punto_de_venta;
 CREATE TABLE IF NOT EXISTS usuarios (
   id                INT AUTO_INCREMENT PRIMARY KEY,
   nombre_completo   VARCHAR(150) NOT NULL,
-  puesto            VARCHAR(100),
-  username          VARCHAR(100) NOT NULL UNIQUE,
+  correo            VARCHAR(150),
   password          VARCHAR(255) NOT NULL,
   role              ENUM('administrador', 'cajero', 'almacenista') NOT NULL,
   activo            BOOLEAN NOT NULL DEFAULT TRUE,
   creado_en         DATETIME DEFAULT CURRENT_TIMESTAMP
+  UNIQUE KEY uq_correo_role (correo, role)
 );
 
 -- ------------------------------------------------------------

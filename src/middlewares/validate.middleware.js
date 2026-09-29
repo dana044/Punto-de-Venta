@@ -120,9 +120,9 @@ const ROLES_VALIDOS = ['administrador', 'cajero', 'almacenista'];
  * @returns {Object|void}
  */
 const validateEmployee = (req, res, next) => {
-  const { nombreCompleto, puesto, username, password, confirmarPassword, role } = req.body;
+  const { nombreCompleto, correo, role, password, confirmarPassword } = req.body;
 
-  if (!nombreCompleto || !puesto || !username || !password) {
+  if (!nombreCompleto || !correo || !role || !password) {
     return res.status(400).json({
       mensaje: 'Falta informacion. Debes completar nombre completo, puesto, usuario y contrasena.'
     });

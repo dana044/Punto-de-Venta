@@ -15,8 +15,7 @@ function mapRowToUser(row) {
   return {
     id: row.id,
     nombreCompleto: row.nombre_completo,
-    puesto: row.puesto,
-    username: row.username,
+    correo: row.correo,
     password: row.password,
     role: row.role,
     activo: !!row.activo
@@ -28,18 +27,17 @@ function mapRowToUser(row) {
  * @param {{nombreCompleto:string, puesto:string, username:string, password:string, role:string}} datos
  * @returns {Promise<Object>} El empleado recién creado (incluye password, el controlador la oculta).
  */
-async function createUser({ nombreCompleto, puesto, username, password, role }) {
+async function createUser({ nombreCompleto, correo, password, role }) {
   const [result] = await pool.query(
-    `INSERT INTO usuarios (nombre_completo, puesto, username, password, role)
-     VALUES (?, ?, ?, ?, ?)`,
-    [nombreCompleto, puesto, username, password, role]
+    `INSERT INTO usuarios (nombre_completo, correo, password, role)
+     VALUES (?, ?, ?, ?)`,
+    [nombreCompleto, correo, password, role]
   );
 
   return {
     id: result.insertId,
     nombreCompleto,
-    puesto,
-    username,
+    correo,
     password,
     role,
     activo: true
@@ -56,15 +54,27 @@ async function getAllUsers() {
 }
 
 /**
- * Busca un empleado por su username (usado para evitar duplicados y para login).
- * @param {string} username
+ * Busca un empleado por su correo (usado para evitar duplicados y para login).
+ * @param {string} correo
  * @returns {Promise<Object|null>}
  */
-async function findUserByUsername(username) {
+async function findUserByCorreo(correo) {
   const [rows] = await pool.query(
-    `SELECT * FROM usuarios WHERE username = ? LIMIT 1`,
-    [username]
-  );
+    `SELECT * FROM usuarios WHERE correo = ? LIMIT 1`, [correo]);
+  return rows.length ? mapRowToUser(rows[0]) : null;
+}
+
+/**
+ * Busca un empleado por su correo y rol
+ * @param {string} correo
+ * @param {string} role
+ * @returns {Promise<Object|null>}
+ */
+async function findByCorreoYRol(correo, role, excludeId = null) {
+  const params = [correo, role];
+  let sql = `SELECT * FROM usuarios WHERE correo = ? AND role = ?`;
+  if (excludeId) { sql += ` AND id != ?`; params.push(excludeId); }
+  const [rows] = await pool.query(sql + ' LIMIT 1', params);
   return rows.length ? mapRowToUser(rows[0]) : null;
 }
 
@@ -89,12 +99,12 @@ async function getUserById(id) {
 async function updateUser(id, { nombreCompleto, puesto, username, role, password }) {
   if (password) {
     await pool.query(
-      `UPDATE usuarios SET nombre_completo = ?, puesto = ?, username = ?, role = ?, password = ? WHERE id = ?`,
+      `UPDATE usuarios SET nombre_completo = ?, correo = ?, role = ?, password = ? WHERE id = ?`,
       [nombreCompleto, puesto, username, role, password, id]
     );
   } else {
     await pool.query(
-      `UPDATE usuarios SET nombre_completo = ?, puesto = ?, username = ?, role = ? WHERE id = ?`,
+      `UPDATE usuarios SET nombre_completo = ?, correo = ?, role = ? WHERE id = ?`,
       [nombreCompleto, puesto, username, role, id]
     );
   }
@@ -126,7 +136,8 @@ async function deleteUser(id) {
 module.exports = {
   createUser,
   getAllUsers,
-  findUserByUsername,
+  findUserByCorreo,
+  findByCorreoYRol,
   getUserById,
   updateUser,
   setUserActivo,

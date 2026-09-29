@@ -10,7 +10,7 @@ const RUTA_INICIO_SESION = "/api/auth/login";
 
 document.addEventListener("DOMContentLoaded", () => {
   const formulario = document.getElementById("loginForm");
-  const entradaUsuario = document.getElementById("username");
+  const entradaCorreo = document.getElementById("correo"); 
   const entradaContrasena = document.getElementById("password");
   const botonMostrarContrasena = document.getElementById("togglePassword");
   const botonEnviar = document.getElementById("submitBtn");
@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
       evento.preventDefault();
       ocultarError();
 
-      const usuario = entradaUsuario.value.trim();
+      const usuario = entradaCorreo.value.trim();
       const contrasena = entradaContrasena.value;
       const rol = formulario.querySelector("input[name=role]:checked")?.value;
 
@@ -129,7 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const respuesta = await fetch(RUTA_INICIO_SESION, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ usuario, contrasena, rol }),
+      body: JSON.stringify({ correo: usuario, contrasena, rol }),
     });
 
     let datos = {};

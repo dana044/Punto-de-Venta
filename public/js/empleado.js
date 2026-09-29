@@ -46,6 +46,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const groupOldPassword = document.getElementById('groupOldPassword');
   const oldPasswordInput = document.getElementById('oldPassword');
 
+  const correoInput = document.getElementById('correo');
+  const roleSelect = document.getElementById('role');
+  const passwordInput = document.getElementById('password');
+  const confirmarPasswordInput = document.getElementById('confirmarPassword');
+  const preAlerta = document.getElementById('preAlertMessage');
+
   let listaEmpleadosGlobal = [];
   let modoEdicion = false;
 
@@ -104,8 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const ocultarModal = () => {
     modalOverlay.style.display = 'none';
     formulario.reset();
-    if (alerta) alerta.hidden = true;
     if (modalAlerta) modalAlerta.hidden = true;
+    ocultarPreAlerta();
   };
 
   btnCerrarModal?.addEventListener('click', ocultarModal);
@@ -141,11 +147,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const empleadosFiltrados = listaEmpleadosGlobal.filter((emp) => {
       const nombre = (emp.nombreCompleto || '').toLowerCase();
-      const usuario = (emp.username || '').toLowerCase();
-      const puesto = (emp.puesto || '').toLowerCase();
+      const correo = (emp.correo || '').toLowerCase();
       const rol = (emp.role || '').toLowerCase();
 
-      return nombre.includes(termino) || usuario.includes(termino) || puesto.includes(termino) || rol.includes(termino);
+      return nombre.includes(termino) || correoInput.includes(termino) || rol.includes(termino);
     });
 
     renderizarTabla(empleadosFiltrados);
@@ -162,13 +167,12 @@ document.addEventListener('DOMContentLoaded', () => {
     empleados.forEach((emp) => {
       const tr = document.createElement('tr');
       const opacityStyle = emp.activo ? '' : 'opacity: 0.6;';
-      
+ 
       tr.innerHTML = `
         <td style="${opacityStyle}">
           <strong>${emp.nombreCompleto}</strong>
-          <div style="font-size: 0.8rem; color: #666;">${emp.puesto || 'Sin puesto'}</div>
         </td>
-        <td style="${opacityStyle}">${emp.username}</td>
+        <td style="${opacityStyle}">${emp.correo}</td>
         <td style="${opacityStyle}"><strong>${emp.role}</strong></td>
         <td>
           <span class="badge ${emp.activo ? 'badge--success' : 'badge--danger'}">
@@ -191,9 +195,8 @@ document.addEventListener('DOMContentLoaded', () => {
     modoEdicion = true;
     document.getElementById('empleadoId').value = emp.id;
     document.getElementById('nombreCompleto').value = emp.nombreCompleto;
-    document.getElementById('puesto').value = emp.puesto || '';
     document.getElementById('role').value = emp.role;
-    document.getElementById('username').value = emp.username;
+    correoInput.value = emp.correo;
 
     groupOldPassword.style.display = 'block';
     oldPasswordInput.value = '';
@@ -207,6 +210,55 @@ document.addEventListener('DOMContentLoaded', () => {
     pwdHelpText.textContent = 'Si deseas cambiar la contrasena, debes ingresar la contrasena actual.';
     modalOverlay.style.display = 'flex';
   }
+
+  /**
+   * Muestra la advertencia previa al guardado, dentro del modal.
+   * @param {string} mensaje
+   */
+  function mostrarPreAlerta(mensaje) {
+    if (!preAlerta) return;
+    preAlerta.textContent = mensaje;
+    preAlerta.hidden = false;
+  }
+ 
+  /** Oculta y limpia la advertencia previa al guardado. */
+  function ocultarPreAlerta() {
+    if (!preAlerta) return;
+    preAlerta.hidden = true;
+    preAlerta.textContent = '';
+  }
+ 
+  /**
+   * Valida en vivo, contra la lista de empleados ya cargada (sin llamar al
+   * servidor), que el correo no esté en uso con el mismo rol, y que las
+   * contrasenas coincidan. Muestra una advertencia visible antes de que el
+   * usuario intente dar clic en "Guardar Empleado".
+   */
+  function validarEnVivo() {
+    const idActual = document.getElementById('empleadoId').value;
+    const correo = correoInput.value.trim();
+    const role = roleSelect.value;
+ 
+    const correoDuplicado = listaEmpleadosGlobal.some(
+      (e) => e.correo === correo && e.role === role && String(e.id) !== String(idActual)
+    );
+    if (correo && role && correoDuplicado) {
+      mostrarPreAlerta('Ese correo ya está en uso con ese rol. Usa un correo diferente.');
+      return;
+    }
+ 
+    if (passwordInput.value && confirmarPasswordInput.value && passwordInput.value !== confirmarPasswordInput.value) {
+      mostrarPreAlerta('Las contraseñas deben ser iguales.');
+      return;
+    }
+ 
+    ocultarPreAlerta();
+  }
+ 
+  [correoInput, roleSelect, passwordInput, confirmarPasswordInput].forEach((el) => {
+    el?.addEventListener('input', validarEnVivo);
+    el?.addEventListener('blur', validarEnVivo);
+  });
 
   formulario.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -238,9 +290,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const empleadoData = {
       nombreCompleto: document.getElementById('nombreCompleto').value.trim(),
-      puesto: document.getElementById('puesto').value.trim(),
       role: document.getElementById('role').value,
-      username: document.getElementById('username').value.trim()
+      correo: correoInput.value.trim()
     };
 
     if (modoEdicion && oldPassword) {
@@ -274,8 +325,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const datos = await respuesta.json();
 
       if (respuesta.ok) {
-        mostrarAlerta(datos.mensaje, 'success');
         ocultarModal();
+        mostrarAlerta(datos.mensaje, 'success');
         cargarEmpleados();
       } else {
         mostrarAlerta(datos.mensaje || 'Error al guardar el empleado.', 'error');

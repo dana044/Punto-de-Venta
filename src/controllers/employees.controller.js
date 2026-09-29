@@ -6,7 +6,7 @@
 const { 
   createUser, 
   getAllUsers, 
-  findUserByUsername, 
+  findByCorreoYRol, 
   getUserById, 
   updateUser, 
   setUserActivo, 
@@ -24,16 +24,16 @@ const {
  * @returns {Promise<Object>} Respuesta JSON con el empleado creado (sin la contraseña) o el error correspondiente.
  */
 const registrarEmpleado = async (req, res) => {
-  const { nombreCompleto, puesto, username, password, role } = req.body;
+  const { nombreCompleto, correo, role, password } = req.body;
 
   try {
-    /** Evita usuarios duplicados, igual que hará el login al buscarlos. */
-    const usuarioExistente = await findUserByUsername(username);
-    if (usuarioExistente) {
-      return res.status(409).json({ mensaje: 'Ese usuario ya está en uso por otro empleado.' });
+    /** Evita correos duplicados, igual que hará el login al buscarlos. */
+    const correoDuplicado = await findByCorreoYRol(correo, role);
+    if (correoDuplicado) {
+      return res.status(409).json({ mensaje: 'Ese correo ya está en uso con ese rol. Usa un correo diferente.' });
     }
 
-    const nuevoEmpleado = await createUser({ nombreCompleto, puesto, username, password, role });
+    const nuevoEmpleado = await createUser({ nombreCompleto, correo, password, role });
 
     /** Nunca se devuelve la contraseña en la respuesta. */
     const { password: _passwordOculta, ...empleadoParaCliente } = nuevoEmpleado;
@@ -81,7 +81,7 @@ const listarEmpleados = async (req, res) => {
  */
 const actualizarEmpleado = async (req, res) => {
   const { id } = req.params;
-  const { nombreCompleto, puesto, username, role, password, oldPassword } = req.body;
+  const { nombreCompleto, correo, role, password, oldPassword } = req.body;
 
   try {
     const empleadoExiste = await getUserById(id);
@@ -89,25 +89,26 @@ const actualizarEmpleado = async (req, res) => {
       return res.status(404).json({ mensaje: 'El empleado no existe.' });
     }
 
+    const correoDuplicado = await findByCorreoYRol(correo, role, id);
+    if (correoDuplicado) {
+      return res.status(409).json({ mensaje: 'Ese correo ya está en uso con ese rol. Usa un correo diferente.' });
+    }
+
     if (password) {
       if (!oldPassword) {
         return res.status(400).json({ mensaje: 'Debes proporcionar la contraseña anterior para hacer el cambio.' });
       }
 
-      // Verificación de la contraseña anterior (ajusta si usas bcrypt.compare)
-      const esValida = oldPassword === empleadoExiste.password;
-
-      if (!esValida) {
+      if (oldPassword !== empleadoExiste.password) {
         return res.status(401).json({ mensaje: 'La contraseña anterior ingresada es incorrecta.' });
       }
 
-      // NUEVA VALIDACIÓN EN EL SERVIDO: Evitar contraseña idéntica
       if (password === oldPassword) {
         return res.status(400).json({ mensaje: 'La nueva contraseña no puede ser igual a la contraseña actual.' });
       }
     }
 
-    const empleadoActualizado = await updateUser(id, { nombreCompleto, puesto, username, role, password });
+    const empleadoActualizado = await updateUser(id, { nombreCompleto, correo, role, password });
     const { password: _passwordOculta, ...empleadoParaCliente } = empleadoActualizado;
 
     return res.status(200).json({
