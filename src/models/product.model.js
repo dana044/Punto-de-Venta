@@ -96,7 +96,7 @@ const createProduct = async (productData) => {
       unidad_medida: unidad_medida || 'Pieza',
       precio,
       stock_almacen: stock_almacen || 0,
-      fecha_caducidad: fecha_caducidad || nul,
+      fecha_caducidad: fecha_caducidad || null,
       proveedoresIds: proveedoresIds ? proveedoresIds.map(Number) : []
     };
   } catch (error) {

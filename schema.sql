@@ -27,8 +27,12 @@ CREATE TABLE IF NOT EXISTS usuarios (
 -- Proveedores / Distribuidores
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS proveedores (
-  id      INT AUTO_INCREMENT PRIMARY KEY,
-  nombre  VARCHAR(150) NOT NULL
+  id        INT AUTO_INCREMENT PRIMARY KEY,
+  nombre    VARCHAR(150) NOT NULL,
+  direccion VARCHAR(255) NULL,
+  telefono  VARCHAR(20) NULL,
+  email     VARCHAR(100) NULL,
+  activo    BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- ------------------------------------------------------------

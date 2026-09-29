@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (userRole !== 'administrador') {
     alert('Acceso no autorizado para tu rol. Solo el administrador puede gestionar empleados.');
-    window.location.href = '/inventario';
+    window.location.href = userRole === 'cajero' ? '/pos' : '/inventario';
     return;
   }
 

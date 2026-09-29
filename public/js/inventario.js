@@ -1,6 +1,8 @@
 /**
  * @file inventario.js
- * @description Controlador del lado del cliente para la gestión de inventario y proveedores (Unificado).
+ * @description Controlador del lado del cliente para la gestion de inventario y proveedores.
+ * Administra el control de acceso, sesion por inactividad, despliegue de menu por rol,
+ * catalogo de productos y asociacion con distribuidores.
  */
 
 const API_PRODUCTOS = '/api/inventory/productos';
@@ -10,20 +12,46 @@ document.addEventListener('DOMContentLoaded', () => {
   const userRole = localStorage.getItem('userRole');
   const token = localStorage.getItem('token');
 
-  // Validación de sesión
+  // Validacion de sesion activa
   if (!token || !userRole) {
     window.location.href = '/login';
     return;
   }
 
-  // Restricción de acceso
+  // Restriccion de acceso para cajero
   if (userRole === 'cajero') {
     alert('Acceso no autorizado para tu rol.');
     window.location.href = '/pos';
     return;
   }
 
-  // Configuración de interfaz según rol
+  // ==========================================================================
+  // CIERRE AUTOMATICO DE SESION POR INACTIVIDAD
+  // ==========================================================================
+  const TIEMPO_LIMITE_INACTIVIDAD = 5 * 60 * 1000;
+  let temporizadorInactividad;
+
+  function cerrarSesionPorInactividad() {
+    localStorage.clear();
+    alert('Tu sesion ha expirado automaticamente por inactividad.');
+    window.location.replace('/login');
+  }
+
+  function reiniciarTemporizador() {
+    clearTimeout(temporizadorInactividad);
+    temporizadorInactividad = setTimeout(cerrarSesionPorInactividad, TIEMPO_LIMITE_INACTIVIDAD);
+  }
+
+  const eventosMonitoreo = ['mousemove', 'mousedown', 'keydown', 'scroll', 'click', 'touchstart'];
+  eventosMonitoreo.forEach((evento) => {
+    window.addEventListener(evento, reiniciarTemporizador, { passive: true });
+  });
+
+  reiniciarTemporizador();
+
+  // ==========================================================================
+  // CONFIGURACION DE INTERFAZ Y NAVEGACION
+  // ==========================================================================
   configurarMenuPorRol(userRole);
 
   document.getElementById('btnLogout')?.addEventListener('click', (e) => {
@@ -47,22 +75,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const buscarInput = document.getElementById('buscarProducto');
   const chkMostrarInactivos = document.getElementById('chkMostrarInactivos');
 
-  /**
-   * Guarda en memoria la última lista de productos cargada del servidor,
-   * para poder rellenar el formulario de edición sin hacer una petición
-   * adicional al servidor al hacer clic en "Editar".
-   * @type {Array<Object>}
-   */
   let productosCache = [];
 
-  // Funciones del Modal
-  /**
-   * Muestra u oculta el modal de producto. Al cerrarlo, además de limpiar
-   * el formulario, regresa el modal a su estado por defecto de "Registrar"
-   * (título, texto del botón e id oculto), para que un registro nuevo
-   * nunca herede los datos de una edición anterior.
-   * @param {boolean} mostrar
-   */
   const toggleModal = (mostrar) => {
     modalOverlay.style.display = mostrar ? 'flex' : 'none';
     if (!mostrar) {
@@ -78,12 +92,16 @@ document.addEventListener('DOMContentLoaded', () => {
   btnCerrarModal?.addEventListener('click', () => toggleModal(false));
   cancelarBtn?.addEventListener('click', () => toggleModal(false));
 
-  // Carga inicial
   cargarProveedores();
   cargarProductos();
 
   /**
-   * Configura la visibilidad del menú lateral dependiendo del rol del usuario.
+   * Configura la visibilidad del menu lateral segun el rol del usuario.
+   * - Administrador: Acceso a todos los modulos.
+   * - Almacenista: Acceso a Inventario y Recepcion.
+   * - Cajero: Acceso exclusivo a Punto de Venta.
+   *
+   * @param {string} rol Rol autenticado del usuario.
    */
   function configurarMenuPorRol(rol) {
     const menuPersonal = document.getElementById('menuPersonal');
@@ -101,12 +119,14 @@ document.addEventListener('DOMContentLoaded', () => {
       menuInventario?.removeAttribute('hidden');
       menuRecepcion?.removeAttribute('hidden');
       if (menuPos) menuPos.hidden = true;
+    } else if (rol === 'cajero') {
+      if (menuPersonal) menuPersonal.hidden = true;
+      if (menuInventario) menuInventario.hidden = true;
+      if (menuRecepcion) menuRecepcion.hidden = true;
+      menuPos?.removeAttribute('hidden');
     }
   }
 
-  /**
-   * Carga la lista de proveedores para el formulario de registro.
-   */
   async function cargarProveedores() {
     try {
       const res = await fetch(API_PROVEEDORES, { headers: { 'x-user-role': userRole } });
@@ -139,9 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /**
-   * Carga los productos uniendo la búsqueda y el filtro de inactivos.
-   */
   async function cargarProductos(termino = '') {
     try {
       let url = termino
@@ -160,22 +177,13 @@ document.addEventListener('DOMContentLoaded', () => {
         productosCache = data.productos;
         renderizarTabla(data.productos);
       } else {
-        tablaBody.innerHTML = `<tr><td colspan="8" class="empty-state" style="color: red; text-align:center;">Error: ${data.mensaje || 'Datos no válidos'}</td></tr>`;
+        tablaBody.innerHTML = `<tr><td colspan="8" class="empty-state" style="color: red; text-align:center;">Error: ${data.mensaje || 'Datos no validos'}</td></tr>`;
       }
     } catch (error) {
-      console.error('Error al renderizar catálogo:', error);
-      tablaBody.innerHTML = `<tr><td colspan="8" class="empty-state" style="color: red; text-align:center;">Error de conexión.</td></tr>`;
+      tablaBody.innerHTML = `<tr><td colspan="8" class="empty-state" style="color: red; text-align:center;">Error de conexion.</td></tr>`;
     }
   }
 
-  /**
-   * Calcula el estado de vigencia de un producto a partir de su fecha de
-   * caducidad y devuelve el HTML de una etiqueta de color):
-   * rojo si ya caducó, ámbar si caduca en 30 días o menos, verde si está
-   * vigente, y gris si el producto no tiene fecha de caducidad registrada.
-   * @param {string|null} fecha - Fecha de caducidad en formato ISO (YYYY-MM-DD).
-   * @returns {string} HTML de la etiqueta a insertar en la tabla.
-   */
   function calcularBadgeCaducidad(fecha) {
     if (!fecha) return '<span class="text-muted">Sin fecha</span>';
 
@@ -188,9 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<span class="badge badge--success">Vigente</span>`;
   }
 
-  /**
-   * Dibuja los elementos en el cuerpo de la tabla).
-   */
   function renderizarTabla(lista) {
     tablaBody.innerHTML = '';
     const textoEstado = chkMostrarInactivos?.checked ? 'incluyendo inactivos' : 'activos';
@@ -203,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     lista.forEach((p) => {
       const fila = document.createElement('tr');
-      const opacidad = p.activo === false ? 'opacity: 0.6;' : ''; // Manejar posible estado undefined
+      const opacidad = p.activo === false ? 'opacity: 0.6;' : '';
       const inactivo = p.activo === false;
 
       const badgeHTML = !inactivo
@@ -240,7 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Listeners de filtros
   buscarInput?.addEventListener('input', (e) => {
     cargarProductos(e.target.value.trim());
   });
@@ -249,11 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarProductos(buscarInput.value.trim());
   });
 
-  /**
-   * Abre el modal en modo edición y rellena el formulario con los datos
-   * del producto seleccionado.
-   * @param {Object} producto - Producto tomado de `productosCache`.
-   */
   function abrirModalEdicion(producto) {
     document.getElementById('productoId').value = producto.id;
     document.getElementById('nombreProducto').value = producto.nombre;
@@ -283,9 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleModal(true);
   }
 
-  /**
-   * Guarda el formulario de producto.
-   */
   productForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -339,19 +335,14 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarAlerta(data.mensaje || 'Error al guardar el producto.', 'error');
       }
     } catch (err) {
-      mostrarAlerta('Error de comunicación con el servidor.', 'error');
+      mostrarAlerta('Error de comunicacion con el servidor.', 'error');
     } finally {
       btnSubmit.disabled = false;
       btnSubmit.textContent = textoDefault;
     }
   });
 
-  /**
-   * Listener para las acciones de la tabla: 
-   * editar, desactivar, reactivar y eliminar un producto.
-   */
   tablaBody.addEventListener('click', async (e) => {
-    // Editar: abre el modal precargado con los datos del producto (HU07).
     const btnEditar = e.target.closest('.btn-icon-edit');
     if (btnEditar) {
       const producto = productosCache.find((p) => p.id == btnEditar.dataset.id);
@@ -367,13 +358,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnDesactivar) {
       id = btnDesactivar.dataset.id; accion = 'desactivar';
-      mensajeConfirmacion = '¿Estás seguro de que deseas desactivar este producto?';
+      mensajeConfirmacion = '¿Estas seguro de que deseas desactivar este producto?';
     } else if (btnActivar) {
       id = btnActivar.dataset.id; accion = 'activar';
       mensajeConfirmacion = '¿Deseas reactivar este producto para que vuelva a estar disponible?';
     } else if (btnEliminar) {
       id = btnEliminar.dataset.id; accion = 'eliminar';
-      mensajeConfirmacion = '¿Estás seguro de que deseas eliminar DEFINITIVAMENTE este producto?';
+      mensajeConfirmacion = '¿Estas seguro de que deseas eliminar definitivamente este producto?';
     }
 
     if (id && accion && confirm(mensajeConfirmacion)) {
@@ -389,15 +380,14 @@ document.addEventListener('DOMContentLoaded', () => {
           alert(datos.mensaje);
           cargarProductos(buscarInput?.value.trim());
         } else {
-          alert(datos.mensaje || `Error al procesar la acción.`);
+          alert(datos.mensaje || 'Error al procesar la accion.');
         }
       } catch (error) {
-        alert('Error de comunicación con el servidor.');
+        alert('Error de comunicacion con el servidor.');
       }
     }
   });
 
-  // Utilidades de mensajes
   function mostrarAlerta(mensaje, tipo) {
     modalAlert.textContent = mensaje;
     modalAlert.className = `alert alert--${tipo}`;
