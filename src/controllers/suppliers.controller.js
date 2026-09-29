@@ -130,9 +130,37 @@ const deactivateSupplier = async (req, res) => {
     }
 };
 
+/**
+ * Endpoint para reactivar un proveedor dado de baja lógica.
+ * 
+ * @async
+ * @function reactivateSupplier
+ * @param {import('express').Request} req - Objeto de petición Express conteniendo el parámetro `id`.
+ * @param {import('express').Response} res - Objeto de respuesta HTTP de Express.
+ * @returns {Promise<import('express').Response>} Respuesta JSON indicando el estado de la operación (200 o 500).
+ */
+const reactivateSupplier = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await SupplierModel.reactivateSupplier(id);
+        return res.status(200).json({ 
+            success: true, 
+            message: 'Proveedor reactivado con éxito.' 
+        });
+    } catch (error) {
+        console.error('[Error Log - ERROR EN REACTIVACIÓN DE PROVEEDOR]:', error);
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor al intentar reactivar al proveedor.' 
+        });
+    }
+};
+
+
 module.exports = {
     createSupplier,
     getSuppliers,
     updateSupplier,
-    deactivateSupplier
+    deactivateSupplier,
+    reactivateSupplier
 };

@@ -39,17 +39,39 @@ class SupplierModel {
     }
 
     /**
-     * Consulta y retorna la lista de todos los distribuidores activos.
+     * Obtiene la lista general de proveedores registrados activos e inactivos ordenados del más reciente al más antiguo
      *
      * @async
+     * @static
      * @function getAllActive
-     * @returns {Promise<Array<Object>>} Arreglo con los datos de los proveedores.
+     * @returns {Promise<Array<Object>>} Arreglo con los registros de proveedores y su estado lógico.
+     * @throws {Error} Error originado por fallo en la consulta SQL.
      */
     static async getAllActive() {
         const [rows] = await db.execute(
-            'SELECT id, nombre, direccion, telefono, email, activo FROM proveedores WHERE activo = TRUE ORDER BY id DESC'
+            'SELECT id, nombre, direccion, telefono, email, activo FROM proveedores ORDER BY id DESC'
         );
         return rows;
+    }
+
+    /**
+     * HU-19: Reactiva a un proveedor previamente dado de baja lógica en el sistema.
+     *
+     * @async
+     * @static
+     * @function reactivateSupplier
+     * @param {number|string} id - Identificador único del proveedor a reactivar.
+     * @returns {Promise<boolean>} Retorna true si el registro fue actualizado exitosamente.
+     * @throws {Error} Error originado durante la transacción o actualización en base de datos.
+     */
+    static async reactivateSupplier(id) {
+        const connection = await db.getConnection();
+        try {
+            const [result] = await connection.execute('UPDATE proveedores SET activo = TRUE WHERE id = ?', [id]);
+            return result.affectedRows > 0;
+        } finally {
+            connection.release();
+        }
     }
 
     /**

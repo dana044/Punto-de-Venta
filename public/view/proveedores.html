@@ -1,0 +1,169 @@
+<!--
+  Punto de Venta UV — Directorio de Distribuidores (HU-18, HU-19)
+-->
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>La Number One - Proveedores</title>
+  <link rel="stylesheet" href="/css/01-variables.css" />
+  <link rel="stylesheet" href="/css/02-base.css" />
+  <link rel="stylesheet" href="/css/03-layout.css" />
+  <link rel="stylesheet" href="/css/04-components.css" />
+  <link rel="stylesheet" href="/css/05-modals.css" />
+  <link rel="stylesheet" href="/css/06-tables.css" />
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- Barra lateral -->
+    <aside class="sidebar">
+      <div class="sidebar__brand">La Number One</div>
+      <ul class="sidebar__nav" id="sidebarNav">
+        <li id="menuPersonal">
+          <a href="/empleados" class="sidebar__link">Administrar Personal</a>
+        </li>
+        <li id="menuInventario">
+          <a href="/inventario" class="sidebar__link">Inventario</a>
+        </li>
+        <li id="menuRecepcion">
+          <a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a>
+        </li>
+        <li id="menuProveedores">
+          <a href="/proveedores" class="sidebar__link sidebar__link--active">Proveedores y Abastecimiento</a>
+        </li>
+        <li id="menuPos">
+          <a href="/pos" class="sidebar__link">Punto de Venta</a>
+        </li>
+        <li>
+          <a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a>
+        </li>
+      </ul>
+    </aside>
+    
+    <main class="main-content">
+      <div class="page-header">
+        <div>
+          <h1>Directorio de Distribuidores</h1>
+          <p>Administra la cartera de proveedores comerciales y contactos para reabastecimiento.</p>
+        </div>
+        <button type="button" class="btn btn--primary" id="btnNuevoProveedor">+ Nuevo Distribuidor</button>
+      </div>
+
+      <div id="alertMessage" class="alert" hidden></div>
+
+      <!-- Tabla de proveedores ACTIVOS -->
+      <section class="table-section">
+        <div class="table-card">
+          <div class="table-card__toolbar">
+            <div>
+              <h2>Proveedores activos</h2>
+              <span class="table-card__count" id="proveedoresCount">&nbsp;</span>
+            </div>
+            <div class="table-search">
+              <input type="text" id="buscarProveedor" placeholder="Buscar distribuidor..." />
+            </div>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Razón Social / Empresa</th>
+                <th>Dirección</th>
+                <th>Contacto (Tel / Correo)</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaProveedoresBody">
+              <!-- Carga dinámicamente desde proveedor.js -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tabla de proveedores INACTIVOS -->
+      <section class="table-section" style="margin-top: 2rem;">
+        <div class="table-card">
+          <div class="table-card__toolbar">
+            <div>
+              <h2 style="color: #6b7280;">Distribuidores Inactivos (Baja Lógica)</h2>
+              <span class="table-card__count" id="inactivosCount">&nbsp;</span>
+            </div>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Razón Social / Empresa</th>
+                <th>Dirección</th>
+                <th>Contacto (Tel / Correo)</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaInactivosBody">
+              <!-- Carga dinámicamente desde proveedor.js -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Overlay/Modal Ficha de Proveedor (Aislado del resto de la interfaz) -->
+      <div id="modalOverlay" class="modal-overlay" style="display:none;">
+        <div class="modal-card stepped-card">
+
+          <header class="stepped-card__header">
+            <div>
+              <strong id="formTitle">Registro de Distribuidor</strong>
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;">Alta y actualización de contactos comerciales</p>
+            </div>
+            <button type="button" id="btnCerrarModal" class="btn-close-modal">&times;</button>
+          </header>
+
+          <div id="modalAlertMessage" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
+
+          <form id="proveedorForm">
+            <input type="hidden" id="proveedorId" />
+
+            <section class="stepped-card__section">
+              <p><span class="step-badge">1</span><strong>Datos Fiscales y de Entrega</strong></p>
+              <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label" for="nombre">Nombre de empresa / Razón social *</label>
+                <input type="text" id="nombre" class="form-input" placeholder="Ej. Distribuidora del Golfo S.A. de C.V." required minlength="3" />
+              </div>
+              <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label" for="direccion">Dirección física</label>
+                <input type="text" id="direccion" class="form-input" placeholder="Ej. Parque Industrial Santa Rita, Bodega 8" />
+              </div>
+            </section>
+
+            <section class="stepped-card__section">
+              <p><span class="step-badge">2</span><strong>Medios de Contacto</strong></p>
+              <div class="field-row" style="margin-top: 1rem;">
+                <div class="form-group">
+                  <label class="form-label" for="telefono">Teléfono principal</label>
+                  <input type="text" id="telefono" class="form-input" placeholder="Ej. 2281234567" oninput="this.value = this.value.replace(/[^0-9]/g, '')" maxlength="15" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="email">Correo Electrónico *</label>
+                  <input type="email" id="email" class="form-input" placeholder="contacto@distribuidora.com" required />
+                </div>
+              </div>
+            </section>
+
+            <footer class="stepped-card__footer">
+              <button type="button" class="btn btn--secondary" id="cancelarBtn">Cancelar</button>
+              <button type="submit" class="btn btn--primary" id="submitBtn">Guardar Distribuidor</button>
+            </footer>
+          </form>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="/js/proveedor.js"></script>
+</body>
+</html>

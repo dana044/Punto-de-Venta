@@ -91,4 +91,9 @@ app.get('/empleados/nuevo', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'view', 'empleados.html')); 
 });
 
+/** Ruta de la interfaz para Proveedores (HU-18, HU-19) */
+app.get('/proveedores', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/view/proveedores.html'));
+});
+
 module.exports = app;
