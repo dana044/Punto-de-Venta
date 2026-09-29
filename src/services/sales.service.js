@@ -5,10 +5,19 @@
  * @author Diego Rafael Jiménez Trujano
  */
 
-const db = require('../config/db');
+const { findById } = require('../models/product.model.js');
 
 /** Tasa de IVA usada por el punto de venta */
 const IVA_RATE = 0.16;
+
+/**
+ * Busca un producto por id dentro del catálogo compartido.
+ * @param {number} productoId
+ * @returns {Object|undefined}
+ */
+const buscarProducto = async (productoId) => {
+  return await findById(productoId);
+};
 
 /**
  * Calcula el descuento en pesos de una línea, según su tipo.
@@ -35,9 +44,8 @@ const calcularVenta = async (items) => {
   const itemsCalculados = [];
 
   for (const item of items) {
-    // Consultamos el precio directamente de MySQL para evitar fraudes en el frontend
-    const [rows] = await db.query('SELECT id, nombre, precio FROM productos WHERE id = ?', [item.productoId]);
-    const producto = rows[0];
+    // Agrega 'await' aquí
+    const producto = await buscarProducto(item.productoId);
 
     if (!producto) {
       return { ok: false, mensaje: `No existe el producto con id ${item.productoId}.` };

@@ -1,5 +1,6 @@
 <!--
   Punto de Venta UV — Vista de Inicio de Sesión (HU01)
+  Proyecto: La Number One
 -->
 <!DOCTYPE html>
 <html lang="es">
@@ -12,41 +13,56 @@
   <link rel="stylesheet" href="/css/04-components.css" />
   <link rel="stylesheet" href="/css/05-modals.css" />
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: var(--bg-body);
+      background-color: var(--bg-body, #f1f5f9);
       padding: 1.5rem;
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
     .auth-card {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1.05fr 1fr;
       width: 100%;
-      max-width: 900px;
-      background: var(--bg-card);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-modal);
+      max-width: 960px;
+      background: var(--bg-card, #ffffff);
+      border-radius: var(--radius-lg, 20px);
+      box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.2);
       overflow: hidden;
     }
 
-    @media (max-width: 720px) {
+    @media (max-width: 820px) {
       .auth-card {
         grid-template-columns: 1fr;
       }
     }
 
-    /* Panel de marca (izquierda): mismo verde institucional que los botones primarios */
+    /* ==========================================================================
+       PANEL DE MARCA (IZQUIERDA - ESTILO PROTOTIPO POS UV)
+       ========================================================================== */
     .brand-panel {
-      background: linear-gradient(180deg, var(--color-primary), var(--color-primary-hover));
-      color: var(--text-white);
-      padding: 2rem;
+      background: linear-gradient(180deg, var(--color-primary, #055651), var(--color-primary-hover, #044541));
+      color: var(--text-white, #ffffff);
+      padding: 2rem 2.25rem;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      gap: 1rem;
+      justify-content: space-between;
+      gap: 1.25rem;
+    }
+
+    /* 1. Header superior del panel */
+    .brand-panel__top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
     .brand-panel__header {
@@ -55,52 +71,135 @@
       gap: 0.75rem;
     }
 
-    .brand-panel__header h1 {
-      font-size: 1.1rem;
-      margin: 0;
-    }
-
     .logo {
       width: 38px;
       height: 38px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.18);
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
+      font-size: 0.95rem;
       flex-shrink: 0;
+      letter-spacing: -0.5px;
     }
 
     .logo--dark {
-      background: var(--color-primary);
-      color: var(--text-white);
+      background: var(--color-primary, #055651);
+      color: var(--text-white, #ffffff);
+    }
+
+    .brand-panel__header h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin: 0;
+      line-height: 1.2;
     }
 
     .muted {
       color: rgba(255, 255, 255, 0.75);
-      font-size: 0.8rem;
-      margin: 0;
+      font-size: 0.78rem;
+      margin: 0.15rem 0 0;
+    }
+
+    .badge-version {
+      background: rgba(255, 255, 255, 0.12);
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    /* 2. Imagen central tipo escaparate */
+    .brand-panel__media {
+      width: 100%;
+      display: flex;
+      justify-content: center; /* Mantiene la imagen centrada */
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+
+    .brand-panel__media img {
+      width: auto;
+      max-width: 100%;
+      height: 190px;
+      object-fit: contain;
+      display: block;
+
+      border: 3px solid rgba(255, 255, 255, 0.8); 
+      border-radius: 16px;                       
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); 
+    }
+
+    /* 3. Textos informativos inferiores */
+    .brand-panel__content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
     }
 
     .tagline {
-      font-size: 1.4rem;
+      font-size: 1.35rem;
       line-height: 1.25;
-      margin: 0.25rem 0 0;
-    }
-
-    .tagline-sub {
-      color: rgba(255, 255, 255, 0.85);
-      font-size: 0.9rem;
+      font-weight: 700;
       margin: 0;
     }
 
-    /* Panel de formulario (derecha) */
-    .form-panel {
-      padding: 2rem;
+    .tagline-sub {
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 0.85rem;
+      line-height: 1.45;
+      margin: 0;
+    }
+
+    /* Métricas inferiores como en el diseño de referencia */
+    .brand-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      padding: 0.6rem 0.75rem;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      margin-top: 0.5rem;
+    }
+
+    .metric-item {
       display: flex;
       flex-direction: column;
-      gap: 1.1rem;
+    }
+
+    .metric-item strong {
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .metric-item span {
+      font-size: 0.68rem;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .brand-footer {
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.65);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-top: 0.25rem;
+    }
+
+    /* ==========================================================================
+       PANEL DE FORMULARIO (DERECHA)
+       ========================================================================== */
+    .form-panel {
+      padding: 2.25rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      justify-content: center;
     }
 
     .form-panel__header {
@@ -111,7 +210,13 @@
 
     .form-panel__header h2 {
       margin: 0;
-      font-size: 1.05rem;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main, #0f172a);
+    }
+
+    .form-panel__header .muted {
+      color: var(--text-muted, #64748b);
     }
 
     .password-row {
@@ -124,7 +229,7 @@
       flex: 1;
     }
 
-    /* Selector de rol reutilizando .payment-card, con radio real encima */
+    /* Selector de rol reutilizando .payment-card */
     .payment-card {
       position: relative;
     }
@@ -141,22 +246,22 @@
       display: block;
       font-size: 0.72rem;
       font-weight: 400;
-      color: var(--text-muted);
+      color: var(--text-muted, #64748b);
       margin-top: 0.15rem;
     }
 
     .alert {
-      padding: 1rem;
-      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md, 8px);
       margin-bottom: 0.25rem;
       font-weight: 600;
-      font-size: 0.875rem;
+      font-size: 0.85rem;
     }
 
     .alert--error {
       background-color: #FEE2E2;
-      color: var(--color-danger);
-      border: 1px solid var(--color-danger);
+      color: var(--color-danger, #ef4444);
+      border: 1px solid var(--color-danger, #ef4444);
     }
   </style>
 </head>
@@ -164,25 +269,43 @@
 
   <div class="auth-card">
 
-    <!-- Panel de marca -->
+    <!-- Panel de marca (Izquierda con estructura de la referencia) -->
     <section class="brand-panel">
-      <div class="brand-panel__header">
-        <div class="logo">#1</div>
-        <div>
-          <h1>La Number One</h1>
-          <p class="muted">Tiendita de la esquina</p>
+      <!-- 1. Nombre arriba -->
+      <div class="brand-panel__top">
+        <div class="brand-panel__header">
+          <div>
+            <h1>La Number One</h1>
+            <p class="muted">Tiendita de la esquina</p>
+          </div>
         </div>
       </div>
 
-      <h2 class="tagline">Tiendas para toda la familia</h2>
-      <p class="muted">De la revo para el mundo</p>
+      <!-- 2. Imagen centrada -->
+      <div class="brand-panel__media">
+        <img src="img/logo.png" alt="Logo de La Number One" />
+      </div>
+
+      <!-- 3. Tiendas para toda la familia abajo -->
+      <div class="brand-panel__content">
+        <h2 class="tagline">Tiendas para toda la familia</h2>
+        <p class="tagline-sub">
+          De la revo para el mundo.
+        </p>
+
+        <div class="brand-footer">
+          🔒 Cifrado AES-256 · SSO Institucional © 2026 Universidad Veracruzana
+        </div>
+      </div>
     </section>
 
-    <!-- Panel de formulario -->
+    <!-- Panel de formulario (Derecha) -->
     <section class="form-panel">
       <div class="form-panel__header">
+        <div class="logo logo--dark">#1</div>
         <div>
-          <h2>Login</h2>
+          <h2>Punto de Venta La Number One</h2>
+          <p class="muted">Autenticación segura del personal</p>
         </div>
       </div>
 
@@ -193,11 +316,7 @@
       -->
       <div class="alert alert--error" id="loginError" role="alert" hidden></div>
 
-      <!--
-        Formulario principal. novalidate: se desactiva la validación
-        nativa del navegador porque login.js hace su propia validación
-        y controla los mensajes de error.
-      -->
+      <!-- Formulario principal -->
       <form id="loginForm" novalidate>
 
         <div class="form-group">
@@ -232,11 +351,7 @@
           </div>
         </div>
 
-        <!--
-          Selección de rol: define qué vistas y permisos tendrá el
-          usuario tras iniciar sesión. login.js marca visualmente la
-          tarjeta seleccionada con .payment-card--active.
-        -->
+        <!-- Selección de rol -->
         <fieldset class="form-group" style="border: none; padding: 0; margin: 0;">
           <legend class="form-label">Rol / Perfil de acceso</legend>
           <div class="payment-methods-grid" role="radiogroup" aria-label="Selecciona tu rol">
@@ -267,6 +382,7 @@
         </button>
       </form>
     </section>
+
   </div>
 
   <script src="/js/login.js"></script>
