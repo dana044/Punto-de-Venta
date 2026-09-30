@@ -1,6 +1,7 @@
 <!--
   Punto de Venta UV — Cálculo de subtotal, descuentos y total
   Integra HU26 y HU49: Entrada de productos por búsqueda manual y escáner.
+  HU25: Registrar una venta con folio, fecha y empleado.
 -->
 <!DOCTYPE html>
 <html lang="es">
@@ -46,6 +47,17 @@
       </aside>
 
     <main class="main-content">
+      <!-- Barra de Estado de Venta Activa (HU-25) -->
+      <div class="pos-header-status" style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #e5e7eb;">
+        <div>
+          <span style="font-size: 0.85rem; color: #6b7280; text-transform: uppercase; font-weight: 600;">Folio de Venta</span>
+          <h2 id="lblFolio" style="margin: 0; color: #111827; font-size: 1.4rem;">Generando...</h2>
+        </div>
+        <div style="text-align: right;">
+          <div><strong id="lblCajero">Cajero: Turno en curso</strong></div>
+          <small id="lblFecha" style="color: #6b7280;">--/--/----</small>
+        </div>
+      </div>
       <h1>Venta — Subtotal, Descuentos y Total</h1>
       <p class="text-muted" style="margin-bottom: 1.5rem;">Agrega productos escaneando o buscando por nombre (HU-26 / HU-49). Los totales se recalculan automáticamente (HU-27).</p>
 

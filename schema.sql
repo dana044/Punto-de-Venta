@@ -2,7 +2,7 @@
 -- Punto de Venta - Abarrotes
 -- Esquema de base de datos (MySQL)
 -- ============================================================
-
+DROP DATABASE IF EXISTS punto_de_venta;
 CREATE DATABASE IF NOT EXISTS punto_de_venta
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   password          VARCHAR(255) NOT NULL,
   role              ENUM('administrador', 'cajero', 'almacenista') NOT NULL,
   activo            BOOLEAN NOT NULL DEFAULT TRUE,
-  creado_en         DATETIME DEFAULT CURRENT_TIMESTAMP
+  creado_en         DATETIME DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_correo_role (correo, role)
 );
 
@@ -77,15 +77,15 @@ CREATE TABLE IF NOT EXISTS pedidos (
 
 -- Detalle / items de cada pedido
 CREATE TABLE IF NOT EXISTS pedido_detalle (
-  id                     INT AUTO_INCREMENT PRIMARY KEY,
-  pedido_id              INT NOT NULL,
-  producto_id            INT NOT NULL,
-  cantidad_solicitada    INT NOT NULL,
-  cantidad_recibida      INT NOT NULL DEFAULT 0,
-  costo_unitario         DECIMAL(10,2) NOT NULL,
-  estado_linea           ENUM('pendiente', 'completo', 'incompleto') NOT NULL DEFAULT 'pendiente',
-  FOREIGN KEY (pedido_id)   REFERENCES pedidos(id)   ON DELETE CASCADE,
-  FOREIGN KEY (producto_id) REFERENCES productos(id)
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    pedido_id           INT NOT NULL,
+    producto_id         INT NOT NULL,
+    cantidad_solicitada INT NOT NULL,
+    cantidad_recibida   INT NOT NULL DEFAULT 0,
+    costo_unitario      DECIMAL(10,2) NOT NULL,
+    estado_linea        ENUM('pendiente', 'completo', 'incompleto') NOT NULL DEFAULT 'pendiente',
+    FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE,
+    FOREIGN KEY (producto_id) REFERENCES productos(id)
 );
 
 -- ------------------------------------------------------------
@@ -93,12 +93,13 @@ CREATE TABLE IF NOT EXISTS pedido_detalle (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ventas (
   id           INT AUTO_INCREMENT PRIMARY KEY,
+  folio        VARCHAR(30) NULL,
   usuario_id   INT NOT NULL,
   fecha        DATETIME DEFAULT CURRENT_TIMESTAMP,
-  subtotal     DECIMAL(10,2) NOT NULL,
-  descuentos   DECIMAL(10,2) NOT NULL DEFAULT 0,
-  iva          DECIMAL(10,2) NOT NULL,
-  total        DECIMAL(10,2) NOT NULL,
+  subtotal     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  descuentos   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  iva          DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  total        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
 
@@ -122,10 +123,10 @@ CREATE TABLE IF NOT EXISTS venta_detalle (
 -- Datos de prueba
 -- ============================================================
 
-INSERT IGNORE INTO usuarios (id, nombre_completo, puesto, username, password, role, activo) VALUES
-  (1, 'Administrador', 'Administrador', 'admin@uv.mx',   'password123', 'administrador', TRUE),
-  (2, 'Cajero 01',     'Cajero',        'caja01@uv.mx',  'password123', 'cajero', TRUE),
-  (3, 'Almacenista',   'Almacenista',   'almacen@uv.mx', 'password123', 'almacenista', TRUE);
+INSERT INTO usuarios (id, nombre_completo, correo, password, role, activo) VALUES
+  (1, 'Administrador General', 'admin@uv.mx', 'password123', 'administrador', TRUE),
+  (2, 'Cajero Turno Matutino', 'caja01@uv.mx', 'password123', 'cajero', TRUE),
+  (3, 'Encargado de Almacén', 'almacen@uv.mx', 'password123', 'almacenista', TRUE);
 
 INSERT IGNORE INTO proveedores (id, nombre) VALUES
   (1, 'Distribuidora Central Papelera S.A.'),
@@ -155,7 +156,7 @@ INSERT INTO pedido_detalle (pedido_id, producto_id, cantidad_solicitada, cantida
   (2, 1, 30, 0, 10.00, 'pendiente'),
   (2, 2, 20, 0, 18.00, 'pendiente');
   
-INSERT INTO pedidos (folio, proveedor_id, fecha, destino, estado) VALUES
+INSERT IGNORE INTO pedidos (folio, proveedor_id, fecha, destino, estado) VALUES
 ('OC-2026-001', 1, NOW(), 'almacen', 'pendiente'),
 ('OC-2026-002', 2, NOW(), 'almacen', 'pendiente');
 
@@ -163,4 +164,3 @@ INSERT INTO pedido_detalle (pedido_id, producto_id, cantidad_solicitada, cantida
 (1, 1, 50, 0, 10.00, 'pendiente'),
 (2, 1, 30, 0, 10.00, 'pendiente'),
 (2, 2, 20, 0, 18.00, 'pendiente');
->>>>>>> 8d4357e0395cff1df70ec257b396136a3b503a12
