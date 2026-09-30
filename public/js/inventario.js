@@ -3,6 +3,7 @@
  * @description Controlador del lado del cliente para la gestion de inventario y proveedores.
  * Administra el control de acceso, sesion por inactividad, despliegue de menu por rol,
  * catalogo de productos y asociacion con distribuidores.
+ * @author Citlaly Morales Viveros (Cliente / Programador XP)
  */
 
 const API_PRODUCTOS = '/api/inventory/productos';
@@ -179,10 +180,10 @@ document.addEventListener('DOMContentLoaded', () => {
         productosCache = data.productos;
         renderizarTabla(data.productos);
       } else {
-        tablaBody.innerHTML = `<tr><td colspan="8" class="empty-state" style="color: red; text-align:center;">Error: ${data.mensaje || 'Datos no validos'}</td></tr>`;
+        tablaBody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color: red; text-align:center;">Error: ${data.mensaje || 'Datos no validos'}</td></tr>`;
       }
     } catch (error) {
-      tablaBody.innerHTML = `<tr><td colspan="8" class="empty-state" style="color: red; text-align:center;">Error de conexion.</td></tr>`;
+      tablaBody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color: red; text-align:center;">Error de conexion.</td></tr>`;
     }
   }
 
@@ -204,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
     productosCount.textContent = `${lista.length} producto(s) ${textoEstado}`;
 
     if (lista.length === 0) {
-      tablaBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No se encontraron productos.</td></tr>`;
+      tablaBody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No se encontraron productos.</td></tr>`;
       return;
     }
 
@@ -232,6 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <td style="${opacidad}">${badgeHTML}</td>
         <td style="${opacidad}">$${Number(p.precio).toFixed(2)}</td>
         <td style="${opacidad}">${p.stock_almacen !== undefined ? p.stock_almacen : 0}</td>
+        <td style="${opacidad}">${p.stock_mostrador !== undefined ? p.stock_mostrador : 0}</td>
         <td style="${opacidad}">${badgeCaducidad}</td>
         <td style="${opacidad}">
           <small class="text-muted">${p.proveedores_nombres || 'Sin proveedor'}</small>
@@ -264,6 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('unidadMedida').value = producto.unidad_medida || '';
     document.getElementById('precio').value = producto.precio;
     document.getElementById('stock').value = producto.stock_almacen;
+    document.getElementById('stockMostrador').value = producto.stock_mostrador || 0;
 
     document.getElementById('fechaCaducidad').value = producto.fecha_caducidad
       ? String(producto.fecha_caducidad).substring(0, 10)
@@ -305,6 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
       unidad_medida: document.getElementById('unidadMedida').value,
       precio: parseFloat(document.getElementById('precio').value),
       stock_almacen: parseInt(document.getElementById('stock').value, 10) || 0,
+      stock_mostrador: parseInt(document.getElementById('stockMostrador').value, 10) || 0,
       fecha_caducidad: document.getElementById('fechaCaducidad').value || null,
       proveedoresIds: proveedoresSeleccionados
     };
@@ -413,6 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!mostrar) {
       formAjuste.reset();
       alertAjuste.hidden = true;
+      document.getElementById('grupoTipoStock').style.display = 'block';
     }
   };
 
@@ -421,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function abrirModalAjuste(producto) {
     document.getElementById('ajusteProductoId').value = producto.id;
-    document.getElementById('nombreProductoAjuste').textContent = `${producto.nombre} (Stock actual: ${producto.stock_almacen})`;
+    document.getElementById('nombreProductoAjuste').textContent = `${producto.nombre} (Almacén: ${producto.stock_almacen} | Mostrador: ${producto.stock_mostrador || 0})`;
     toggleModalAjuste(true);
   }
 
@@ -433,12 +438,20 @@ document.addEventListener('DOMContentLoaded', () => {
       if (producto) abrirModalAjuste(producto);
     }
   });
+  
+  document.getElementById('tipoAjuste').addEventListener('change', (e) => {
+    const val = e.target.value;
+    const grupo = document.getElementById('grupoTipoStock');
+    if (val.includes('transferencia')) grupo.style.display = 'none';
+    else grupo.style.display = 'block';
+  });
 
   formAjuste.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('ajusteProductoId').value;
     const payload = {
       tipoAjuste: document.getElementById('tipoAjuste').value,
+      tipoStock: document.getElementById('tipoStock') ? document.getElementById('tipoStock').value : 'almacen',
       cantidad: Number(document.getElementById('cantidadAjuste').value),
       motivo: document.getElementById('motivoAjuste').value.trim()
     };

@@ -23,7 +23,7 @@
       <div class="sidebar__brand">La Number One</div>
       <ul class="sidebar__nav" id="sidebarNav">
         <li id="menuPersonal" hidden>
-          <a href="/empleados/nuevo" class="sidebar__link">Administrar Personal</a>
+          <a href="/empleados" class="sidebar__link">Administrar Personal</a>
         </li>
         <li id="menuInventario" hidden>
           <a href="/inventario" class="sidebar__link sidebar__link--active">Inventario</a>
@@ -77,7 +77,8 @@
                 <th>Producto</th>
                 <th>Categoría</th>
                 <th>Precio</th>
-                <th>Stock</th>
+                <th>Almacén</th>
+                <th>Mostrador</th>
                 <th>Caducidad</th>
                 <th>Distribuidores</th>
                 <th>Acciones</th>
@@ -155,14 +156,20 @@
                   <input type="number" step="0.01" min="0" id="precio" class="form-input" placeholder="0.00" required />
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="stock">Stock inicial / actual</label>
-                  <input type="number" min="0" id="stock" class="form-input" placeholder="0" required />
+                  <label class="form-label" for="fechaCaducidad">Fecha de Caducidad (opcional)</label>
+                  <input type="date" id="fechaCaducidad" class="form-input" />
                 </div>
               </div>
-
-              <div class="form-group" style="margin-top: 1rem;">
-                <label class="form-label" for="fechaCaducidad">Fecha de Caducidad (opcional)</label>
-                <input type="date" id="fechaCaducidad" class="form-input" />
+              
+              <div class="field-row" style="margin-top: 1rem;">
+                <div class="form-group">
+                  <label class="form-label" for="stock">Stock Almacén</label>
+                  <input type="number" min="0" id="stock" class="form-input" placeholder="0" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="stockMostrador">Stock Mostrador</label>
+                  <input type="number" min="0" id="stockMostrador" class="form-input" placeholder="0" required />
+                </div>
               </div>
 
               <div class="form-group" style="margin-top: 1rem;">
@@ -201,20 +208,34 @@
               <p><span class="step-badge">!</span><strong id="nombreProductoAjuste">Producto Seleccionado</strong></p>
 
               <div class="form-group" style="margin-top: 1rem;">
-                <label class="form-label" for="tipoAjuste">Tipo de Ajuste</label>
+                <label class="form-label" for="tipoAjuste">Tipo de Acción</label>
                 <select id="tipoAjuste" class="form-select" required>
                   <option value="" disabled selected>Selecciona la operación...</option>
-                  <option value="merma">Merma (restar unidades al stock)</option>
-                  <option value="daño">Daño/Caducidad (restar unidades al stock)</option>
-                  <option value="ingreso_manual">Ingreso Manual (sumar unidades al stock)</option>
-                  <option value="conteo">Conteo Físico (reemplazar total del stock)</option>
+                  <optgroup label="Transferencias entre Stocks">
+                    <option value="transferencia_mostrador">Mover a Mostrador (restar almacén)</option>
+                    <option value="transferencia_almacen">Regresar a Almacén (restar mostrador)</option>
+                  </optgroup>
+                  <optgroup label="Ajustes Regulares">
+                    <option value="merma">Merma (restar unidades al stock)</option>
+                    <option value="daño">Daño/Caducidad (restar unidades al stock)</option>
+                    <option value="ingreso_manual">Ingreso Manual (sumar unidades al stock)</option>
+                    <option value="conteo">Conteo Físico (reemplazar total del stock)</option>
+                  </optgroup>
+                </select>
+              </div>
+              
+              <div class="form-group" style="margin-top: 1rem;" id="grupoTipoStock">
+                <label class="form-label" for="tipoStock">Ubicación a afectar</label>
+                <select id="tipoStock" class="form-select">
+                  <option value="almacen">Almacén Principal</option>
+                  <option value="mostrador">Mostrador / Exhibición</option>
                 </select>
               </div>
 
               <div class="field-row">
                 <div class="form-group">
                   <label class="form-label" for="cantidadAjuste">Cantidad</label>
-                  <input type="number" id="cantidadAjuste" class="form-input" min="0" required />
+                  <input type="number" id="cantidadAjuste" class="form-input" min="1" required />
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="motivoAjuste">Motivo (Auditoría)</label>
@@ -226,7 +247,7 @@
 
             <footer class="stepped-card__footer">
               <button type="button" class="btn btn--secondary" id="btnCancelarAjuste">Cancelar</button>
-              <button type="submit" class="btn btn--primary" id="btnGuardarAjuste">Registrar Ajuste</button>
+              <button type="submit" class="btn btn--primary" id="btnGuardarAjuste">Registrar Acción</button>
             </footer>
           </form>
         </div>

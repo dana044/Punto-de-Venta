@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS productos (
   unidad_medida   VARCHAR(50),
   precio          DECIMAL(10,2) NOT NULL,
   stock_almacen   INT NOT NULL DEFAULT 0,
+  stock_mostrador INT NOT NULL DEFAULT 0,
   fecha_caducidad DATE NULL,
   activo          BOOLEAN NOT NULL DEFAULT TRUE,
   creado_en       DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -153,9 +154,9 @@ INSERT IGNORE INTO proveedores (id, nombre) VALUES
   (2, 'Abarrotes y Suministros del Golfo'),
   (3, 'Comercializadora Universitaria UV');
 
-INSERT IGNORE INTO productos (id, nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen, activo) VALUES
-  (1, 'Agua Mineral 600ml', '7501234500016', 'Bebidas', 'Botella', 'Pieza', 15.00, 50, TRUE),
-  (2, 'Jugo de Naranja 1L',  '7501234500023', 'Bebidas', 'Caja',    'Litro', 28.00, 30, TRUE);
+INSERT IGNORE INTO productos (id, nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen, stock_mostrador, activo) VALUES
+  (1, 'Agua Mineral 600ml', '7501234500016', 'Bebidas', 'Botella', 'Pieza', 15.00, 50, 10, TRUE),
+  (2, 'Jugo de Naranja 1L',  '7501234500023', 'Bebidas', 'Caja',    'Litro', 28.00, 30, 5, TRUE);
 
 INSERT IGNORE INTO producto_proveedor (producto_id, proveedor_id) VALUES
   (1, 1),
@@ -175,5 +176,3 @@ INSERT INTO pedido_detalle (pedido_id, producto_id, cantidad_solicitada, cantida
   (1, 1, 50, 0, 10.00, 'pendiente'),
   (2, 1, 30, 0, 10.00, 'pendiente'),
   (2, 2, 20, 0, 18.00, 'pendiente');
-
-  

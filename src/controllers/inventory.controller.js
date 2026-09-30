@@ -1,6 +1,7 @@
 /**
  * @file inventory.controller.js
  * @description Controlador para la gestión de productos y distribuidores en inventario.
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 
 const { 
@@ -174,16 +175,19 @@ const bajaProducto = async (req, res) => {
 
 const registrarAjuste = async (req, res) => {
   const { id } = req.params;
-  const { cantidad, tipoAjuste, motivo } = req.body;
+  const { cantidad, tipoAjuste, motivo, tipoStock } = req.body;
 
   try {
-    const productoActualizado = await ajustarStock(id, cantidad, tipoAjuste);
+    const productoActualizado = await ajustarStock(id, cantidad, tipoAjuste, tipoStock);
     return res.status(200).json({
-      mensaje: `Ajuste por '${motivo}' registrado. Nuevo stock: ${productoActualizado.stock_almacen}`,
+      mensaje: `Ajuste por '${motivo}' registrado. Almacén: ${productoActualizado.stock_almacen} | Mostrador: ${productoActualizado.stock_mostrador}`,
       producto: productoActualizado
     });
   } catch (error) {
     console.error('Error al ajustar stock:', error);
+    if (error.message.includes('insuficiente')) {
+      return res.status(400).json({ mensaje: error.message });
+    }
     if (error.message === 'Producto no encontrado') {
       return res.status(404).json({ mensaje: `No se encontró el producto con ID ${id}.` });
     }

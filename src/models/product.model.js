@@ -3,6 +3,7 @@
  * @description Modelo de persistencia y catálogo conectado a base de datos MySQL para productos y distribuidores.
  * Implementa transacciones atómicas sobre el pool de conexiones.
  * @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  * @author Diego Rafael Jiménez Trujano (Programador XP)
  */
 
@@ -24,6 +25,7 @@ const db = require('../config/db.js');
  * @property {string} unidad_medida - Unidad física de cuantificación.
  * @property {number} precio - Precio unitario de venta.
  * @property {number} stock_almacen - Existencias actuales en inventario.
+ * @property {number} stock_mostrador - Existencias actuales en exhibición.
  * @property {string} fecha_caducidad - Fecha de expiración del productos.
  * @property {boolean} activo - Estado lógico del producto (Activo/Inactivo).
  * @property {Array<number>} [proveedoresIds] - Identificadores de distribuidores vinculados.
@@ -48,6 +50,7 @@ const createProduct = async (productData) => {
     unidad_medida,
     precio,
     stock_almacen,
+    stock_mostrador,
     fecha_caducidad,
     proveedoresIds
   } = productData;
@@ -58,8 +61,8 @@ const createProduct = async (productData) => {
     await connection.beginTransaction();
 
     const [result] = await connection.execute(
-      `INSERT INTO productos (nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen, fecha_caducidad) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO productos (nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen, stock_mostrador, fecha_caducidad) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         nombre,
         codigo_barras,
@@ -68,6 +71,7 @@ const createProduct = async (productData) => {
         unidad_medida || 'Pieza',
         precio,
         stock_almacen || 0,
+        stock_mostrador || 0,
         fecha_caducidad || null
       ]
     );
@@ -96,6 +100,7 @@ const createProduct = async (productData) => {
       unidad_medida: unidad_medida || 'Pieza',
       precio,
       stock_almacen: stock_almacen || 0,
+      stock_mostrador: stock_mostrador || 0,
       fecha_caducidad: fecha_caducidad || null,
       proveedoresIds: proveedoresIds ? proveedoresIds.map(Number) : []
     };
@@ -123,7 +128,7 @@ const createProduct = async (productData) => {
 const updateProduct = async (id, productData) => {
   const {
     nombre, codigo_barras, categoria, presentacion, unidad_medida,
-    precio, stock_almacen, fecha_caducidad, proveedoresIds
+    precio, stock_almacen, stock_mostrador, fecha_caducidad, proveedoresIds
   } = productData;
 
   const connection = await db.getConnection();
@@ -132,9 +137,9 @@ const updateProduct = async (id, productData) => {
 
     await connection.execute(
       `UPDATE productos SET nombre=?, codigo_barras=?, categoria=?, presentacion=?, 
-       unidad_medida=?, precio=?, stock_almacen=?, fecha_caducidad=? WHERE id=?`,
+       unidad_medida=?, precio=?, stock_almacen=?, stock_mostrador=?, fecha_caducidad=? WHERE id=?`,
       [nombre, codigo_barras, categoria || 'Sin categoría', presentacion || 'N/A',
-       unidad_medida || 'Pieza', precio, stock_almacen || 0, fecha_caducidad || null, id]
+       unidad_medida || 'Pieza', precio, stock_almacen || 0, stock_mostrador || 0, fecha_caducidad || null, id]
     );
 
     // Resincroniza proveedores: borra los vínculos viejos e inserta los nuevos
@@ -192,8 +197,10 @@ const getProducts = async (mostrarInactivos = false) => {
       p.unidad_medida,
       p.precio,
       p.stock_almacen,
+      p.stock_mostrador,
       p.fecha_caducidad,
       p.activo,
+      GROUP_CONCAT(prov.id SEPARATOR ',') AS proveedores_ids,
       GROUP_CONCAT(prov.nombre SEPARATOR ', ') AS proveedores_nombres
     FROM productos p
     LEFT JOIN producto_proveedor pp ON p.id = pp.producto_id
@@ -240,8 +247,10 @@ const buscarProductos = async (termino, mostrarInactivos = false) => {
       p.unidad_medida,
       p.precio,
       p.stock_almacen,
+      p.stock_mostrador,
       p.fecha_caducidad,
       p.activo,
+      GROUP_CONCAT(prov.id SEPARATOR ',') AS proveedores_ids,
       GROUP_CONCAT(prov.nombre SEPARATOR ', ') AS proveedores_nombres
     FROM productos p
     LEFT JOIN producto_proveedor pp ON p.id = pp.producto_id
@@ -266,44 +275,60 @@ const buscarProductos = async (termino, mostrarInactivos = false) => {
  */
 const darDeBajaProducto = async (id, accion) => {
   if (accion === 'desactivar') {
-    await db.execute('UPDATE productos SET activo = FALSE WHERE id = ?', [id]);
+    // 0 = Inactivo (Aparece en la pestaña de desactivados)
+    await db.execute('UPDATE productos SET activo = 0 WHERE id = ?', [id]);
   } else if (accion === 'activar') {
-    await db.execute('UPDATE productos SET activo = TRUE WHERE id = ?', [id]);
+    // 1 = Activo (Aparece en el inventario principal)
+    await db.execute('UPDATE productos SET activo = 1 WHERE id = ?', [id]);
   } else if (accion === 'eliminar') {
-    await db.execute('DELETE FROM productos WHERE id = ?', [id]);
+    // 2 = Archivado/Eliminado (No aparece en activos ni inactivos, pero conserva el historial)
+    await db.execute('UPDATE productos SET activo = 2 WHERE id = ?', [id]);
   }
 };
 
 /**
  * Registra un ajuste manual en el inventario afectando la base de datos (HU-17).
  */
-const ajustarStock = async (id, cantidad, tipoAjuste) => {
+const ajustarStock = async (id, cantidad, tipoAjuste, tipoStock = 'almacen') => {
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
 
     const [rows] = await connection.execute(
-      'SELECT stock_almacen FROM productos WHERE id = ? FOR UPDATE',
+      'SELECT stock_almacen, stock_mostrador FROM productos WHERE id = ? FOR UPDATE',
       [Number(id)]
     );
     
     if (rows.length === 0) throw new Error('Producto no encontrado');
     
-    let nuevoStock = rows[0].stock_almacen;
+    let nuevoStockAlmacen = rows[0].stock_almacen;
+    let nuevoStockMostrador = rows[0].stock_mostrador;
 
-    if (tipoAjuste === 'ingreso_manual') {
-      nuevoStock += Number(cantidad);
-    } else if (tipoAjuste === 'merma' || tipoAjuste === 'daño') {
-      nuevoStock -= Number(cantidad);
-    } else if (tipoAjuste === 'conteo') {
-      nuevoStock = Number(cantidad); 
+    if (tipoAjuste === 'transferencia_mostrador') {
+      if (nuevoStockAlmacen < Number(cantidad)) throw new Error('Stock en almacén insuficiente');
+      nuevoStockAlmacen -= Number(cantidad);
+      nuevoStockMostrador += Number(cantidad);
+    } else if (tipoAjuste === 'transferencia_almacen') {
+      if (nuevoStockMostrador < Number(cantidad)) throw new Error('Stock en mostrador insuficiente');
+      nuevoStockMostrador -= Number(cantidad);
+      nuevoStockAlmacen += Number(cantidad);
+    } else {
+      if (tipoStock === 'mostrador') {
+        if (tipoAjuste === 'ingreso_manual') nuevoStockMostrador += Number(cantidad);
+        else if (tipoAjuste === 'merma' || tipoAjuste === 'daño') nuevoStockMostrador -= Number(cantidad);
+        else if (tipoAjuste === 'conteo') nuevoStockMostrador = Number(cantidad);
+        if (nuevoStockMostrador < 0) nuevoStockMostrador = 0;
+      } else {
+        if (tipoAjuste === 'ingreso_manual') nuevoStockAlmacen += Number(cantidad);
+        else if (tipoAjuste === 'merma' || tipoAjuste === 'daño') nuevoStockAlmacen -= Number(cantidad);
+        else if (tipoAjuste === 'conteo') nuevoStockAlmacen = Number(cantidad);
+        if (nuevoStockAlmacen < 0) nuevoStockAlmacen = 0;
+      }
     }
 
-    if (nuevoStock < 0) nuevoStock = 0;
-
     await connection.execute(
-      'UPDATE productos SET stock_almacen = ? WHERE id = ?',
-      [nuevoStock, Number(id)]
+      'UPDATE productos SET stock_almacen = ?, stock_mostrador = ? WHERE id = ?',
+      [nuevoStockAlmacen, nuevoStockMostrador, Number(id)]
     );
 
     await connection.commit();
@@ -315,8 +340,6 @@ const ajustarStock = async (id, cantidad, tipoAjuste) => {
     connection.release();
   }
 };
-
-// --- NUEVO CÓDIGO CON MYSQL (HU-26 / HU-49) ---
 
 /**
  * Busca un producto activo en la base de datos MySQL por código de barras exacto o coincidencia de nombre.
@@ -337,8 +360,6 @@ const findProductForPOS = async (termino) => {
   
   return rows.length > 0 ? rows[0] : null;
 };
-
-
 
 module.exports = {
   createProduct,
