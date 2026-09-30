@@ -1,5 +1,5 @@
 <!--
-  Punto de Venta UV — Directorio de Distribuidores (HU-18, HU-19)
+  Punto de Venta UV — Directorio de Distribuidores
 -->
 <!DOCTYPE html>
 <html lang="es">
@@ -32,7 +32,7 @@
           <a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a>
         </li>
         <li id="menuProveedores">
-          <a href="/proveedores" class="sidebar__link sidebar__link--active">Proveedores y Abastecimiento</a>
+          <a href="/proveedores" class="sidebar__link sidebar__link--active">Proveedores</a>
         </li>
         <li id="menuPos">
           <a href="/pos" class="sidebar__link">Punto de Venta</a>
@@ -141,15 +141,16 @@
 
             <section class="stepped-card__section">
               <p><span class="step-badge">2</span><strong>Medios de Contacto</strong></p>
-              <div class="field-row" style="margin-top: 1rem;">
-                <div class="form-group">
-                  <label class="form-label" for="telefono">Teléfono principal</label>
-                  <input type="text" id="telefono" class="form-input" placeholder="Ej. 2281234567" oninput="this.value = this.value.replace(/[^0-9]/g, '')" maxlength="15" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="email">Correo Electrónico *</label>
-                  <input type="email" id="email" class="form-input" placeholder="contacto@distribuidora.com" required />
-                </div>
+              <!-- las líneas se generan dinámicamente desde proveedor.js; la primera de cada lista es el contacto principal -->
+              <div style="margin-top: 1rem;">
+                <label class="form-label">Teléfonos</label>
+                <div id="telefonosContainer"></div>
+                <button type="button" class="btn-link-add" id="btnAgregarTelefono">+ Agregar otro teléfono</button>
+              </div>
+              <div style="margin-top: 1rem;">
+                <label class="form-label">Correos electrónicos *</label>
+                <div id="correosContainer"></div>
+                <button type="button" class="btn-link-add" id="btnAgregarCorreo">+ Agregar otro correo</button>
               </div>
             </section>
 

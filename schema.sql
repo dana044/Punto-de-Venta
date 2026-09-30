@@ -1,5 +1,4 @@
 -- ============================================================
--- Punto de Venta - Abarrotes
 -- Esquema de base de datos (MySQL)
 -- ============================================================
 DROP DATABASE IF EXISTS punto_de_venta;
@@ -10,7 +9,7 @@ CREATE DATABASE IF NOT EXISTS punto_de_venta
 USE punto_de_venta;
 
 -- ------------------------------------------------------------
--- Usuarios / Empleados (reemplaza el arreglo de user.model.js)
+-- Usuarios / Empleados
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS usuarios (
   id                INT AUTO_INCREMENT PRIMARY KEY,
@@ -36,7 +35,29 @@ CREATE TABLE IF NOT EXISTS proveedores (
 );
 
 -- ------------------------------------------------------------
--- Productos (con soporte para categoria, fecha_caducidad y activo)
+-- Un proveedor puede tener varios teléfonos y varios correos.
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS proveedor_telefonos (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  proveedor_id  INT NOT NULL,
+  telefono      VARCHAR(15) NOT NULL,
+  tipo          ENUM('oficina', 'celular', 'whatsapp', 'otro') NOT NULL DEFAULT 'oficina',
+  es_principal  BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE KEY uq_proveedor_telefono (proveedor_id, telefono),
+  FOREIGN KEY (proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS proveedor_correos (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  proveedor_id  INT NOT NULL,
+  correo        VARCHAR(100) NOT NULL,
+  es_principal  BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE KEY uq_proveedor_correo (proveedor_id, correo),
+  FOREIGN KEY (proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- Productos
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS productos (
   id              INT AUTO_INCREMENT PRIMARY KEY,
@@ -52,7 +73,7 @@ CREATE TABLE IF NOT EXISTS productos (
   creado_en       DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Relación muchos-a-muchos: producto <-> proveedores (HU-11)
+-- Relación muchos-a-muchos: producto <-> proveedores
 CREATE TABLE IF NOT EXISTS producto_proveedor (
   producto_id   INT NOT NULL,
   proveedor_id  INT NOT NULL,
@@ -96,6 +117,7 @@ CREATE TABLE IF NOT EXISTS ventas (
   folio        VARCHAR(30) NULL,
   usuario_id   INT NOT NULL,
   fecha        DATETIME DEFAULT CURRENT_TIMESTAMP,
+  metodo_pago  ENUM('efectivo', 'tarjeta', 'transferencia') NOT NULL DEFAULT 'efectivo',
   subtotal     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   descuentos   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   iva          DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -123,10 +145,10 @@ CREATE TABLE IF NOT EXISTS venta_detalle (
 -- Datos de prueba
 -- ============================================================
 
-INSERT INTO usuarios (id, nombre_completo, correo, password, role, activo) VALUES
-  (1, 'Administrador General', 'admin@uv.mx', 'password123', 'administrador', TRUE),
-  (2, 'Cajero Turno Matutino', 'caja01@uv.mx', 'password123', 'cajero', TRUE),
-  (3, 'Encargado de Almacén', 'almacen@uv.mx', 'password123', 'almacenista', TRUE);
+INSERT IGNORE INTO usuarios (id, nombre_completo, correo, password, role, activo) VALUES
+  (1, 'Administrador', 'admin@uv.mx',   'password123', 'administrador', TRUE),
+  (2, 'Cajero 01',     'caja01@uv.mx',  'password123', 'cajero', TRUE),
+  (3, 'Almacenista',   'almacen@uv.mx', 'password123', 'almacenista', TRUE);
 
 INSERT IGNORE INTO proveedores (id, nombre) VALUES
   (1, 'Distribuidora Central Papelera S.A.'),

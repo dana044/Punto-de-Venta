@@ -160,7 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     switch (datos.usuario.role) {
       case 'administrador':
-        window.location.href = "/empleados/nuevo";
+        window.location.href = "/empleados";
         break;
       case 'cajero':
         window.location.href = "/pos";

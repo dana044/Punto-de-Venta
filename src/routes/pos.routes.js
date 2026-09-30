@@ -3,6 +3,7 @@
  * @description Rutas del punto de venta.
  * @author Jetzaly Josmery Tello Campos 
  * @author Alfonso Mendoza Vásquez (Apertura de caja HU-25)
+ * @author Diego Rafael Jiménez Trujano (Cobro HU-30)
  */
 
 const express = require('express');
@@ -34,6 +35,18 @@ router.post(
   permitirRoles('cajero', 'administrador'),
   //validateCarrito,
   posController.calcularTotales
+);
+
+/**
+ * Ruta para registrar la venta finalizada (HU-30).
+ * Descuenta stock, registra ingresos y genera folio.
+ * @name post/cobrar
+ * @route {POST} /api/pos/cobrar
+ */
+router.post(
+  '/cobrar',
+  permitirRoles('cajero', 'administrador'),
+  posController.procesarCobro
 );
 
 module.exports = router;

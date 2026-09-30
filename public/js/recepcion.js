@@ -63,12 +63,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuPersonal = document.getElementById('menuPersonal');
     const menuInventario = document.getElementById('menuInventario');
     const menuRecepcion = document.getElementById('menuRecepcion');
+    const menuProveedores = document.getElementById('menuProveedores');
     const menuPos = document.getElementById('menuPos');
 
     if (rol === 'administrador') {
       menuPersonal?.removeAttribute('hidden');
       menuInventario?.removeAttribute('hidden');
       menuRecepcion?.removeAttribute('hidden');
+      menuProveedores?.removeAttribute('hidden');
       menuPos?.removeAttribute('hidden');
     } else if (rol === 'almacenista') {
       if (menuPersonal) menuPersonal.hidden = true;

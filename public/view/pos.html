@@ -1,7 +1,6 @@
 <!--
-  Punto de Venta UV — Cálculo de subtotal, descuentos y total
-  Integra HU26 y HU49: Entrada de productos por búsqueda manual y escáner.
-  HU25: Registrar una venta con folio, fecha y empleado.
+  
+  Integra HU 25, HU26, HU49 y HU30: Búsqueda, cálculo automático, registro de venta con folio, fecha y empleado. y modal de liquidación.
 -->
 <!DOCTYPE html>
 <html lang="es">
@@ -18,6 +17,7 @@
   <style>
     .alert { padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-weight: 600; }
     .alert--error { background-color: #FEE2E2; color: var(--color-danger); border: 1px solid var(--color-danger); }
+    .alert--success { background-color: #E6F0EF; color: var(--color-primary); border: 1px solid var(--color-primary); }
     .carrito-toolbar { display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .carrito-toolbar .form-group { margin-bottom: 0; min-width: 160px; }
     .btn-icon-delete-cell { text-align: center; }
@@ -25,26 +25,17 @@
 </head>
 <body>
   <div class="app-container">
-  <aside class="sidebar">
-        <div class="sidebar__brand">La Number One</div>
-        <ul class="sidebar__nav" id="sidebarNav">
-          <li id="menuPersonal" hidden>
-            <a href="/empleados/nuevo" class="sidebar__link">Administrar Personal</a>
-          </li>
-          <li id="menuInventario" hidden>
-            <a href="/inventario" class="sidebar__link">Inventario</a>
-          </li>
-          <li id="menuRecepcion" hidden>
-            <a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a>
-          </li>
-          <li id="menuPos" hidden>
-            <a href="/pos" class="sidebar__link sidebar__link--active">Punto de Venta</a>
-          </li>
-          <li>
-            <a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a>
-          </li>
-        </ul>
-      </aside>
+    <aside class="sidebar">
+      <div class="sidebar__brand">La Number One</div>
+      <ul class="sidebar__nav" id="sidebarNav">
+        <li id="menuPersonal" hidden><a href="/empleados" class="sidebar__link">Administrar Personal</a></li>
+        <li id="menuInventario" hidden><a href="/inventario" class="sidebar__link">Inventario</a></li>
+        <li id="menuRecepcion" hidden><a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a></li>
+        <li id="menuProveedores" hidden><a href="/proveedores" class="sidebar__link">Proveedores</a></li>
+        <li id="menuPos" hidden><a href="/pos" class="sidebar__link sidebar__link--active">Punto de Venta</a></li>
+        <li><a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a></li>
+      </ul>
+    </aside>
 
     <main class="main-content">
       <!-- Barra de Estado de Venta Activa (HU-25) -->
@@ -61,10 +52,10 @@
       <h1>Venta — Subtotal, Descuentos y Total</h1>
       <p class="text-muted" style="margin-bottom: 1.5rem;">Agrega productos escaneando o buscando por nombre (HU-26 / HU-49). Los totales se recalculan automáticamente (HU-27).</p>
 
+      <h1>Venta en Curso</h1>
       <div id="alertMessage" class="alert alert--error" hidden></div>
 
       <div class="carrito-toolbar">
-        <!-- HU26 y HU49: Input de texto dinámico para buscar o escanear códigos de barras -->
         <div class="form-group" style="flex-grow: 1; min-width: 200px;">
           <label class="form-label">Buscar / Escanear Código</label>
           <input type="text" id="inputBuscarProducto" class="form-input" placeholder="Escanea código o escribe nombre..." autocomplete="off" autofocus />
@@ -103,16 +94,59 @@
         </tbody>
       </table>
 
-      <div class="totales-venta">
+      <div class="totales-venta" style="margin-top: 1rem;">
         <div class="totales-venta__fila"><span>Subtotal</span><span id="totSubtotal">$0.00</span></div>
         <div class="totales-venta__fila"><span>Descuentos</span><span id="totDescuentos">-$0.00</span></div>
         <div class="totales-venta__fila"><span>IVA (16%)</span><span id="totIva">$0.00</span></div>
         <div class="totales-venta__fila totales-venta__fila--total"><span>Total</span><span id="totTotal">$0.00</span></div>
+        
+        <button class="btn btn--success" id="btnAbrirCobro" style="width: 100%; margin-top: 1rem; font-size: 1.1rem; padding: 1rem;" disabled>
+          Cobrar / Finalizar Venta [F12]
+        </button>
       </div>
     </main>
   </div>
 
+  <div class="modal-overlay modal--hidden" id="modalCobro">
+    <div class="modal-card" style="max-width: 500px; padding: 0;">
+      <div class="modal-header" style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="margin: 0; font-size: 1.25rem;">Liquidación de Venta</h2>
+        <button class="modal-close" id="btnCerrarCobro" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        
+        <div class="totales-venta__fila totales-venta__fila--total" style="font-size: 1.5rem; margin-bottom: 1.5rem;">
+          <span>Total a Cobrar</span>
+          <span id="modalTotalCobrar">$0.00</span>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Método de pago</label>
+          <select id="selectMetodoPago" class="form-select">
+            <option value="efectivo">Efectivo (Billetes y monedas)</option>
+            <option value="tarjeta">Tarjeta (Débito/Crédito)</option>
+            <option value="transferencia">Transferencia Digital</option>
+          </select>
+        </div>
+
+        <div id="divMontoRecibido" class="form-group">
+          <label class="form-label">Monto Recibido ($)</label>
+          <input type="number" id="inputMontoRecibido" class="form-input" min="0" step="0.01" placeholder="Ej. 500.00" />
+        </div>
+
+        <div class="totales-venta__fila" style="font-size: 1.2rem; color: var(--color-success); margin-top: 1.5rem;">
+          <span>Cambio a Devolver</span>
+          <span id="modalCambio">$0.00</span>
+        </div>
+
+      </div>
+      <div class="modal-footer" style="padding: 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 1rem;">
+        <button class="btn btn--secondary" id="btnCancelarCobro">Cancelar</button>
+        <button class="btn btn--primary" id="btnConfirmarPago">Confirmar Transacción</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/pos.js"></script>
-  <script src="/js/inactividad.js"></script>
 </body>
 </html>
