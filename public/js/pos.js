@@ -1,10 +1,11 @@
 /**
  * @file pos.js
- * @description Controlador para calcular subtotal, descuentos y total en la venta.
+ * @description Controlador para el Punto de Venta (HU26, HU27, HU30, HU49).
  */
 
 const API_BUSCAR_PRODUCTO = '/api/inventory/productos/buscar-pos';
 const API_CALCULAR = '/api/pos/calcular';
+const API_COBRAR = '/api/pos/cobrar'; // Nuevo endpoint HU30
 
 document.addEventListener('DOMContentLoaded', () => {
   const userRole = localStorage.getItem('userRole');
@@ -12,12 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (!token || !userRole) {
     window.location.href = '/login';
-    return;
-  }
-
-  if (userRole === 'almacenista') {
-    alert('Acceso no autorizado para tu rol.');
-    window.location.href = '/inventario';
     return;
   }
 
@@ -36,15 +31,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputDescuentoValor = document.getElementById('inputDescuentoValor');
   const btnAgregar = document.getElementById('btnAgregar');
   const carritoBody = document.getElementById('carritoBody');
+  const btnAbrirCobro = document.getElementById('btnAbrirCobro');
+
+  // Elementos del Modal HU30
+  const modalCobro = document.getElementById('modalCobro');
+  const btnCerrarCobro = document.getElementById('btnCerrarCobro');
+  const btnCancelarCobro = document.getElementById('btnCancelarCobro');
+  const modalTotalCobrar = document.getElementById('modalTotalCobrar');
+  const selectMetodoPago = document.getElementById('selectMetodoPago');
+  const divMontoRecibido = document.getElementById('divMontoRecibido');
+  const inputMontoRecibido = document.getElementById('inputMontoRecibido');
+  const modalCambio = document.getElementById('modalCambio');
+  const btnConfirmarPago = document.getElementById('btnConfirmarPago');
 
   let carrito = [];
+  let totalActual = 0; // Guardamos el total para validar el cobro
 
-  // Función agregada por tus compañeros para controlar el menú lateral
   function configurarMenuPorRol(rol) {
     const menuPersonal = document.getElementById('menuPersonal');
     const menuInventario = document.getElementById('menuInventario');
     const menuRecepcion = document.getElementById('menuRecepcion');
-    const menuProveedores = document.getElementById('menuProveedores')
+    const menuProveedores = document.getElementById('menuProveedores');
     const menuPos = document.getElementById('menuPos');
 
     if (rol === 'administrador') {
@@ -53,23 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
       menuRecepcion?.removeAttribute('hidden');
       menuProveedores?.removeAttribute('hidden');
       menuPos?.removeAttribute('hidden');
-    } else if (rol === 'almacenista') {
-      if (menuPersonal) menuPersonal.hidden = true;
-      menuInventario?.removeAttribute('hidden');
-      menuRecepcion?.removeAttribute('hidden');
-      if (menuPos) menuPos.hidden = true;
     } else if (rol === 'cajero') {
-      if (menuPersonal) menuPersonal.hidden = true;
-      if (menuInventario) menuInventario.hidden = true;
-      if (menuRecepcion) menuRecepcion.hidden = true;
       menuPos?.removeAttribute('hidden');
     }
   }
 
-  /**
-   * HU26 / HU49: Escucha el escáner de código de barras (tecla Enter).
-   * Al escanear, busca directamente y agrega el producto.
-   */
   inputBuscarProducto.addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -77,21 +72,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  /**
-   * HU26: También permite agregar el producto haciendo clic en el botón.
-   */
   btnAgregar.addEventListener('click', async () => {
     await buscarYAgregarProducto(inputBuscarProducto.value.trim());
   });
 
-  /**
-   * HU26 / HU49: Realiza la búsqueda del producto en el backend por código o nombre
-   * y lo añade a la lista de cobro.
-   * @param {string} query Término de búsqueda (código de barras o nombre)
-   */
   async function buscarYAgregarProducto(query) {
     if (!query) {
-      mostrarError('Ingresa un código de barras o nombre de producto.');
+      mostrarMensaje('Ingresa un código de barras o nombre de producto.', 'error');
       return;
     }
 
@@ -99,27 +86,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch(`${API_BUSCAR_PRODUCTO}?q=${encodeURIComponent(query)}`, {
         headers: { 'x-user-role': userRole }
       });
-      
       const data = await res.json();
 
       if (!res.ok || !data.producto) {
-        mostrarError(data.mensaje || 'Producto no encontrado o inactivo.');
+        mostrarMensaje(data.mensaje || 'Producto no encontrado o inactivo.', 'error');
         return;
       }
 
-      const producto = data.producto;
-      const cantidad = Number(inputCantidad.value) || 1;
-
-      // Agrega el producto al carrito
       carrito.push({
-        productoId: producto.id,
-        productoNombre: producto.nombre,
-        cantidad,
+        productoId: data.producto.id,
+        productoNombre: data.producto.nombre,
+        cantidad: Number(inputCantidad.value) || 1,
         descuentoTipo: selectDescuentoTipo.value,
         descuentoValor: Number(inputDescuentoValor.value) || 0
       });
 
-      // Limpia los inputs para permitir un nuevo escaneo inmediatamente (HU-49)
       inputBuscarProducto.value = '';
       inputCantidad.value = 1;
       inputDescuentoValor.value = 0;
@@ -127,23 +108,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
       recalcular();
     } catch (err) {
-      mostrarError('Error al comunicarse con el servidor para buscar el producto.');
+      mostrarMensaje('Error al comunicarse con el servidor.', 'error');
     }
   }
 
-  function quitarLinea(index) {
+  window.quitarLinea = function(index) {
     carrito.splice(index, 1);
     recalcular();
-    inputBuscarProducto.focus(); // Retorna el foco al escáner tras eliminar (HU49)
-  }
+    inputBuscarProducto.focus();
+  };
 
-  /**
-   * Envía el carrito actual a /api/pos/calcular (HU-27) y pinta la tabla y
-   * los totales con la respuesta del backend.
-   */
   async function recalcular() {
     if (carrito.length === 0) {
-      carritoBody.innerHTML = '<tr><td colspan="6" class="text-muted">El carrito esta vacio.</td></tr>';
+      carritoBody.innerHTML = '<tr><td colspan="6" class="text-muted">El carrito está vacío.</td></tr>';
       pintarTotales({ subtotal: 0, descuentos: 0, iva: 0, total: 0 });
       return;
     }
@@ -154,58 +131,127 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
         body: JSON.stringify({ items: carrito })
       });
-
       const data = await res.json();
 
       if (!res.ok) {
-        mostrarError(data.mensaje || 'No se pudo calcular la venta.');
+        mostrarMensaje(data.mensaje || 'No se pudo calcular la venta.', 'error');
         return;
       }
 
-      alerta.hidden = true; // Ocultar alerta si todo sale bien
+      alerta.hidden = true;
       pintarCarrito(data.items);
       pintarTotales(data);
     } catch (err) {
-      mostrarError('Error de comunicacion con el servidor.');
+      mostrarMensaje('Error de comunicación con el servidor.', 'error');
     }
   }
 
   function pintarCarrito(items) {
-    carritoBody.innerHTML = items
-      .map((item, index) => {
-        const etiquetaDescuento = item.descuentoTipo === 'porcentaje'
-          ? `${item.descuentoValor}%`
-          : `$${item.descuentoValor.toFixed(2)}`;
-
-        return `
-          <tr>
-            <td>${item.productoNombre}</td>
-            <td>${item.cantidad}</td>
-            <td>$${item.precioUnitario.toFixed(2)}</td>
-            <td>${etiquetaDescuento} (-$${item.descuentoLinea.toFixed(2)})</td>
-            <td>$${item.totalLinea.toFixed(2)}</td>
-            <td class="btn-icon-delete-cell">
-              <button class="btn-icon-delete btn-quitar-linea" data-index="${index}" title="Quitar">Quitar</button>
-            </td>
-          </tr>
-        `;
-      })
-      .join('');
-
-    document.querySelectorAll('.btn-quitar-linea').forEach((btn) => {
-      btn.addEventListener('click', () => quitarLinea(Number(btn.dataset.index)));
-    });
+    carritoBody.innerHTML = items.map((item, index) => {
+      const etiquetaDesc = item.descuentoTipo === 'porcentaje' ? `${item.descuentoValor}%` : `$${item.descuentoValor.toFixed(2)}`;
+      return `
+        <tr>
+          <td>${item.productoNombre}</td>
+          <td>${item.cantidad}</td>
+          <td>$${item.precioUnitario.toFixed(2)}</td>
+          <td>${etiquetaDesc} (-$${item.descuentoLinea.toFixed(2)})</td>
+          <td>$${item.totalLinea.toFixed(2)}</td>
+          <td class="btn-icon-delete-cell">
+            <button class="btn-icon-delete" onclick="quitarLinea(${index})" title="Quitar">🗑</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
   }
 
   function pintarTotales(totales) {
+    totalActual = totales.total;
     document.getElementById('totSubtotal').textContent = `$${totales.subtotal.toFixed(2)}`;
     document.getElementById('totDescuentos').textContent = `-$${totales.descuentos.toFixed(2)}`;
     document.getElementById('totIva').textContent = `$${totales.iva.toFixed(2)}`;
     document.getElementById('totTotal').textContent = `$${totales.total.toFixed(2)}`;
+    
+    // HU30: Habilitar o deshabilitar botón de cobro
+    btnAbrirCobro.disabled = totalActual <= 0;
   }
 
-  function mostrarError(mensaje) {
+  function mostrarMensaje(mensaje, tipo = 'error') {
     alerta.textContent = mensaje;
+    alerta.className = `alert alert--${tipo}`;
     alerta.hidden = false;
+    setTimeout(() => { alerta.hidden = true; }, 5000);
   }
+
+  // --- LÓGICA DEL MODAL DE COBRO (HU30) ---
+
+  btnAbrirCobro.addEventListener('click', () => {
+    modalTotalCobrar.textContent = `$${totalActual.toFixed(2)}`;
+    inputMontoRecibido.value = totalActual.toFixed(2); // Sugerir pago exacto
+    calcularCambio();
+    modalCobro.classList.remove('modal--hidden');
+    inputMontoRecibido.focus();
+  });
+
+  const cerrarModal = () => modalCobro.classList.add('modal--hidden');
+  btnCerrarCobro.addEventListener('click', cerrarModal);
+  btnCancelarCobro.addEventListener('click', cerrarModal);
+
+  selectMetodoPago.addEventListener('change', () => {
+    // Solo mostrar campo de "Monto Recibido" si es efectivo
+    if (selectMetodoPago.value === 'efectivo') {
+      divMontoRecibido.style.display = 'block';
+      inputMontoRecibido.value = totalActual.toFixed(2);
+    } else {
+      divMontoRecibido.style.display = 'none';
+      inputMontoRecibido.value = totalActual.toFixed(2); // Auto-completar para tarjetas
+    }
+    calcularCambio();
+  });
+
+  inputMontoRecibido.addEventListener('input', calcularCambio);
+
+  function calcularCambio() {
+    const recibido = Number(inputMontoRecibido.value) || 0;
+    const cambio = recibido - totalActual;
+    modalCambio.textContent = cambio >= 0 ? `$${cambio.toFixed(2)}` : 'Monto insuficiente';
+    modalCambio.style.color = cambio >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+    btnConfirmarPago.disabled = cambio < 0;
+  }
+
+  btnConfirmarPago.addEventListener('click', async () => {
+    btnConfirmarPago.disabled = true;
+    btnConfirmarPago.textContent = 'Procesando...';
+
+    try {
+      const res = await fetch(API_COBRAR, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
+        body: JSON.stringify({
+          items: carrito,
+          metodoPago: selectMetodoPago.value,
+          montoRecibido: Number(inputMontoRecibido.value)
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        mostrarMensaje(data.mensaje || 'Error al procesar el pago.', 'error');
+        return;
+      }
+
+      // Venta exitosa: limpiar carrito y cerrar modal
+      carrito = [];
+      recalcular();
+      cerrarModal();
+      mostrarMensaje(`¡Cobro exitoso! Folio: ${data.folio} | Cambio a devolver: $${data.cambio}`, 'success');
+      
+    } catch (err) {
+      mostrarMensaje('Error de red al intentar cobrar.', 'error');
+    } finally {
+      btnConfirmarPago.disabled = false;
+      btnConfirmarPago.textContent = 'Confirmar Transacción';
+    }
+  });
+
 });

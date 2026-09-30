@@ -175,3 +175,5 @@ INSERT INTO pedido_detalle (pedido_id, producto_id, cantidad_solicitada, cantida
   (1, 1, 50, 0, 10.00, 'pendiente'),
   (2, 1, 30, 0, 10.00, 'pendiente'),
   (2, 2, 20, 0, 18.00, 'pendiente');
+
+  
