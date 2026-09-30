@@ -1,7 +1,7 @@
 -- ============================================================
 -- Esquema de base de datos (MySQL)
 -- ============================================================
-
+DROP DATABASE IF EXISTS punto_de_venta;
 CREATE DATABASE IF NOT EXISTS punto_de_venta
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
@@ -99,15 +99,15 @@ CREATE TABLE IF NOT EXISTS pedidos (
 
 -- Detalle / items de cada pedido
 CREATE TABLE IF NOT EXISTS pedido_detalle (
-  id                     INT AUTO_INCREMENT PRIMARY KEY,
-  pedido_id              INT NOT NULL,
-  producto_id            INT NOT NULL,
-  cantidad_solicitada    INT NOT NULL,
-  cantidad_recibida      INT NOT NULL DEFAULT 0,
-  costo_unitario         DECIMAL(10,2) NOT NULL,
-  estado_linea           ENUM('pendiente', 'completo', 'incompleto') NOT NULL DEFAULT 'pendiente',
-  FOREIGN KEY (pedido_id)   REFERENCES pedidos(id)   ON DELETE CASCADE,
-  FOREIGN KEY (producto_id) REFERENCES productos(id)
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    pedido_id           INT NOT NULL,
+    producto_id         INT NOT NULL,
+    cantidad_solicitada INT NOT NULL,
+    cantidad_recibida   INT NOT NULL DEFAULT 0,
+    costo_unitario      DECIMAL(10,2) NOT NULL,
+    estado_linea        ENUM('pendiente', 'completo', 'incompleto') NOT NULL DEFAULT 'pendiente',
+    FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE,
+    FOREIGN KEY (producto_id) REFERENCES productos(id)
 );
 
 -- ------------------------------------------------------------
@@ -115,12 +115,14 @@ CREATE TABLE IF NOT EXISTS pedido_detalle (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ventas (
   id           INT AUTO_INCREMENT PRIMARY KEY,
+  folio        VARCHAR(30) NULL,
   usuario_id   INT NOT NULL,
   fecha        DATETIME DEFAULT CURRENT_TIMESTAMP,
-  subtotal     DECIMAL(10,2) NOT NULL,
-  descuentos   DECIMAL(10,2) NOT NULL DEFAULT 0,
-  iva          DECIMAL(10,2) NOT NULL,
-  total        DECIMAL(10,2) NOT NULL,
+  metodo_pago  ENUM('efectivo', 'tarjeta', 'transferencia') NOT NULL DEFAULT 'efectivo',
+  subtotal     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  descuentos   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  iva          DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  total        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
 

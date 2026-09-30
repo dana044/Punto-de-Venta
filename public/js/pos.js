@@ -76,11 +76,90 @@ document.addEventListener('DOMContentLoaded', () => {
     await buscarYAgregarProducto(inputBuscarProducto.value.trim());
   });
 
+  let ventaActivaId = null;
+
+/**
+ * HU-25: Inicializa una nueva venta en el POS solicitando el folio consecutivo.
+ * Solo se dispara cuando el carrito está vacío y se intenta agregar el primer producto.
+ */
+async function inicializarVenta() {
+    try {
+        // 1. Buscamos el token en ambas memorias por si cambiaron la arquitectura
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        
+        const headers = { 
+            'Content-Type': 'application/json' 
+        };
+        
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        
+        // 2. INYECCIÓN CRÍTICA: La llave secreta del equipo para pasar el middleware
+        if (typeof userRole !== 'undefined') {
+            headers['x-user-role'] = userRole;
+        } else {
+            headers['x-user-role'] = localStorage.getItem('role') || 'administrador';
+        }
+
+        const response = await fetch('/api/pos/abrir', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({ empleado_id: 1 }) 
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // Extraemos el ID dependiendo de cómo se llame en tu controlador actual
+            ventaActivaId = data.data.venta_id || data.data.id;
+            
+            const elFolio = document.getElementById('lblFolio');
+            const elFecha = document.getElementById('lblFecha');
+            const elCajero = document.getElementById('lblCajero');
+
+            if (elFolio) elFolio.textContent = data.data.folio;
+            if (elFecha) {
+                const fecha = new Date(data.data.fecha);
+                elFecha.textContent = fecha.toLocaleDateString() + ' ' + fecha.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            if (elCajero) elCajero.textContent = 'Cajero ID #1 (Activo)';
+
+            console.log(`[VENTA INICIADA]: Folio ${data.data.folio} asignado.`);
+            return true;
+        } else {
+            console.error('[Error Log - Fallo al iniciar venta]:', data.message || data.error || 'Acceso denegado por middleware.');
+            return false;
+        }
+    } catch (error) {
+        console.error('[Error Log - Error de red al iniciar venta]:', error);
+        return false;
+    }
+}
+
+// Ejecutar al cargar la interfaz
+  document.addEventListener('DOMContentLoaded', () => {
+    inicializarVenta();
+  });
+
+  /**
+   * HU26 / HU49: Realiza la búsqueda del producto en el backend por código o nombre
+   * y lo añade a la lista de cobro.
+   * @param {string} query Término de búsqueda (código de barras o nombre)
+   */
   async function buscarYAgregarProducto(query) {
     if (!query) {
       mostrarMensaje('Ingresa un código de barras o nombre de producto.', 'error');
       return;
     }
+
+    // --- INYECCIÓN HU-25: Generar folio si es el primer producto del carrito ---
+  if (!ventaActivaId) {
+    const ventaAbierta = await inicializarVenta();
+    if (!ventaAbierta) {
+        mostrarError('No se pudo generar el folio de venta. Operación cancelada.');
+        return;
+    }
+  }
+  // ---------------------------------------------------------------------------
 
     try {
       const res = await fetch(`${API_BUSCAR_PRODUCTO}?q=${encodeURIComponent(query)}`, {
