@@ -1,5 +1,4 @@
 -- ============================================================
--- Punto de Venta - Abarrotes
 -- Esquema de base de datos (MySQL)
 -- ============================================================
 
@@ -10,7 +9,7 @@ CREATE DATABASE IF NOT EXISTS punto_de_venta
 USE punto_de_venta;
 
 -- ------------------------------------------------------------
--- Usuarios / Empleados (reemplaza el arreglo de user.model.js)
+-- Usuarios / Empleados
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS usuarios (
   id                INT AUTO_INCREMENT PRIMARY KEY,
@@ -19,7 +18,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   password          VARCHAR(255) NOT NULL,
   role              ENUM('administrador', 'cajero', 'almacenista') NOT NULL,
   activo            BOOLEAN NOT NULL DEFAULT TRUE,
-  creado_en         DATETIME DEFAULT CURRENT_TIMESTAMP
+  creado_en         DATETIME DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_correo_role (correo, role)
 );
 
@@ -36,7 +35,29 @@ CREATE TABLE IF NOT EXISTS proveedores (
 );
 
 -- ------------------------------------------------------------
--- Productos (con soporte para categoria, fecha_caducidad y activo)
+-- Un proveedor puede tener varios teléfonos y varios correos.
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS proveedor_telefonos (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  proveedor_id  INT NOT NULL,
+  telefono      VARCHAR(15) NOT NULL,
+  tipo          ENUM('oficina', 'celular', 'whatsapp', 'otro') NOT NULL DEFAULT 'oficina',
+  es_principal  BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE KEY uq_proveedor_telefono (proveedor_id, telefono),
+  FOREIGN KEY (proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS proveedor_correos (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  proveedor_id  INT NOT NULL,
+  correo        VARCHAR(100) NOT NULL,
+  es_principal  BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE KEY uq_proveedor_correo (proveedor_id, correo),
+  FOREIGN KEY (proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- Productos
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS productos (
   id              INT AUTO_INCREMENT PRIMARY KEY,
@@ -52,7 +73,7 @@ CREATE TABLE IF NOT EXISTS productos (
   creado_en       DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Relación muchos-a-muchos: producto <-> proveedores (HU-11)
+-- Relación muchos-a-muchos: producto <-> proveedores
 CREATE TABLE IF NOT EXISTS producto_proveedor (
   producto_id   INT NOT NULL,
   proveedor_id  INT NOT NULL,
@@ -122,10 +143,10 @@ CREATE TABLE IF NOT EXISTS venta_detalle (
 -- Datos de prueba
 -- ============================================================
 
-INSERT IGNORE INTO usuarios (id, nombre_completo, puesto, username, password, role, activo) VALUES
-  (1, 'Administrador', 'Administrador', 'admin@uv.mx',   'password123', 'administrador', TRUE),
-  (2, 'Cajero 01',     'Cajero',        'caja01@uv.mx',  'password123', 'cajero', TRUE),
-  (3, 'Almacenista',   'Almacenista',   'almacen@uv.mx', 'password123', 'almacenista', TRUE);
+INSERT IGNORE INTO usuarios (id, nombre_completo, correo, password, role, activo) VALUES
+  (1, 'Administrador', 'admin@uv.mx',   'password123', 'administrador', TRUE),
+  (2, 'Cajero 01',     'caja01@uv.mx',  'password123', 'cajero', TRUE),
+  (3, 'Almacenista',   'almacen@uv.mx', 'password123', 'almacenista', TRUE);
 
 INSERT IGNORE INTO proveedores (id, nombre) VALUES
   (1, 'Distribuidora Central Papelera S.A.'),
@@ -154,13 +175,3 @@ INSERT INTO pedido_detalle (pedido_id, producto_id, cantidad_solicitada, cantida
   (1, 1, 50, 0, 10.00, 'pendiente'),
   (2, 1, 30, 0, 10.00, 'pendiente'),
   (2, 2, 20, 0, 18.00, 'pendiente');
-  
-INSERT INTO pedidos (folio, proveedor_id, fecha, destino, estado) VALUES
-('OC-2026-001', 1, NOW(), 'almacen', 'pendiente'),
-('OC-2026-002', 2, NOW(), 'almacen', 'pendiente');
-
-INSERT INTO pedido_detalle (pedido_id, producto_id, cantidad_solicitada, cantidad_recibida, costo_unitario, estado_linea) VALUES
-(1, 1, 50, 0, 10.00, 'pendiente'),
-(2, 1, 30, 0, 10.00, 'pendiente'),
-(2, 2, 20, 0, 18.00, 'pendiente');
->>>>>>> 8d4357e0395cff1df70ec257b396136a3b503a12

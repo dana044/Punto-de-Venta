@@ -107,12 +107,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuPersonal = document.getElementById('menuPersonal');
     const menuInventario = document.getElementById('menuInventario');
     const menuRecepcion = document.getElementById('menuRecepcion');
+    const menuProveedores = document.getElementById('menuProveedores');
     const menuPos = document.getElementById('menuPos');
 
     if (rol === 'administrador') {
       menuPersonal?.removeAttribute('hidden');
       menuInventario?.removeAttribute('hidden');
       menuRecepcion?.removeAttribute('hidden');
+      menuProveedores?.removeAttribute('hidden');
       menuPos?.removeAttribute('hidden');
     } else if (rol === 'almacenista') {
       if (menuPersonal) menuPersonal.hidden = true;
@@ -208,8 +210,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     lista.forEach((p) => {
       const fila = document.createElement('tr');
-      const opacidad = p.activo === false ? 'opacity: 0.6;' : '';
-      const inactivo = p.activo === false;
+      const inactivo = Number(p.activo) === 0 || p.activo === false;
+      const opacidad = inactivo ? 'opacity: 0.6;' : '';
 
       const badgeHTML = !inactivo
         ? `<span class="badge badge--success">${p.categoria || 'General'}</span>`
@@ -236,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
         <td class="actions-cell">
           <button class="btn-icon-edit btn-ajustar" data-id="${p.id}" title="Ajustar Stock" style="background-color: #F3E8FF; color: #7E22CE;">Ajustar</button>
-          <button class="btn-icon-edit" data-id="${p.id}" title="Editar">Editar</button>
+          <button class="btn-icon-edit btn-editar" data-id="${p.id}" title="Editar">Editar</button>
           ${botonEstadoHTML}
           <button class="btn-icon-delete btn-eliminar" data-id="${p.id}" title="Eliminar">Eliminar</button>
         </td>
@@ -343,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   tablaBody.addEventListener('click', async (e) => {
-    const btnEditar = e.target.closest('.btn-icon-edit');
+    const btnEditar = e.target.closest('.btn-editar');
     if (btnEditar) {
       const producto = productosCache.find((p) => p.id == btnEditar.dataset.id);
       if (producto) abrirModalEdicion(producto);

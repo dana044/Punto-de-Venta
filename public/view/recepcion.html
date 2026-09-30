@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,29 +12,80 @@
   <link rel="stylesheet" href="/css/05-modals.css" />
   <link rel="stylesheet" href="/css/06-tables.css" />
   <style>
-    .alert { padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-weight: 600; }
-    .alert--success { background-color: #E6F0EF; color: var(--color-primary); border: 1px solid var(--color-primary); }
-    .alert--error { background-color: #FEE2E2; color: var(--color-danger); border: 1px solid var(--color-danger); }
-    .modal-body { padding: 1.5rem; overflow-y: auto; max-height: 75vh; }
-    .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-    .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.75rem; }
-    .modal-close { background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-muted); }
-    .header-actions { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+    .alert {
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+
+    .alert--success {
+      background-color: #E6F0EF;
+      color: var(--color-primary);
+      border: 1px solid var(--color-primary);
+    }
+
+    .alert--error {
+      background-color: #FEE2E2;
+      color: var(--color-danger);
+      border: 1px solid var(--color-danger);
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+      max-height: 75vh;
+    }
+
+    .modal-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1.5rem;
+    }
   </style>
 </head>
+
 <body>
   <div class="app-container">
     <aside class="sidebar">
       <div class="sidebar__brand">La Number One</div>
       <ul class="sidebar__nav" id="sidebarNav">
         <li id="menuPersonal" hidden>
-          <a href="/empleados/nuevo" class="sidebar__link">Administrar Personal</a>
+          <a href="/empleados" class="sidebar__link">Administrar Personal</a>
         </li>
         <li id="menuInventario" hidden>
           <a href="/inventario" class="sidebar__link">Inventario</a>
         </li>
         <li id="menuRecepcion" hidden>
           <a href="/recepcion" class="sidebar__link sidebar__link--active">Recepción de Mercancía</a>
+        </li>
+        <li id="menuProveedores" hidden>
+          <a href="/proveedores" class="sidebar__link">Provedores y Almacenamiento</a>
         </li>
         <li id="menuPos" hidden>
           <a href="/pos" class="sidebar__link">Punto de Venta</a>
@@ -92,7 +144,8 @@
             </div>
             <div class="form-group">
               <label class="form-label" for="inputCostoUnitario">Costo Unitario Pactado ($)</label>
-              <input type="number" id="inputCostoUnitario" class="form-input" min="0.5" step="0.5" value="10.00" required />
+              <input type="number" id="inputCostoUnitario" class="form-input" min="0.5" step="0.5" value="10.00"
+                required />
             </div>
           </div>
         </form>
@@ -150,4 +203,5 @@
   <script src="/js/recepcion.js"></script>
   <script src="/js/inactividad.js"></script>
 </body>
+
 </html>

@@ -145,6 +145,12 @@ const buscarProductos = async (req, res) => {
   }
 };
 
+/**
+ * Texto en participio de cada acción permitida en la baja/alta de productos.
+ * @constant {Object<string, string>}
+ */
+const PARTICIPIOS_BAJA = { desactivar: 'desactivado', activar: 'reactivado', eliminar: 'eliminado' };
+
 const bajaProducto = async (req, res) => {
   const { id } = req.params;
   const { accion } = req.body; 
@@ -153,9 +159,13 @@ const bajaProducto = async (req, res) => {
     return res.status(400).json({ mensaje: 'Faltan parámetros para procesar la baja del producto.' });
   }
 
+  if (!PARTICIPIOS_BAJA[accion]) {
+    return res.status(400).json({ mensaje: 'Acción no válida. Usa desactivar, activar o eliminar.' });
+  }
+
   try {
     await darDeBajaProducto(id, accion);
-    return res.status(200).json({ mensaje: `Producto ${accion}do exitosamente de la base de datos.` });
+    return res.status(200).json({ mensaje: `Producto ${PARTICIPIOS_BAJA[accion]} exitosamente de la base de datos.` });
   } catch (error) {
     console.error('Error procesando la baja del producto:', error);
     return res.status(500).json({ mensaje: 'Error interno al intentar dar de baja el producto.' });

@@ -1,5 +1,5 @@
 /**
- * Punto de Venta UV - Configuración Central de Express.
+ * Punto de Venta - Configuración Central de Express.
  * Archivo principal donde se registran los middlewares, se configuran las 
  * vistas estáticas y se montan las rutas de la API del sistema.
  */
@@ -87,13 +87,15 @@ app.get('/pos', (req, res) => {
 /**
  * Ruta para la interfaz de empleados.
  */
-app.get('/empleados/nuevo', (req, res) => { 
+app.get('/empleados', (req, res) => { 
   res.sendFile(path.join(__dirname, '..', 'public', 'view', 'empleados.html')); 
 });
 
-/** Ruta de la interfaz para Proveedores (HU-18, HU-19) */
+/** 
+ * Ruta de la interfaz para Proveedores.
+*/
 app.get('/proveedores', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/view/proveedores.html'));
+    res.sendFile(path.join(__dirname, '..', 'public', 'view', 'proveedores.html'));
 });
 
 module.exports = app;
