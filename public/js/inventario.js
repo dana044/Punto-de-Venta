@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * Configura la visibilidad del menu lateral segun el rol del usuario.
    * - Administrador: Acceso a todos los modulos.
-   * - Almacenista: Acceso a Inventario y Recepcion.
+   * - Almacenista: Acceso a Inventario, Reportes de inventario y Recepcion.
    * - Cajero: Acceso exclusivo a Punto de Venta.
    *
    * @param {string} rol Rol autenticado del usuario.
@@ -110,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuRecepcion = document.getElementById('menuRecepcion');
     const menuProveedores = document.getElementById('menuProveedores');
     const menuPos = document.getElementById('menuPos');
+    const menuReportes = document.getElementById('menuReportes');
 
     if (rol === 'administrador') {
       menuPersonal?.removeAttribute('hidden');
@@ -117,10 +118,12 @@ document.addEventListener('DOMContentLoaded', () => {
       menuRecepcion?.removeAttribute('hidden');
       menuProveedores?.removeAttribute('hidden');
       menuPos?.removeAttribute('hidden');
+      menuReportes?.removeAttribute('hidden');
     } else if (rol === 'almacenista') {
       if (menuPersonal) menuPersonal.hidden = true;
       menuInventario?.removeAttribute('hidden');
       menuRecepcion?.removeAttribute('hidden');
+      menuReportes?.removeAttribute('hidden');
       if (menuPos) menuPos.hidden = true;
     } else if (rol === 'cajero') {
       if (menuPersonal) menuPersonal.hidden = true;

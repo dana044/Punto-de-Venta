@@ -361,6 +361,49 @@ const findProductForPOS = async (termino) => {
   return rows.length > 0 ? rows[0] : null;
 };
 
+/**
+ * Columnas de stock permitidas para el reporte de existencia baja
+ * Funciona como lista blanca: solo estos nombres pueden interpolarse en la consulta SQL.
+ * @constant {Object<string, string>}
+ */
+const COLUMNAS_STOCK = { mostrador: 'stock_mostrador', almacen: 'stock_almacen' };
+
+/**
+ * Obtiene los productos activos cuya existencia en la ubicación elegida (mostrador o almacén)
+ * es menor al umbral indicado. Devuelve únicamente la existencia de la ubicación
+ * seleccionada, bajo el alias existencia. Los resultados se ordenan del stock más bajo al
+ * más alto y, en caso de empate, alfabéticamente por nombre.
+ *
+ * @async
+ * @function getLowStock
+ * @param {number|string} limite - Umbral de existencia (se listan los productos con stock estrictamente menor).
+ * @param {'mostrador'|'almacen'} [ubicacion='mostrador'] - Ubicación de stock a evaluar.
+ * @returns {Promise<Array<Producto>>} Lista de productos por debajo del límite en la ubicación elegida.
+ * @throws {Error} Lanza error si la ubicación no es válida.
+ */
+const getLowStock = async (limite, ubicacion = 'mostrador') => {
+  const columna = COLUMNAS_STOCK[ubicacion];
+  if (!columna) throw new Error('Ubicación de stock no válida');
+
+  // La columna proviene de la lista blanca COLUMNAS_STOCK, nunca directamente del usuario.
+  const query = `
+    SELECT
+      p.id,
+      p.nombre,
+      p.codigo_barras,
+      p.categoria,
+      p.presentacion,
+      p.unidad_medida,
+      p.${columna} AS existencia
+    FROM productos p
+    WHERE p.activo = 1
+      AND p.${columna} < ?
+    ORDER BY p.${columna} ASC, p.nombre ASC
+  `;
+  const [rows] = await db.execute(query, [Number(limite)]);
+  return rows;
+};
+
 module.exports = {
   createProduct,
   getProveedores,
@@ -370,5 +413,6 @@ module.exports = {
   darDeBajaProducto,
   updateProduct,
   ajustarStock,
-  findProductForPOS
+  findProductForPOS,
+  getLowStock
 };

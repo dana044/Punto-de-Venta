@@ -1,6 +1,7 @@
 /**
  * @file inventory.routes.js
  * @description Definición de rutas y endpoints para el módulo de catálogo de inventario y distribuidores.
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 
 const express = require('express');
@@ -88,6 +89,20 @@ router.post(
   permitirRoles('administrador', 'almacenista'),
   validateAjuste,
   inventoryController.registrarAjuste
+);
+
+/**
+ * Ruta para generar el reporte de productos con existencia menor a un límite.
+ * Recibe en el query string el umbral (?limite=N) y la ubicación a evaluar
+ * (?ubicacion=mostrador|almacen).
+ * Restringida al rol 'administrador'.
+ * @name get/reportes/stock-bajo
+ * @route {GET} /api/inventory/reportes/stock-bajo
+ */
+router.get(
+  '/reportes/stock-bajo',
+  permitirRoles('administrador', 'almacenista'),
+  inventoryController.reporteStockBajo
 );
 
 module.exports = router;

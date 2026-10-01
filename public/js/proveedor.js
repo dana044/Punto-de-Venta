@@ -2,6 +2,8 @@
  * @file proveedor.js
  * @description Lógica del cliente para el consumo de la API de Proveedores
  *              Alta/edición dinámica de múltiples teléfonos y correos por distribuidor.
+ * @author Alfonso Mendoza Vasquez ( / Programador XP)
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -17,6 +19,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const correosContainer = document.getElementById('correosContainer');
     const btnAgregarTelefono = document.getElementById('btnAgregarTelefono');
     const btnAgregarCorreo = document.getElementById('btnAgregarCorreo');
+
+    const userRole = localStorage.getItem('userRole');
+    if (userRole === 'administrador' || userRole === 'almacenista') {
+        document.getElementById('menuReportes')?.removeAttribute('hidden');
+    }
 
     /**
      * Máximo de teléfonos y de correos por distribuidor (coincide con el límite del backend).
