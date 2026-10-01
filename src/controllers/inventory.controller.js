@@ -13,7 +13,8 @@ const {
   updateProduct,
   findById, 
   ajustarStock,
-  findProductForPOS
+  findProductForPOS,
+  getLowStock
 } = require('../models/product.model.js');
 
 /**
@@ -195,6 +196,44 @@ const registrarAjuste = async (req, res) => {
   }
 };
 
+/**
+ * Genera el reporte de productos con existencia por debajo de un límite en la ubicación elegida
+ * Recibe en el query string el límite (?limite=N, entero mayor o igual a 1) y la ubicación
+ * (?ubicacion=mostrador|almacen). Si no se envía ubicación, se usa 'mostrador'.
+ *
+ * @async
+ * @function reporteStockBajo
+ * @param {Object} req - Petición HTTP con limite y ubicacion en req.query
+ * @param {Object} res - Respuesta HTTP con limite, ubicacion, total, producto o un mensaje de error.
+ * @returns {Promise<Object>} Respuesta JSON con la lista de productos bajo el umbral.
+ */
+const reporteStockBajo = async (req, res) => {
+  const limite = Number(req.query.limite);
+  const ubicacion = req.query.ubicacion || 'mostrador';
+
+  if (req.query.limite === undefined || req.query.limite === '' || !Number.isInteger(limite) || limite < 1) {
+    return res.status(400).json({ mensaje: 'Ingresa un límite válido (número entero mayor o igual a 1).' });
+  }
+
+  if (!['mostrador', 'almacen'].includes(ubicacion)) {
+    return res.status(400).json({ mensaje: 'Ubicación no válida. Usa mostrador o almacen.' });
+  }
+
+  try {
+    const productos = await getLowStock(limite, ubicacion);
+
+    return res.status(200).json({
+      limite,
+      ubicacion,
+      total: productos.length,
+      productos
+    });
+  } catch (error) {
+    console.error('Error al generar el reporte de stock bajo:', error);
+    return res.status(500).json({ mensaje: 'Error interno al generar el reporte de stock bajo.' });
+  }
+};
+
 module.exports = {
   registrarProducto,
   getProducto,
@@ -203,5 +242,6 @@ module.exports = {
   buscarProductos,
   bajaProducto,
   actualizarProducto,
-  registrarAjuste
+  registrarAjuste,
+  reporteStockBajo
 };

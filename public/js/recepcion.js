@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuRecepcion = document.getElementById('menuRecepcion');
     const menuProveedores = document.getElementById('menuProveedores');
     const menuPos = document.getElementById('menuPos');
+    const menuReportes = document.getElementById('menuReportes');
 
     if (rol === 'administrador') {
       menuPersonal?.removeAttribute('hidden');
@@ -72,10 +73,12 @@ document.addEventListener('DOMContentLoaded', () => {
       menuRecepcion?.removeAttribute('hidden');
       menuProveedores?.removeAttribute('hidden');
       menuPos?.removeAttribute('hidden');
+      menuReportes?.removeAttribute('hidden');
     } else if (rol === 'almacenista') {
       if (menuPersonal) menuPersonal.hidden = true;
       menuInventario?.removeAttribute('hidden');
       menuRecepcion?.removeAttribute('hidden');
+      menuReportes?.removeAttribute('hidden');
       if (menuPos) menuPos.hidden = true;
     }
   }

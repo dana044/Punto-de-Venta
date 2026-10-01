@@ -2,6 +2,7 @@
  * Punto de Venta - Configuración Central de Express.
  * Archivo principal donde se registran los middlewares, se configuran las 
  * vistas estáticas y se montan las rutas de la API del sistema.
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 const express = require('express');
 const path = require('path');
@@ -96,6 +97,13 @@ app.get('/empleados', (req, res) => {
 */
 app.get('/proveedores', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'view', 'proveedores.html'));
+});
+
+/**
+ * Ruta para la interfaz de reportes de inventario
+ */
+app.get('/reportes-inventario', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'reportes-inventario.html'));
 });
 
 module.exports = app;
