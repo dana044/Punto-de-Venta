@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `<span class="badge badge--success">${p.categoria || 'General'}</span>`
         : `<span class="badge badge--danger">Inactivo</span>`;
 
-      const badgeCaducidad = calcularBadgeCaducidad(p.fecha_caducidad);
+      const badgeCaducidad = calcularBadgeCaducidad(p.proxima_caducidad);
 
       const botonEstadoHTML = !inactivo
         ? `<button class="btn-icon-delete btn-desactivar" data-id="${p.id}" title="Desactivar" style="background-color: #FEF3C7; color: #B45309;">Desactivar</button>`
@@ -229,24 +229,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
       fila.innerHTML = `
         <td style="${opacidad}"><code>${p.codigo_barras || 'N/A'}</code></td>
-        <td style="${opacidad}">
-          <strong>${p.nombre}</strong><br/>
-          <small class="text-muted">${p.presentacion || ''} ${p.unidad_medida ? `(${p.unidad_medida})` : ''}</small>
-        </td>
-        <td style="${opacidad}">${badgeHTML}</td>
-        <td style="${opacidad}">$${Number(p.precio).toFixed(2)}</td>
-        <td style="${opacidad}">${p.stock_almacen !== undefined ? p.stock_almacen : 0}</td>
-        <td style="${opacidad}">${p.stock_mostrador !== undefined ? p.stock_mostrador : 0}</td>
-        <td style="${opacidad}">${badgeCaducidad}</td>
-        <td style="${opacidad}">
-          <small class="text-muted">${p.proveedores_nombres || 'Sin proveedor'}</small>
-        </td>
-        <td class="actions-cell">
-          <button class="btn-icon-edit btn-ajustar" data-id="${p.id}" title="Ajustar Stock" style="background-color: #F3E8FF; color: #7E22CE;">Ajustar</button>
-          <button class="btn-icon-edit btn-editar" data-id="${p.id}" title="Editar">Editar</button>
-          ${botonEstadoHTML}
-          <button class="btn-icon-delete btn-eliminar" data-id="${p.id}" title="Eliminar">Eliminar</button>
-        </td>
+      <td style="${opacidad}">
+        <strong>${p.nombre}</strong><br/>
+        <small class="text-muted">${p.presentacion || ''} ${p.unidad_medida ? `(${p.unidad_medida})` : ''}</small>
+      </td>
+      <td style="${opacidad}">${badgeHTML}</td>
+      <td style="${opacidad}">$${Number(p.precio).toFixed(2)}</td>
+      <!-- stock_total representa la sumatoria del almacén (lotes) -->
+      <td style="${opacidad}"><strong>${p.stock_almacen !== undefined ? p.stock_almacen : 0}</strong></td>
+      <td style="${opacidad}">${p.stock_mostrador !== undefined ? p.stock_mostrador : 0}</td>
+      <td style="${opacidad}">${badgeCaducidad}</td>
+      <td style="${opacidad}">
+        <small class="text-muted">${p.proveedores_nombres || 'Sin proveedor'}</small>
+      </td>
+      <td class="actions-cell" style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-start; min-width: 280px;">
+        <button class="btn-icon-edit btn-lotes" data-id="${p.id}" title="Ver Lotes" style="background-color: #DBEAFE; color: #1E3A8A;">Lotes</button>
+        <button class="btn-icon-edit btn-ajustar" data-id="${p.id}" title="Ajustar Stock" style="background-color: #F3E8FF; color: #7E22CE;">Ajustar</button>
+        <button class="btn-icon-edit btn-editar" data-id="${p.id}" title="Editar">Editar</button>
+        ${botonEstadoHTML}
+        <button class="btn-icon-delete btn-eliminar" data-id="${p.id}" title="Eliminar">Eliminar</button>
+      </td>
       `;
       tablaBody.appendChild(fila);
     });
@@ -268,8 +270,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('presentacion').value = producto.presentacion || '';
     document.getElementById('unidadMedida').value = producto.unidad_medida || '';
     document.getElementById('precio').value = producto.precio;
-    document.getElementById('stock').value = producto.stock_almacen;
-    document.getElementById('stockMostrador').value = producto.stock_mostrador || 0;
+    const inputStock = document.getElementById('stock');
+    inputStock.value = producto.stock_almacen || 0;;
+    const inputMostrador = document.getElementById('stockMostrador');
+    inputMostrador.value = producto.stock_mostrador || 0;
+    inputMostrador.disabled = true;
+    inputMostrador.title = "Para enviar mercancía al mostrador, utiliza el botón 'Ajustar'."
 
     document.getElementById('fechaCaducidad').value = producto.fecha_caducidad
       ? String(producto.fecha_caducidad).substring(0, 10)
@@ -429,7 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function abrirModalAjuste(producto) {
     document.getElementById('ajusteProductoId').value = producto.id;
-    document.getElementById('nombreProductoAjuste').textContent = `${producto.nombre} (Almacén: ${producto.stock_almacen} | Mostrador: ${producto.stock_mostrador || 0})`;
+    document.getElementById('nombreProductoAjuste').textContent = `${producto.nombre} (Almacén: ${producto.stock_almacen || 0} | Mostrador: ${producto.stock_mostrador || 0})`;
     toggleModalAjuste(true);
   }
 
@@ -492,6 +498,209 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       btnGuardarAjuste.disabled = false;
       btnGuardarAjuste.textContent = 'Registrar Ajuste';
+    }
+  });
+
+  // ==========================================================================
+  // LÓGICA DEL MODAL DE LOTES (FEFO)
+  // ==========================================================================
+  const modalLotesOverlay = document.getElementById('modalLotesOverlay');
+  const formNuevoLote = document.getElementById('formNuevoLote');
+  const tablaLotesBody = document.getElementById('tablaLotesBody');
+  const alertLotes = document.getElementById('modalAlertLotes');
+  const btnGuardarLote = document.getElementById('btnGuardarLote');
+  let loteEnEdicionId = null;
+
+  const toggleModalLotes = (mostrar) => {
+    if (!modalLotesOverlay) return; 
+
+    modalLotesOverlay.style.display = mostrar ? 'flex' : 'none';
+    if (!mostrar) {
+      formNuevoLote.reset();
+      alertLotes.hidden = true;
+      
+      loteEnEdicionId = null;
+      btnGuardarLote.textContent = 'Agregar Lote';
+      document.querySelector('#formNuevoLote p strong').textContent = '+ Ingresar nueva mercancía';
+    } else {
+      const inputCaducidad = document.getElementById('loteCaducidad');
+      
+      const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+      const localISOTime = (new Date(Date.now() - tzOffset)).toISOString().slice(0, 10);
+      
+      inputCaducidad.setAttribute('min', localISOTime);
+    }
+  };
+
+  document.getElementById('btnCerrarModalLotes')?.addEventListener('click', () => toggleModalLotes(false));
+  document.getElementById('btnCerrarLotesFooter')?.addEventListener('click', () => toggleModalLotes(false));
+
+  async function cargarLotesDeProducto(productoId) {
+    tablaLotesBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando lotes...</td></tr>';
+    try {
+      const res = await fetch(`/api/inventory/productos/${productoId}/lotes`, { 
+        headers: { 'x-user-role': userRole } 
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        tablaLotesBody.innerHTML = '';
+        if (data.lotes.length === 0) {
+          tablaLotesBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #6B7280;">No hay lotes en almacén para este producto.</td></tr>';
+          return;
+        }
+
+        data.lotes.forEach(lote => {
+          const caducidadFormateada = lote.fecha_caducidad ? String(lote.fecha_caducidad).substring(0, 10) : '';
+          const textoCaducidad = caducidadFormateada || 'Sin caducidad';
+          const fechaRegistro = new Date(lote.recibido_en).toLocaleDateString();
+          
+          tablaLotesBody.innerHTML += `
+            <tr>
+              <td><span class="badge" style="background:#E5E7EB; color:#374151;">L-${lote.id}</span></td>
+              <td><strong>${lote.cantidad}</strong></td>
+              <td>${calcularBadgeCaducidad(lote.fecha_caducidad)} <br><small class="text-muted">${textoCaducidad}</small></td>
+              <td>${fechaRegistro}</td>
+              <td style="display: flex; gap: 0.25rem;">
+                <button class="btn-editar-lote" data-id="${lote.id}" data-fecha="${caducidadFormateada}" data-cantidad="${lote.cantidad}" style="background-color: #FEF3C7; color: #B45309; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Editar</button>
+                <button class="btn-eliminar-lote" data-id="${lote.id}" style="background-color: #FEE2E2; color: #991B1B; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Eliminar</button>
+              </td>
+            </tr>
+          `;
+        });
+      } else {
+        tablaLotesBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: red;">Error al cargar lotes.</td></tr>`;
+      }
+    } catch (error) {
+      tablaLotesBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: red;">Error de conexión.</td></tr>`;
+    }
+  }
+
+  // Interceptar el clic en el botón "Lotes" de la tabla principal
+  tablaBody.addEventListener('click', async (e) => {
+    const btnLotes = e.target.closest('.btn-lotes');
+    if (btnLotes) {
+      e.preventDefault();
+      const producto = productosCache.find((p) => p.id == btnLotes.dataset.id);
+      if (producto) {
+        document.getElementById('loteProductoId').value = producto.id;
+        document.getElementById('lotesSubtitle').textContent = `${producto.codigo_barras} - ${producto.nombre}`;
+        toggleModalLotes(true);
+        cargarLotesDeProducto(producto.id);
+      }
+      return;
+    }
+  });
+
+  // Interceptar el envío del formulario para crear un nuevo lote
+  formNuevoLote?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const productoId = document.getElementById('loteProductoId').value;
+    
+    const payload = {
+      cantidad: Number(document.getElementById('loteCantidad').value),
+      fechaCaducidad: document.getElementById('loteCaducidad').value || null
+    };
+
+    btnGuardarLote.disabled = true;
+    btnGuardarLote.textContent = 'Guardando...';
+    alertLotes.hidden = true;
+
+    // Decidimos si es POST (Crear) o PUT (Editar)
+    const url = loteEnEdicionId !== null 
+      ? `/api/inventory/lotes/${loteEnEdicionId}` 
+      : `/api/inventory/productos/${productoId}/lotes`;
+      
+    const metodo = loteEnEdicionId !== null ? 'PUT' : 'POST';
+
+    try {
+      const res = await fetch(url, {
+        method: metodo,
+        headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        alertLotes.textContent = loteEnEdicionId ? 'Lote actualizado correctamente.' : 'Lote agregado exitosamente al almacén.';
+        alertLotes.className = 'alert alert--success';
+        alertLotes.hidden = false;
+        
+        formNuevoLote.reset();
+        
+        // Regresamos la interfaz al modo "Crear"
+        loteEnEdicionId = null;
+        btnGuardarLote.textContent = 'Agregar Lote';
+        document.querySelector('#formNuevoLote p strong').textContent = '+ Ingresar nueva mercancía';
+        
+        cargarLotesDeProducto(productoId);
+        cargarProductos(buscarInput?.value.trim());
+      } else {
+        alertLotes.textContent = data.mensaje || 'Error al procesar el lote.';
+        alertLotes.className = 'alert alert--error';
+        alertLotes.hidden = false;
+      }
+    } catch (error) {
+      alertLotes.textContent = 'Error de comunicación con el servidor.';
+      alertLotes.className = 'alert alert--error';
+      alertLotes.hidden = false;
+    } finally {
+      btnGuardarLote.disabled = false;
+      if (alertLotes.className.includes('error')) {
+         btnGuardarLote.textContent = loteEnEdicionId ? 'Actualizar Lote' : 'Agregar Lote';
+      }
+    }
+  });
+
+  // Interceptar el clic para eliminar un lote específico
+  tablaLotesBody?.addEventListener('click', async (e) => {
+    const productoId = document.getElementById('loteProductoId').value;
+
+    // 1. Botón Editar Lote
+    const btnEditar = e.target.closest('.btn-editar-lote');
+    if (btnEditar) {
+      // Llenamos el formulario con los datos del lote
+      document.getElementById('loteCantidad').value = btnEditar.dataset.cantidad;
+      document.getElementById('loteCaducidad').value = btnEditar.dataset.fecha || '';
+      
+      // Guardamos el ID que estamos editando y cambiamos la interfaz
+      loteEnEdicionId = btnEditar.dataset.id;
+      btnGuardarLote.textContent = 'Actualizar Lote';
+      document.querySelector('#formNuevoLote p strong').textContent = '✎ Editar Lote Existente';
+      
+      // Hacemos scroll hacia arriba suavemente para que el usuario vea el formulario
+      document.querySelector('#modalLotesOverlay .modal-card').scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // 2. Botón Eliminar Lote
+    const btnEliminar = e.target.closest('.btn-eliminar-lote');
+    if (btnEliminar) {
+      if (confirm('¿Estás seguro de que deseas eliminar este lote? Esta acción descontará las unidades del almacén general.')) {
+        try {
+          const res = await fetch(`/api/inventory/lotes/${btnEliminar.dataset.id}`, {
+            method: 'DELETE',
+            headers: { 'x-user-role': userRole }
+          });
+          
+          if (res.ok) {
+            // Si eliminamos un lote que estábamos editando, limpiamos el formulario
+            if (loteEnEdicionId === btnEliminar.dataset.id) {
+                formNuevoLote.reset();
+                loteEnEdicionId = null;
+                btnGuardarLote.textContent = 'Agregar Lote';
+                document.querySelector('#formNuevoLote p strong').textContent = '+ Ingresar nueva mercancía';
+            }
+
+            cargarLotesDeProducto(productoId);
+            cargarProductos(buscarInput?.value.trim()); 
+          } else {
+            alert('Error al eliminar el lote.');
+          }
+        } catch (error) {
+          alert('Error de conexión.');
+        }
+      }
     }
   });
 });

@@ -231,8 +231,8 @@ const registrarRecepcionMercancia = async (folio, itemsRecibidos) => {
       // Esto evita que se dupliquen las sumas en entregas incompletas.
       if (piezasNuevas > 0) {
         await connection.execute(
-          'UPDATE productos SET stock_almacen = stock_almacen + ? WHERE id = ?',
-          [piezasNuevas, Number(item.productoId)]
+          'INSERT INTO lotes_producto (producto_id, cantidad, fecha_caducidad) VALUES (?, ?, NULL)',
+          [Number(item.productoId), piezasNuevas]
         );
       }
     }

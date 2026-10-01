@@ -17,6 +17,8 @@ const {
   getLowStock
 } = require('../models/product.model.js');
 
+const loteModel = require('../models/lote.model.js');
+
 /**
  * Busca un producto por código de barras o nombre para agregarlo a la venta (HU-26 y HU-49).
  */
@@ -46,6 +48,14 @@ const registrarProducto = async (req, res) => {
     const productData = req.body;
     const nuevoProducto = await createProduct(productData);
 
+    if (productData.stock_almacen && Number(productData.stock_almacen) > 0) {
+      await loteModel.crearLote({
+        productoId: nuevoProducto.id,
+        cantidad: Number(productData.stock_almacen),
+        fechaCaducidad: productData.fecha_caducidad || null
+      });
+    }
+    
     return res.status(201).json({
       mensaje: 'Producto registrado y distribuidores asociados exitosamente.',
       producto: nuevoProducto

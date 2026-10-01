@@ -151,7 +151,8 @@ const validateEmployee = (req, res, next) => {
 
 const validateAjuste = (req, res, next) => {
   const { cantidad, tipoAjuste, motivo } = req.body;
-  const tiposValidos = ['merma', 'daño', 'ingreso_manual', 'conteo'];
+  // Se agregaron los tipos de transferencia a los tipos validos
+  const tiposValidos = ['merma', 'daño', 'ingreso_manual', 'conteo', 'transferencia_mostrador', 'transferencia_almacen'];
 
   if (cantidad === undefined || isNaN(cantidad) || Number(cantidad) < 0) {
     return res.status(400).json({ mensaje: 'Debes enviar una cantidad válida mayor o igual a cero.' });

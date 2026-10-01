@@ -67,11 +67,18 @@ CREATE TABLE IF NOT EXISTS productos (
   presentacion    VARCHAR(50),
   unidad_medida   VARCHAR(50),
   precio          DECIMAL(10,2) NOT NULL,
-  stock_almacen   INT NOT NULL DEFAULT 0,
   stock_mostrador INT NOT NULL DEFAULT 0,
-  fecha_caducidad DATE NULL,
   activo          BOOLEAN NOT NULL DEFAULT TRUE,
   creado_en       DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS lotes_producto (
+  id              INT AUTO_INCREMENT PRIMARY KEY,
+  producto_id     INT NOT NULL,
+  cantidad        INT NOT NULL DEFAULT 0,
+  fecha_caducidad DATE NULL,
+  recibido_en     DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE
 );
 
 -- Relación muchos-a-muchos: producto <-> proveedores
@@ -156,10 +163,14 @@ INSERT IGNORE INTO proveedores (id, nombre) VALUES
   (2, 'Abarrotes y Suministros del Golfo'),
   (3, 'Comercializadora Universitaria UV');
 
-INSERT IGNORE INTO productos (id, nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen, stock_mostrador, activo) VALUES
-  (1, 'Agua Mineral 600ml', '7501234500016', 'Bebidas', 'Botella', 'Pieza', 15.00, 50, 10, TRUE),
-  (2, 'Jugo de Naranja 1L',  '7501234500023', 'Bebidas', 'Caja',    'Litro', 28.00, 30, 5, TRUE);
+INSERT IGNORE INTO productos (id, nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_mostrador, activo) VALUES
+  (1, 'Agua Mineral 600ml', '7501234500016', 'Bebidas', 'Botella', 'Pieza', 15.00, 10, TRUE),
+  (2, 'Jugo de Naranja 1L',  '7501234500023', 'Bebidas', 'Caja',    'Litro', 28.00, 5, TRUE);
 
+INSERT INTO lotes_producto (producto_id, cantidad, fecha_caducidad) VALUES
+  (1, 50, NULL),
+  (2, 30, NULL);
+  
 INSERT IGNORE INTO producto_proveedor (producto_id, proveedor_id) VALUES
   (1, 1),
   (2, 2);

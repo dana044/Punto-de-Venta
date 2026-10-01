@@ -255,7 +255,56 @@
           </form>
         </div>
       </div>
+      <!-- Gestión de lotes -->
+      <div id="modalLotesOverlay" class="modal-overlay" style="display:none;">
+        <div class="modal-card stepped-card" style="max-width: 650px;">
+          <header class="stepped-card__header">
+            <div>
+              <strong id="lotesTitle">Gestión de Lotes (Almacén)</strong>
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;" id="lotesSubtitle">Producto seleccionado</p>
+            </div>
+            <button type="button" id="btnCerrarModalLotes" class="btn-close-modal">&times;</button>
+          </header>
+          
+          <div id="modalAlertLotes" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
 
+          <form id="formNuevoLote" style="padding: 1.5rem; background: #FAFAFA; border-bottom: 1px solid #E5E7EB;">
+            <input type="hidden" id="loteProductoId" />
+            <p style="font-size: 0.9rem; margin-bottom: 0.8rem;"><strong>+ Ingresar nueva mercancía</strong></p>
+            <div class="field-row" style="align-items: flex-end;">
+              <div class="form-group">
+                <label class="form-label" for="loteCantidad">Cantidad</label>
+                <input type="number" id="loteCantidad" class="form-input" min="1" placeholder="Ej. 50" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="loteCaducidad">Caducidad (Opcional)</label>
+                <input type="date" id="loteCaducidad" class="form-input" />
+              </div>
+              <button type="submit" class="btn btn--primary" id="btnGuardarLote">Agregar Lote</button>
+            </div>
+          </form>
+
+          <div style="padding: 1.5rem; max-height: 300px; overflow-y: auto;">
+            <table class="data-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th>ID Lote</th>
+                  <th>Cantidad</th>
+                  <th>Caducidad</th>
+                  <th>Registro</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tablaLotesBody">
+              </tbody>
+            </table>
+          </div>
+
+          <footer class="stepped-card__footer">
+            <button type="button" class="btn btn--secondary" id="btnCerrarLotesFooter">Cerrar</button>
+          </footer>
+        </div>
+      </div>
     </main>
   </div>
 

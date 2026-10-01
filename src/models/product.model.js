@@ -49,9 +49,7 @@ const createProduct = async (productData) => {
     presentacion,
     unidad_medida,
     precio,
-    stock_almacen,
     stock_mostrador,
-    fecha_caducidad,
     proveedoresIds
   } = productData;
 
@@ -61,8 +59,8 @@ const createProduct = async (productData) => {
     await connection.beginTransaction();
 
     const [result] = await connection.execute(
-      `INSERT INTO productos (nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen, stock_mostrador, fecha_caducidad) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO productos (nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_mostrador) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         nombre,
         codigo_barras,
@@ -70,9 +68,7 @@ const createProduct = async (productData) => {
         presentacion || 'N/A',
         unidad_medida || 'Pieza',
         precio,
-        stock_almacen || 0,
-        stock_mostrador || 0,
-        fecha_caducidad || null
+        stock_mostrador || 0
       ]
     );
 
@@ -99,9 +95,7 @@ const createProduct = async (productData) => {
       presentacion: presentacion || 'N/A',
       unidad_medida: unidad_medida || 'Pieza',
       precio,
-      stock_almacen: stock_almacen || 0,
       stock_mostrador: stock_mostrador || 0,
-      fecha_caducidad: fecha_caducidad || null,
       proveedoresIds: proveedoresIds ? proveedoresIds.map(Number) : []
     };
   } catch (error) {
@@ -128,7 +122,7 @@ const createProduct = async (productData) => {
 const updateProduct = async (id, productData) => {
   const {
     nombre, codigo_barras, categoria, presentacion, unidad_medida,
-    precio, stock_almacen, stock_mostrador, fecha_caducidad, proveedoresIds
+    precio, stock_mostrador, proveedoresIds
   } = productData;
 
   const connection = await db.getConnection();
@@ -137,9 +131,17 @@ const updateProduct = async (id, productData) => {
 
     await connection.execute(
       `UPDATE productos SET nombre=?, codigo_barras=?, categoria=?, presentacion=?, 
-       unidad_medida=?, precio=?, stock_almacen=?, stock_mostrador=?, fecha_caducidad=? WHERE id=?`,
-      [nombre, codigo_barras, categoria || 'Sin categoría', presentacion || 'N/A',
-       unidad_medida || 'Pieza', precio, stock_almacen || 0, stock_mostrador || 0, fecha_caducidad || null, id]
+       unidad_medida=?, precio=?, stock_mostrador=? WHERE id=?`,
+      [
+        nombre || '', 
+        codigo_barras || '', 
+        categoria || 'Sin categoría', 
+        presentacion || 'N/A',
+        unidad_medida || 'Pieza', 
+        Number(precio) || 0, 
+        Number(stock_mostrador) || 0, 
+        Number(id)
+      ]
     );
 
     // Resincroniza proveedores: borra los vínculos viejos e inserta los nuevos
@@ -189,20 +191,24 @@ const getProducts = async (mostrarInactivos = false) => {
   const estadoRequerido = mostrarInactivos ? 0 : 1;
   const query = `
     SELECT 
-      p.id,
-      p.nombre,
-      p.codigo_barras,
-      p.categoria,
-      p.presentacion,
-      p.unidad_medida,
-      p.precio,
-      p.stock_almacen,
-      p.stock_mostrador,
-      p.fecha_caducidad,
-      p.activo,
-      GROUP_CONCAT(prov.id SEPARATOR ',') AS proveedores_ids,
-      GROUP_CONCAT(prov.nombre SEPARATOR ', ') AS proveedores_nombres
+      p.id, 
+      p.nombre, 
+      p.codigo_barras, 
+      p.categoria, p.presentacion, 
+      p.unidad_medida, p.precio, 
+      p.stock_mostrador, p.activo,
+      COALESCE(l.stock_almacen, 0) AS stock_almacen,
+      l.proxima_caducidad,
+      GROUP_CONCAT(DISTINCT prov.id SEPARATOR ',') AS proveedores_ids,
+      GROUP_CONCAT(DISTINCT prov.nombre SEPARATOR ', ') AS proveedores_nombres
     FROM productos p
+    LEFT JOIN (
+        SELECT producto_id, 
+               SUM(cantidad) AS stock_almacen, 
+               MIN(CASE WHEN cantidad > 0 THEN fecha_caducidad END) AS proxima_caducidad
+        FROM lotes_producto
+        GROUP BY producto_id
+    ) l ON l.producto_id = p.id
     LEFT JOIN producto_proveedor pp ON p.id = pp.producto_id
     LEFT JOIN proveedores prov ON pp.proveedor_id = prov.id
     WHERE p.activo = ?
@@ -239,20 +245,26 @@ const buscarProductos = async (termino, mostrarInactivos = false) => {
   const estadoRequerido = mostrarInactivos ? 0 : 1;
   const query = `
     SELECT 
-      p.id,
-      p.nombre,
-      p.codigo_barras,
-      p.categoria,
-      p.presentacion,
-      p.unidad_medida,
-      p.precio,
-      p.stock_almacen,
-      p.stock_mostrador,
-      p.fecha_caducidad,
+      p.id, p.nombre, 
+      p.codigo_barras, 
+      p.categoria, 
+      p.presentacion, 
+      p.unidad_medida, 
+      p.precio, 
+      p.stock_mostrador, 
       p.activo,
-      GROUP_CONCAT(prov.id SEPARATOR ',') AS proveedores_ids,
-      GROUP_CONCAT(prov.nombre SEPARATOR ', ') AS proveedores_nombres
+      COALESCE(l.stock_almacen, 0) AS stock_almacen,
+      l.proxima_caducidad,
+      GROUP_CONCAT(DISTINCT prov.id SEPARATOR ',') AS proveedores_ids,
+      GROUP_CONCAT(DISTINCT prov.nombre SEPARATOR ', ') AS proveedores_nombres
     FROM productos p
+    LEFT JOIN (
+        SELECT producto_id, 
+               SUM(cantidad) AS stock_almacen, 
+               MIN(CASE WHEN cantidad > 0 THEN fecha_caducidad END) AS proxima_caducidad
+        FROM lotes_producto
+        GROUP BY producto_id
+    ) l ON l.producto_id = p.id
     LEFT JOIN producto_proveedor pp ON p.id = pp.producto_id
     LEFT JOIN proveedores prov ON pp.proveedor_id = prov.id
     WHERE (p.nombre LIKE ? OR p.codigo_barras LIKE ? OR p.categoria LIKE ?) AND p.activo = ?
@@ -295,40 +307,61 @@ const ajustarStock = async (id, cantidad, tipoAjuste, tipoStock = 'almacen') => 
     await connection.beginTransaction();
 
     const [rows] = await connection.execute(
-      'SELECT stock_almacen, stock_mostrador FROM productos WHERE id = ? FOR UPDATE',
+      'SELECT stock_mostrador FROM productos WHERE id = ? FOR UPDATE',
       [Number(id)]
     );
     
     if (rows.length === 0) throw new Error('Producto no encontrado');
     
-    let nuevoStockAlmacen = rows[0].stock_almacen;
     let nuevoStockMostrador = rows[0].stock_mostrador;
 
+    const [lotes] = await connection.execute(
+      `SELECT id, cantidad, fecha_caducidad 
+       FROM lotes_producto 
+       WHERE producto_id = ? AND cantidad > 0 
+       ORDER BY fecha_caducidad IS NULL, fecha_caducidad ASC 
+       FOR UPDATE`,
+      [Number(id)]
+    );
+    let stockAlmacenTotal = lotes.reduce((sum, lote) => sum + lote.cantidad, 0);
+
+    const cantidadAjuste = Number(cantidad);
+
     if (tipoAjuste === 'transferencia_mostrador') {
-      if (nuevoStockAlmacen < Number(cantidad)) throw new Error('Stock en almacén insuficiente');
-      nuevoStockAlmacen -= Number(cantidad);
-      nuevoStockMostrador += Number(cantidad);
-    } else if (tipoAjuste === 'transferencia_almacen') {
-      if (nuevoStockMostrador < Number(cantidad)) throw new Error('Stock en mostrador insuficiente');
-      nuevoStockMostrador -= Number(cantidad);
-      nuevoStockAlmacen += Number(cantidad);
-    } else {
+      if (stockAlmacenTotal < cantidadAjuste) throw new Error('Stock en almacén insuficiente para mover al mostrador');
+      nuevoStockMostrador += cantidadAjuste;
+      await restarDeLotes(connection, lotes, cantidadAjuste);
+    } 
+    else if (tipoAjuste === 'transferencia_almacen') {
+      if (nuevoStockMostrador < cantidadAjuste) throw new Error('Stock en mostrador insuficiente para regresar al almacén');
+      nuevoStockMostrador -= cantidadAjuste;
+      await connection.execute('INSERT INTO lotes_producto (producto_id, cantidad) VALUES (?, ?)', [id, cantidadAjuste]);
+    } 
+    else {
       if (tipoStock === 'mostrador') {
-        if (tipoAjuste === 'ingreso_manual') nuevoStockMostrador += Number(cantidad);
-        else if (tipoAjuste === 'merma' || tipoAjuste === 'daño') nuevoStockMostrador -= Number(cantidad);
-        else if (tipoAjuste === 'conteo') nuevoStockMostrador = Number(cantidad);
-        if (nuevoStockMostrador < 0) nuevoStockMostrador = 0;
+        if (tipoAjuste === 'ingreso_manual') nuevoStockMostrador += cantidadAjuste;
+        else if (tipoAjuste === 'merma' || tipoAjuste === 'daño') nuevoStockMostrador = Math.max(0, nuevoStockMostrador - cantidadAjuste);
+        else if (tipoAjuste === 'conteo') nuevoStockMostrador = cantidadAjuste;
       } else {
-        if (tipoAjuste === 'ingreso_manual') nuevoStockAlmacen += Number(cantidad);
-        else if (tipoAjuste === 'merma' || tipoAjuste === 'daño') nuevoStockAlmacen -= Number(cantidad);
-        else if (tipoAjuste === 'conteo') nuevoStockAlmacen = Number(cantidad);
-        if (nuevoStockAlmacen < 0) nuevoStockAlmacen = 0;
+        if (tipoAjuste === 'ingreso_manual') {
+          await connection.execute('INSERT INTO lotes_producto (producto_id, cantidad) VALUES (?, ?)', [id, cantidadAjuste]);
+        } 
+        else if (tipoAjuste === 'merma' || tipoAjuste === 'daño') {
+           if (stockAlmacenTotal < cantidadAjuste) throw new Error('Stock en almacén insuficiente para descontar la merma');
+           await restarDeLotes(connection, lotes, cantidadAjuste);
+        } 
+        else if (tipoAjuste === 'conteo') {
+           await connection.execute('DELETE FROM lotes_producto WHERE producto_id = ?', [id]);
+           if (cantidadAjuste > 0) {
+             await connection.execute('INSERT INTO lotes_producto (producto_id, cantidad) VALUES (?, ?)', [id, cantidadAjuste]);
+           }
+        }
       }
     }
 
     await connection.execute(
-      'UPDATE productos SET stock_almacen = ?, stock_mostrador = ? WHERE id = ?',
-      [nuevoStockAlmacen, nuevoStockMostrador, Number(id)]
+      'UPDATE productos SET stock_mostrador = ? WHERE id = ?',
+      [nuevoStockMostrador, Number(id)]
     );
 
     await connection.commit();
@@ -340,6 +373,33 @@ const ajustarStock = async (id, cantidad, tipoAjuste, tipoStock = 'almacen') => 
     connection.release();
   }
 };
+
+/**
+ * Función auxiliar para descontar piezas aplicando FEFO y eliminando lotes vacíos.
+ */
+async function restarDeLotes(connection, lotes, cantidadARestar) {
+  let restante = Number(cantidadARestar);
+  
+  for (const lote of lotes) {
+    if (restante <= 0) break;
+    
+    const loteCantidad = Number(lote.cantidad);
+    const descontar = Math.min(loteCantidad, restante);
+    
+    if (descontar === loteCantidad) {
+        // Si nos acabamos el lote completo, lo eliminamos de la base de datos para no dejar basura (0 piezas)
+        await connection.execute('DELETE FROM lotes_producto WHERE id = ?', [lote.id]);
+    } else {
+        // Si aún le quedan piezas, solo actualizamos su cantidad
+        await connection.execute(
+          'UPDATE lotes_producto SET cantidad = cantidad - ? WHERE id = ?',
+          [descontar, lote.id]
+        );
+    }
+    
+    restante -= descontar;
+  }
+}
 
 /**
  * Busca un producto activo en la base de datos MySQL por código de barras exacto o coincidencia de nombre.
@@ -382,24 +442,42 @@ const COLUMNAS_STOCK = { mostrador: 'stock_mostrador', almacen: 'stock_almacen' 
  * @throws {Error} Lanza error si la ubicación no es válida.
  */
 const getLowStock = async (limite, ubicacion = 'mostrador') => {
-  const columna = COLUMNAS_STOCK[ubicacion];
-  if (!columna) throw new Error('Ubicación de stock no válida');
+  let query = '';
+  
+  if (ubicacion === 'mostrador') {
+    query = `
+      SELECT p.id, 
+      p.nombre, 
+      p.codigo_barras, 
+      p.categoria, 
+      p.presentacion, 
+      p.unidad_medida, 
+      p.stock_mostrador AS existencia
+      FROM productos p
+      WHERE p.activo = 1 AND p.stock_mostrador < ?
+      ORDER BY p.stock_mostrador ASC, p.nombre ASC
+    `;
+  } else if (ubicacion === 'almacen') {
+    // Para almacén, sumamos los lotes
+    query = `
+      SELECT p.id, 
+      p.nombre, 
+      p.codigo_barras, 
+      p.categoria, 
+      p.presentacion, 
+      p.unidad_medida, 
+      COALESCE(SUM(lp.cantidad), 0) AS existencia
+      FROM productos p
+      LEFT JOIN lotes_producto lp ON p.id = lp.producto_id
+      WHERE p.activo = 1
+      GROUP BY p.id
+      HAVING existencia < ?
+      ORDER BY existencia ASC, p.nombre ASC
+    `;
+  } else {
+    throw new Error('Ubicación de stock no válida');
+  }
 
-  // La columna proviene de la lista blanca COLUMNAS_STOCK, nunca directamente del usuario.
-  const query = `
-    SELECT
-      p.id,
-      p.nombre,
-      p.codigo_barras,
-      p.categoria,
-      p.presentacion,
-      p.unidad_medida,
-      p.${columna} AS existencia
-    FROM productos p
-    WHERE p.activo = 1
-      AND p.${columna} < ?
-    ORDER BY p.${columna} ASC, p.nombre ASC
-  `;
   const [rows] = await db.execute(query, [Number(limite)]);
   return rows;
 };

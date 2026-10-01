@@ -28,6 +28,7 @@ const receivingRoutes = require('./routes/receiving.routes.js');
 const posRoutes = require('./routes/pos.routes.js');
 const employeesRoutes = require('./routes/employees.routes.js');
 const suppliersRoutes = require('./routes/suppliers.routes.js');
+const lotesRoutes = require('./routes/lotes.routes.js');
 
 /** Montaje de la ruta base para autenticación. */
 app.use('/api/auth', authRoutes);
@@ -41,6 +42,8 @@ app.use('/api/pos', posRoutes);
 app.use('/api/employees', employeesRoutes);
 /** Montaje de la ruta base para proveedores. (HU-18, HU-19) */
 app.use('/api/suppliers', suppliersRoutes);
+/** Montaje de la ruta para lotes dentro de inventario */
+app.use('/api/inventory', lotesRoutes);
 
 /**
  * Ruta raíz que redirige automáticamente a la pantalla de inicio de sesión.
