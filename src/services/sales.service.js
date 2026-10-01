@@ -41,9 +41,9 @@ const calcularVenta = async (items) => {
       return { ok: false, mensaje: `La cantidad de "${producto.nombre}" debe ser mayor a 0.` };
     }
 
-    // Validación de stock
-    if (producto.stock_almacen < cantidad) {
-       return { ok: false, mensaje: `Stock insuficiente para "${producto.nombre}". Disp: ${producto.stock_almacen}` };
+    // Validación de stock desde mostrador
+    if (producto.stock_mostrador < cantidad) {
+       return { ok: false, mensaje: `Stock insuficiente en mostrador para "${producto.nombre}". Disp: ${producto.stock_mostrador}` };
     }
 
     const subtotalLinea = Number(producto.precio) * cantidad;
@@ -109,17 +109,31 @@ const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido) => {
     );
     const ventaId = ventaResult.insertId;
 
-    // 4. Insertar el detalle por partida y descontar inventario
+    // 4. Insertar el detalle por partida y descontar inventario de MOSTRADOR
+    //    Se vuelve a leer el stock con FOR UPDATE dentro de la misma transacción
+    //    para evitar que dos ventas simultáneas dejen el stock en negativo
+    
     for (const item of ventaData.items) {
+      const [filas] = await connection.execute(
+        'SELECT stock_mostrador FROM productos WHERE id = ? FOR UPDATE',
+        [item.productoId]
+      );
+
+      if (filas.length === 0 || filas[0].stock_mostrador < item.cantidad) {
+        const error = new Error(`Stock insuficiente en mostrador para "${item.productoNombre}".`);
+        error.esErrorDeStock = true;
+        throw error;
+      }
+
+      await connection.execute(
+        'UPDATE productos SET stock_mostrador = stock_mostrador - ? WHERE id = ?',
+        [item.cantidad, item.productoId]
+      );
+
       await connection.execute(
         `INSERT INTO venta_detalle (venta_id, producto_id, cantidad, precio_unitario, descuento_tipo, descuento_valor, subtotal_linea, descuento_linea, total_linea) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [ventaId, item.productoId, item.cantidad, item.precioUnitario, item.descuentoTipo, item.descuentoValor, item.subtotalLinea, item.descuentoLinea, item.totalLinea]
-      );
-
-      await connection.execute(
-        'UPDATE productos SET stock_almacen = stock_almacen - ? WHERE id = ?',
-        [item.cantidad, item.productoId]
       );
     }
 
@@ -137,6 +151,11 @@ const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido) => {
     };
   } catch (error) {
     await connection.rollback();
+
+    if (error.esErrorDeStock) {
+      return { ok: false, mensaje: error.message };
+    }
+
     console.error("Error transaccional en venta:", error);
     return { ok: false, mensaje: 'Error interno de base de datos al registrar la venta.' };
   } finally {
