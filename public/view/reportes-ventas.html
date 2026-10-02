@@ -1,0 +1,255 @@
+<!--
+  Punto de Venta UV — Reporte Mensual de Ventas
+  HU-40: Reporte general de ventas y ranking mensual de artículos vendidos.
+  HU-03: Módulo analítico exclusivo para rol Administrador.
+  @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
+-->
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>La Number One - Reporte Mensual de Ventas</title>
+  <link rel="stylesheet" href="/css/01-variables.css" />
+  <link rel="stylesheet" href="/css/02-base.css" />
+  <link rel="stylesheet" href="/css/03-layout.css" />
+  <link rel="stylesheet" href="/css/04-components.css" />
+  <link rel="stylesheet" href="/css/05-modals.css" />
+  <link rel="stylesheet" href="/css/06-tables.css" />
+  <link rel="stylesheet" href="/css/08-reportes.css" />
+  <style>
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .summary-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .summary-card__title {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .summary-card__value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--color-primary);
+    }
+
+    .badge-rank {
+      display: inline-block;
+      min-width: 28px;
+      padding: 0.2rem 0.45rem;
+      border-radius: 9999px;
+      font-weight: 700;
+      text-align: center;
+      font-size: 0.8rem;
+      background: #E6F0EF;
+      color: var(--color-primary);
+    }
+
+    .badge-rank--gold {
+      background: #FEF3C7;
+      color: #B45309;
+    }
+
+    @media print {
+      body {
+        background: #FFFFFF !important;
+      }
+      .sidebar, .page-header, .table-card__toolbar form, .no-print {
+        display: none !important;
+      }
+      .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .print-header {
+        display: flex !important;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #000;
+        padding-bottom: 1rem;
+      }
+      .print-header img {
+        height: 60px;
+      }
+      .table-card {
+        border: none !important;
+        box-shadow: none !important;
+      }
+      table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+      }
+      th, td {
+        border: 1px solid #ddd !important;
+        padding: 6px !important;
+        font-size: 10pt !important;
+      }
+      #contenedorGrafica {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- Sidebar con control estricto HU-03 -->
+    <aside class="sidebar">
+      <div class="sidebar__brand">La Number One</div>
+      <ul class="sidebar__nav" id="sidebarNav">
+        <li id="menuPersonal" hidden>
+          <a href="/empleados" class="sidebar__link">Administrar Personal</a>
+        </li>
+        <li id="menuInventario" hidden>
+          <a href="/inventario" class="sidebar__link">Inventario</a>
+        </li>
+        <li id="menuReportes" hidden>
+          <a href="/reportes-inventario" class="sidebar__link">Reportes de Inventario</a>
+        </li>
+        <li id="menuReporteVentas" hidden>
+          <a href="/reportes-ventas" class="sidebar__link sidebar__link--active">Reporte de Ventas</a>
+        </li>
+        <li id="menuRecepcion" hidden>
+          <a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a>
+        </li>
+        <li id="menuProveedores" hidden>
+          <a href="/proveedores" class="sidebar__link">Proveedores</a>
+        </li>
+        <li id="menuPos" hidden>
+          <a href="/pos" class="sidebar__link">Punto de Venta</a>
+        </li>
+        <li>
+          <a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a>
+        </li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <!-- Encabezado para impresión -->
+      <div class="print-header print-only" style="display: none;">
+        <img src="/img/logo.png" alt="Logo La Number One" />
+        <div>
+          <h1 style="margin: 0; font-size: 1.5rem;">La Number One - Sistema POS</h1>
+          <p style="margin: 0.25rem 0;" id="printPeriodo">Reporte General de Ventas</p>
+          <p style="margin: 0; font-size: 0.85rem; color: #555;" id="printMeta"></p>
+        </div>
+      </div>
+
+      <div class="page-header no-print">
+        <div>
+          <h1>Reporte General de Ventas</h1>
+          <p class="text-muted">Consulta el informe detallado de ingresos, productos comercializados y ranking mensual de ventas.</p>
+        </div>
+      </div>
+
+      <!-- Tarjetas de Resumen Consolidado -->
+      <div class="summary-grid" id="metricasVenta" style="display: none;">
+        <div class="summary-card">
+          <div class="summary-card__title">Total Ingresos Facturados</div>
+          <div class="summary-card__value" id="metricaTotalIngresos">$0.00</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-card__title">Unidades Totales Vendidas</div>
+          <div class="summary-card__value" id="metricaTotalPiezas">0 pzas</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-card__title">Artículos en Catálogo con Venta</div>
+          <div class="summary-card__value" id="metricaProductosVendidos">0</div>
+        </div>
+      </div>
+
+      <section class="table-section">
+        <div class="table-card">
+          <div class="table-card__toolbar">
+            <div>
+              <h2>Desglose de Ventas por Producto</h2>
+              <span class="table-card__count" id="ventasCount">&nbsp;</span>
+            </div>
+
+            <form id="formFiltroVentas" style="display: flex; gap: 1rem; align-items: flex-end;" class="no-print">
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="selectMes">Mes</label>
+                <select id="selectMes" class="form-select">
+                  <option value="1">Enero</option>
+                  <option value="2">Febrero</option>
+                  <option value="3">Marzo</option>
+                  <option value="4">Abril</option>
+                  <option value="5">Mayo</option>
+                  <option value="6">Junio</option>
+                  <option value="7">Julio</option>
+                  <option value="8">Agosto</option>
+                  <option value="9">Septiembre</option>
+                  <option value="10" selected>Octubre</option>
+                  <option value="11">Noviembre</option>
+                  <option value="12">Diciembre</option>
+                </select>
+              </div>
+
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="inputAnio">Año</label>
+                <input type="number" id="inputAnio" class="form-input" value="2026" min="2024" max="2035" style="width: 110px;" required />
+              </div>
+
+              <button type="submit" class="btn btn--primary" id="btnGenerar">Generar Informe</button>
+              <button type="button" class="btn btn--secondary" id="btnImprimirReporte" hidden>Imprimir Reporte</button>
+            </form>
+          </div>
+
+          <div id="alertaVentas" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
+
+          <!-- Gráfica de Rotación Mensual -->
+          <div class="table-card chart-card" id="contenedorGrafica" style="margin: 1.5rem; display: none;">
+            <h3>Top de Artículos con Mayor Demanda en el Mes</h3>
+            <div class="chart-box" style="height: 260px;">
+              <canvas id="graficaVentas"></canvas>
+            </div>
+          </div>
+
+          <!-- Tabla Completa de Todos los Productos Vendidos -->
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 80px;">Ranking</th>
+                <th>Código de Barras</th>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Piezas Vendidas</th>
+                <th>Total Facturado ($)</th>
+                <th>% Aporte Ingreso</th>
+              </tr>
+            </thead>
+            <tbody id="tablaVentasBody">
+              <tr>
+                <td colspan="7" class="text-muted" style="text-align: center; padding: 2rem;">
+                  Selecciona el mes y año de consulta y haz clic en "Generar Informe".
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/chart.umd.min.js"></script>
+  <script src="/js/reportes-ventas.js"></script>
+  <script src="/js/inactividad.js"></script>
+</body>
+
+</html>

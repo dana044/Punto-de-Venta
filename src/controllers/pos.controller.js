@@ -1,9 +1,10 @@
 /**
  * @file pos.controller.js
- * @description Controlador del punto de venta
+ * @description Controlador del punto de venta y reportes analíticos de ventas (HU-40).
  * @author Jetzaly Josmery Tello Campos 
  * @author Diego Rafael Jiménez Trujano (Integración asíncrona con MySQL)
  * @author Alfonso Mendoza Vásquez (Apertura de caja y Folios HU-25)
+ * @author Stephanie Elizdeth Hernández Prieto (HU-40: Reporte Mensual de Ventas)
  */
 
 const salesService = require('../services/sales.service.js');
@@ -74,8 +75,38 @@ const procesarCobro = async (req, res) => {
   }
 };
 
+/**
+ * HU-40: Consulta el ranking mensual de artículos más vendidos agrupados por mes y año.
+ * @async
+ * @function obtenerReporteVentaMensual
+ * @param {import('express').Request} req - Petición con query params ?anio=YYYY&mes=MM.
+ * @param {import('express').Response} res
+ */
+const obtenerReporteVentaMensual = async (req, res) => {
+  try {
+    const { anio, mes } = req.query;
+
+    if (!anio || !mes) {
+      return res.status(400).json({
+        mensaje: 'Debes proporcionar los parámetros "anio" y "mes" para generar el reporte.'
+      });
+    }
+
+    const ranking = await SaleModel.getRankingMensual(anio, mes);
+
+    return res.status(200).json({
+      total: ranking.length,
+      ranking
+    });
+  } catch (error) {
+    console.error('[Error Log - ERROR REPORTE MENSUAL HU-40]:', error);
+    return res.status(500).json({ mensaje: 'Error interno al consultar las ventas mensuales.' });
+  }
+};
+
 module.exports = {
   abrirVenta,
   calcularTotales,
-  procesarCobro
+  procesarCobro,
+  obtenerReporteVentaMensual
 };

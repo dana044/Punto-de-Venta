@@ -5,7 +5,7 @@
 
 const API_PEDIDOS = '/api/receiving/pedidos';
 const API_PROVEEDORES = '/api/inventory/proveedores';
-const API_PRODUCTOS = '/api/inventory/productos';
+const API_PRODUCTOS_PROVEEDOR = '/api/receiving/proveedores'; // Endpoint filtrado por proveedor
 
 document.addEventListener('DOMContentLoaded', () => {
   const userRole = localStorage.getItem('userRole');
@@ -54,8 +54,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputCantidadSolicitada = document.getElementById('inputCantidadSolicitada');
   const inputCostoUnitario = document.getElementById('inputCostoUnitario');
   const alertaModalPedido = document.getElementById('alertaModalPedido');
+  const btnAgregarProductoLista = document.getElementById('btnAgregarProductoLista');
+  const tablaItemsPedidoBody = document.getElementById('tablaItemsPedidoBody');
+  const totalNuevaOrdenTexto = document.getElementById('totalNuevaOrdenTexto');
 
   let pedidoActual = null;
+  /** @type {Array<{productoId: number, productoNombre: string, cantidadSolicitada: number, costoUnitario: number}>} */
+  let productosOrdenActual = [];
 
   cargarPedidosPendientes();
 
@@ -236,17 +241,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================================================
-  // HU-31: GENERAR NUEVO PEDIDO DE REABASTECIMIENTO
+  // HU-31: GENERAR NUEVO PEDIDO DE REABASTECIMIENTO (FILTRADO Y MÚLTIPLE)
   // ==========================================================================
-  async function cargarCatalogosNuevoPedido() {
+  async function cargarProveedoresNuevoPedido() {
     try {
-      const [resProv, resProd] = await Promise.all([
-        fetch(API_PROVEEDORES),
-        fetch(API_PRODUCTOS)
-      ]);
-
+      const resProv = await fetch(API_PROVEEDORES, { headers: { 'x-user-role': userRole } });
       const dataProv = await resProv.json();
-      const dataProd = await resProd.json();
 
       if (dataProv.proveedores) {
         selectProveedorPedido.innerHTML = '<option value="">Selecciona un proveedor...</option>';
@@ -254,20 +254,144 @@ document.addEventListener('DOMContentLoaded', () => {
           selectProveedorPedido.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
         });
       }
-
-      if (dataProd.productos) {
-        selectProductoPedido.innerHTML = '<option value="">Selecciona un producto...</option>';
-        dataProd.productos.forEach((prod) => {
-          selectProductoPedido.innerHTML += `<option value="${prod.id}">${prod.nombre} (Stock actual: ${prod.stock_almacen})</option>`;
-        });
-      }
     } catch (e) {
-      console.error('Error al cargar selectores de pedido:', e);
+      console.error('Error al cargar proveedores:', e);
     }
   }
 
+  /**
+   * Carga exclusivamente los productos que distribuye el proveedor seleccionado (HU-11 / HU-31).
+   * @param {number|string} proveedorId 
+   */
+  async function cargarProductosPorProveedor(proveedorId) {
+    selectProductoPedido.disabled = true;
+    selectProductoPedido.innerHTML = '<option value="">Cargando productos...</option>';
+
+    try {
+      const res = await fetch(`${API_PRODUCTOS_PROVEEDOR}/${proveedorId}/productos`, {
+        headers: { 'x-user-role': userRole }
+      });
+      const data = await res.json();
+
+      if (res.ok && Array.isArray(data.productos) && data.productos.length > 0) {
+        selectProductoPedido.innerHTML = '<option value="">Selecciona un producto...</option>';
+        data.productos.forEach((prod) => {
+          selectProductoPedido.innerHTML += `<option value="${prod.id}" data-nombre="${prod.nombre}">${prod.nombre} (Stock mostrador: ${prod.stock_mostrador})</option>`;
+        });
+        selectProductoPedido.disabled = false;
+      } else {
+        selectProductoPedido.innerHTML = '<option value="">Este proveedor no tiene productos asignados</option>';
+      }
+    } catch (error) {
+      selectProductoPedido.innerHTML = '<option value="">Error al cargar productos</option>';
+    }
+  }
+
+  selectProveedorPedido?.addEventListener('change', (e) => {
+    const provId = e.target.value;
+    // Si cambia de proveedor y ya había productos en la lista, advertir o resetear
+    if (productosOrdenActual.length > 0) {
+      if (confirm('Cambiar de proveedor vaciará los productos agregados a esta orden. ¿Continuar?')) {
+        productosOrdenActual = [];
+        renderizarTablaOrden();
+      } else {
+        return;
+      }
+    }
+
+    if (provId) {
+      cargarProductosPorProveedor(provId);
+    } else {
+      selectProductoPedido.innerHTML = '<option value="">Primero selecciona un proveedor...</option>';
+      selectProductoPedido.disabled = true;
+    }
+  });
+
+  // Agregar producto a la lista de la orden (Múltiples productos)
+  btnAgregarProductoLista?.addEventListener('click', () => {
+    const prodId = Number(selectProductoPedido.value);
+    const prodOption = selectProductoPedido.options[selectProductoPedido.selectedIndex];
+    const prodNombre = prodOption?.dataset?.nombre;
+    const cantidad = Number(inputCantidadSolicitada.value);
+    const costo = Number(inputCostoUnitario.value);
+
+    if (!selectProveedorPedido.value) {
+      mostrarAlertaModal('Selecciona un distribuidor primero.', 'error');
+      return;
+    }
+
+    if (!prodId || cantidad <= 0 || costo <= 0) {
+      mostrarAlertaModal('Verifica que el producto, cantidad y costo sean válidos.', 'error');
+      return;
+    }
+
+    // Si ya existe el producto en la lista, actualizar cantidad
+    const existente = productosOrdenActual.find(p => p.productoId === prodId);
+    if (existente) {
+      existente.cantidadSolicitada += cantidad;
+      existente.costoUnitario = costo;
+    } else {
+      productosOrdenActual.push({
+        productoId: prodId,
+        productoNombre: prodNombre,
+        cantidadSolicitada: cantidad,
+        costoUnitario: costo
+      });
+    }
+
+    alertaModalPedido.hidden = true;
+    renderizarTablaOrden();
+  });
+
+  function renderizarTablaOrden() {
+    if (productosOrdenActual.length === 0) {
+      tablaItemsPedidoBody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-muted" style="text-align: center; padding: 1rem;">
+            Aún no has agregado productos a esta orden.
+          </td>
+        </tr>`;
+      totalNuevaOrdenTexto.textContent = '$0.00';
+      return;
+    }
+
+    let totalAcumulado = 0;
+    tablaItemsPedidoBody.innerHTML = '';
+
+    productosOrdenActual.forEach((item, index) => {
+      const subtotal = item.cantidadSolicitada * item.costoUnitario;
+      totalAcumulado += subtotal;
+
+      const fila = document.createElement('tr');
+      fila.innerHTML = `
+        <td>${item.productoNombre}</td>
+        <td>${item.cantidadSolicitada}</td>
+        <td>$${item.costoUnitario.toFixed(2)}</td>
+        <td>$${subtotal.toFixed(2)}</td>
+        <td>
+          <button type="button" class="btn-remove-item" data-index="${index}" title="Quitar">×</button>
+        </td>
+      `;
+      tablaItemsPedidoBody.appendChild(fila);
+    });
+
+    totalNuevaOrdenTexto.textContent = `$${totalAcumulado.toFixed(2)}`;
+
+    document.querySelectorAll('.btn-remove-item').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = Number(e.target.dataset.index);
+        productosOrdenActual.splice(idx, 1);
+        renderizarTablaOrden();
+      });
+    });
+  }
+
   btnNuevoPedido?.addEventListener('click', () => {
-    cargarCatalogosNuevoPedido();
+    cargarProveedoresNuevoPedido();
+    productosOrdenActual = [];
+    renderizarTablaOrden();
+    selectProductoPedido.innerHTML = '<option value="">Primero selecciona un proveedor...</option>';
+    selectProductoPedido.disabled = true;
     alertaModalPedido.hidden = true;
     modalNuevoPedido.classList.remove('modal--hidden');
   });
@@ -275,6 +399,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function cerrarModalNuevo() {
     modalNuevoPedido.classList.add('modal--hidden');
     document.getElementById('formNuevoPedido').reset();
+    productosOrdenActual = [];
+    renderizarTablaOrden();
   }
 
   btnCerrarModalNuevo?.addEventListener('click', cerrarModalNuevo);
@@ -282,26 +408,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnGuardarPedido?.addEventListener('click', async () => {
     const proveedorId = selectProveedorPedido.value;
-    const productoId = selectProductoPedido.value;
-    const cantidadSolicitada = Number(inputCantidadSolicitada.value);
-    const costoUnitario = Number(inputCostoUnitario.value);
 
-    if (!proveedorId || !productoId || cantidadSolicitada <= 0 || costoUnitario <= 0) {
-      alertaModalPedido.textContent = 'Completa todos los campos con valores mayores a cero.';
-      alertaModalPedido.className = 'alert alert--error';
-      alertaModalPedido.hidden = false;
+    if (!proveedorId) {
+      mostrarAlertaModal('Debes elegir un distribuidor/proveedor.', 'error');
+      return;
+    }
+
+    if (productosOrdenActual.length === 0) {
+      mostrarAlertaModal('Debes agregar al menos un producto a la orden de pedido.', 'error');
       return;
     }
 
     const payload = {
       proveedorId: Number(proveedorId),
-      items: [
-        {
-          productoId: Number(productoId),
-          cantidadSolicitada,
-          costoUnitario
-        }
-      ]
+      items: productosOrdenActual.map(p => ({
+        productoId: p.productoId,
+        cantidadSolicitada: p.cantidadSolicitada,
+        costoUnitario: p.costoUnitario
+      }))
     };
 
     btnGuardarPedido.disabled = true;
@@ -324,19 +448,21 @@ document.addEventListener('DOMContentLoaded', () => {
         cerrarModalNuevo();
         cargarPedidosPendientes();
       } else {
-        alertaModalPedido.textContent = data.mensaje || 'Error al emitir el pedido.';
-        alertaModalPedido.className = 'alert alert--error';
-        alertaModalPedido.hidden = false;
+        mostrarAlertaModal(data.mensaje || 'Error al emitir el pedido.', 'error');
       }
     } catch (e) {
-      alertaModalPedido.textContent = 'Error de comunicación al emitir la orden.';
-      alertaModalPedido.className = 'alert alert--error';
-      alertaModalPedido.hidden = false;
+      mostrarAlertaModal('Error de comunicación al emitir la orden.', 'error');
     } finally {
       btnGuardarPedido.disabled = false;
       btnGuardarPedido.textContent = 'Emitir Orden';
     }
   });
+
+  function mostrarAlertaModal(mensaje, tipo) {
+    alertaModalPedido.textContent = mensaje;
+    alertaModalPedido.className = `alert alert--${tipo}`;
+    alertaModalPedido.hidden = false;
+  }
 
   function mostrarAlerta(mensaje, tipo) {
     alerta.textContent = mensaje;

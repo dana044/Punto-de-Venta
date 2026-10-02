@@ -155,10 +155,14 @@ const getPedidoByFolio = async (folio) => {
 
   return pedido;
 };
+
 /**
  * Registra la recepción física de mercancía, actualiza stock en productos y el estado del pedido.
  * @async
  * @function registrarRecepcionMercancia
+ * @param {string} folio - Folio del pedido a recibir.
+ * @param {Array<{productoId: number, cantidadRecibida: number}>} itemsRecibidos - Artículos recibidos en almacén.
+ * @returns {Promise<Object>} Resultado de la transacción.
  */
 const registrarRecepcionMercancia = async (folio, itemsRecibidos) => {
   // Aquí se pide una conexión para iniciar la transacción
@@ -168,7 +172,7 @@ const registrarRecepcionMercancia = async (folio, itemsRecibidos) => {
     // Inicia la transacción. Si algo falla más adelante, nada se guarda en la base de datos
     await connection.beginTransaction();
     
-    // Busqueda del pedido usando su folio. El "FOR UPDATE" bloquea esta fila temporalmente 
+    // Búsqueda del pedido usando su folio. El "FOR UPDATE" bloquea esta fila temporalmente 
     // para que nadie más la modifique mientras se hacen los cálculos
     const [pedidos] = await connection.execute(
       'SELECT id, estado FROM pedidos WHERE folio = ? FOR UPDATE',
@@ -211,7 +215,7 @@ const registrarRecepcionMercancia = async (folio, itemsRecibidos) => {
       // Así se obtienen solo las piezas nuevas que se registran en ese momento.
       const piezasNuevas = cantRecibida - cantAnterior;
       
-      // Evalua si ya entregaron todas las piezas que se pidieron de ese producto en específico
+      // Evalúa si ya entregaron todas las piezas que se pidieron de ese producto en específico
       const estadoLinea = cantRecibida >= cantSolicitada ? 'completo' : 'incompleto';
       
       // Si falta aunque sea una pieza de un solo producto, todo el pedido general se marca como incompleto
@@ -222,22 +226,22 @@ const registrarRecepcionMercancia = async (folio, itemsRecibidos) => {
       // Sobrescribe el acumulado total y el estado de la línea en el detalle del pedido
       await connection.execute(
         `UPDATE pedido_detalle
-          SET cantidad_recibida = ?, estado_linea = ?
+           SET cantidad_recibida = ?, estado_linea = ?
          WHERE pedido_id = ? AND producto_id = ?`,
         [cantRecibida, estadoLinea, pedido.id, Number(item.productoId)]
       );
       
-      // Por último, localiza la tabla del inventario principal y le suma solo la diferencia.
-      // Esto evita que se dupliquen las sumas en entregas incompletas.
+      // Por último, añade las piezas nuevas a la tabla de lotes (existencia física en almacén).
+      // Esto evita que se dupliquen las sumas en entregas parciales.
       if (piezasNuevas > 0) {
         await connection.execute(
-          'INSERT INTO lotes_producto (producto_id, cantidad, fecha_caducidad) VALUES (?, ?, NULL)',
+          'INSERT INTO lotes_producto (producto_id, cantidad, fecha_caducidad, recibido_en) VALUES (?, ?, NULL, NOW())',
           [Number(item.productoId), piezasNuevas]
         );
       }
     }
     
-    // Evalua el estado general del pedido basado en la bandera que se usa en el ciclo
+    // Evalúa el estado general del pedido basado en la bandera que se usa en el ciclo
     const estadoFinal = todoCompleto ? 'recibido' : 'incompleto';
     
     // Actualiza el pedido con su estado final y la fecha del movimiento

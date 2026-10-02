@@ -1,9 +1,10 @@
 /**
  * @file pos.routes.js
- * @description Rutas del punto de venta.
+ * @description Rutas del punto de venta y reportes analíticos.
  * @author Jetzaly Josmery Tello Campos 
  * @author Alfonso Mendoza Vásquez (Apertura de caja HU-25)
  * @author Diego Rafael Jiménez Trujano (Cobro HU-30)
+ * @author Stephanie Elizdeth Hernández Prieto (Reporte Mensual HU-40 y Control de Rol HU-03)
  */
 
 const express = require('express');
@@ -47,6 +48,18 @@ router.post(
   '/cobrar',
   permitirRoles('cajero', 'administrador'),
   posController.procesarCobro
+);
+
+/**
+ * HU-40: Ruta para obtener el reporte y ranking mensual de ventas.
+ * Acceso restringido exclusivamente al Administrador (HU-03).
+ * @name get/reporte-mensual
+ * @route {GET} /api/pos/reporte-mensual
+ */
+router.get(
+  '/reporte-mensual',
+  permitirRoles('administrador'),
+  posController.obtenerReporteVentaMensual
 );
 
 module.exports = router;

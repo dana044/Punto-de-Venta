@@ -67,6 +67,29 @@
       align-items: flex-start;
       margin-bottom: 1.5rem;
     }
+
+    /* Estilos dinámicos para items de la orden múltiple (HU-31) */
+    .pedido-items-table {
+      width: 100%;
+      margin-top: 1rem;
+      border-collapse: collapse;
+    }
+
+    .pedido-items-table th, .pedido-items-table td {
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.9rem;
+    }
+
+    .btn-remove-item {
+      background: #FEE2E2;
+      color: var(--color-danger);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      font-weight: bold;
+    }
   </style>
 </head>
 
@@ -116,9 +139,9 @@
     </main>
   </div>
 
-  <!-- MODAL HU-31: GENERAR PEDIDO DE REABASTECIMIENTO -->
+  <!-- MODAL HU-31: GENERAR PEDIDO DE REABASTECIMIENTO MULTIPRODUCTO -->
   <div class="modal-overlay modal--hidden" id="modalNuevoPedido">
-    <div class="modal-card" style="max-width: 650px;">
+    <div class="modal-card" style="max-width: 750px; width: 90%;">
       <div class="modal-header">
         <strong>Nueva Orden de Pedido a Distribuidor</strong>
         <button class="modal-close" id="btnCerrarModalNuevo">&times;</button>
@@ -133,23 +156,47 @@
             </select>
           </div>
 
-          <div class="form-group" style="margin-top: 1rem;">
-            <label class="form-label" for="selectProductoPedido">Producto a Solicitar</label>
-            <select id="selectProductoPedido" class="form-input" required>
-              <option value="">Selecciona un producto...</option>
-            </select>
+          <div style="background-color: #F8FAFC; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-top: 1rem;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 0.75rem; align-items: flex-end;">
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="selectProductoPedido">Producto que distribuye</label>
+                <select id="selectProductoPedido" class="form-input" disabled>
+                  <option value="">Primero selecciona un proveedor...</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="inputCantidadSolicitada">Cantidad</label>
+                <input type="number" id="inputCantidadSolicitada" class="form-input" min="1" value="10" />
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="inputCostoUnitario">Costo Unit. ($)</label>
+                <input type="number" id="inputCostoUnitario" class="form-input" min="0.5" step="0.5" value="10.00" />
+              </div>
+              <button type="button" class="btn btn--secondary" id="btnAgregarProductoLista" style="white-space: nowrap;">+ Agregar</button>
+            </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
-            <div class="form-group">
-              <label class="form-label" for="inputCantidadSolicitada">Cantidad Solicitada</label>
-              <input type="number" id="inputCantidadSolicitada" class="form-input" min="1" value="10" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="inputCostoUnitario">Costo Unitario Pactado ($)</label>
-              <input type="number" id="inputCostoUnitario" class="form-input" min="0.5" step="0.5" value="10.00"
-                required />
-            </div>
+          <table class="pedido-items-table" style="margin-top: 1.25rem;">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th style="width: 100px;">Cantidad</th>
+                <th style="width: 110px;">Costo Unit.</th>
+                <th style="width: 110px;">Subtotal</th>
+                <th style="width: 50px;"></th>
+              </tr>
+            </thead>
+            <tbody id="tablaItemsPedidoBody">
+              <tr>
+                <td colspan="5" class="text-muted" style="text-align: center; padding: 1rem;">
+                  Aún no has agregado productos a esta orden.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 1rem; font-size: 1.1rem; font-weight: bold;">
+            Total de la Orden:&nbsp;<span id="totalNuevaOrdenTexto" style="color: var(--color-primary);">$0.00</span>
           </div>
         </form>
       </div>

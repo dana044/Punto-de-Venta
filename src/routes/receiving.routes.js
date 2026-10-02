@@ -8,7 +8,14 @@ const router = express.Router();
 const receivingController = require('../controllers/receiving.controller.js');
 const { permitirRoles } = require('../middlewares/auth.middleware.js');
 
-// HU-31: Generar orden de reabastecimiento a distribuidores
+// HU-31: Filtrar productos que surte un proveedor seleccionado
+router.get(
+  '/proveedores/:proveedorId/productos',
+  permitirRoles('administrador', 'almacenista'),
+  receivingController.getProductosPorProveedor
+);
+
+// HU-31: Generar orden de reabastecimiento a distribuidores (permite múltiples líneas)
 router.post(
   '/pedidos',
   permitirRoles('administrador', 'almacenista'),

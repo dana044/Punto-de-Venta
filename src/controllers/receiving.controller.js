@@ -5,9 +5,10 @@
  */
 
 const orderModel = require('../models/order.model.js');
+const db = require('../config/db.js');
 
 /**
- * Emite una orden de compra en estado pendiente (HU-31).
+ * Emite una orden de compra en estado pendiente con múltiples productos (HU-31).
  */
 const crearPedido = async (req, res) => {
   try {
@@ -91,9 +92,37 @@ const confirmarRecepcion = async (req, res) => {
   }
 };
 
+/**
+ * Obtiene únicamente los productos suministrados por un proveedor (HU-11 / HU-31).
+ * Consulta la tabla intermedia producto_proveedor.
+ * 
+ * @async
+ * @function getProductosPorProveedor
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+const getProductosPorProveedor = async (req, res) => {
+  try {
+    const { proveedorId } = req.params;
+    const query = `
+      SELECT p.id, p.nombre, p.codigo_barras, p.precio, p.stock_mostrador
+      FROM productos p
+      INNER JOIN producto_proveedor pp ON p.id = pp.producto_id
+      WHERE pp.proveedor_id = ? AND p.activo = 1
+      ORDER BY p.nombre ASC;
+    `;
+    const [productos] = await db.execute(query, [proveedorId]);
+    return res.status(200).json({ productos });
+  } catch (error) {
+    console.error('Error al consultar productos por distribuidor:', error);
+    return res.status(500).json({ mensaje: 'Error al obtener productos del proveedor.' });
+  }
+};
+
 module.exports = {
   crearPedido,
   getPedidosPendientes,
   getDetallePedido,
-  confirmarRecepcion
+  confirmarRecepcion,
+  getProductosPorProveedor
 };

@@ -1,28 +1,14 @@
 /**
  * @file reportes-inventario.js
  * @description Controlador del lado del cliente para los reportes de inventario.
- * Administra el control de acceso, el despliegue del menu por rol y el reporte de
- * productos con existencia baja en mostrador o en almacen, segun la ubicacion elegida.
+ * Administra el control de acceso, el despliegue del menú por rol y el reporte de
+ * productos con existencia baja en mostrador o en almacén, según la ubicación elegida.
  * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 
-/**
- * Endpoint del reporte de stock bajo (mostrador o almacen).
- * @type {string}
- */
 const API_STOCK_BAJO = '/api/inventory/reportes/stock-bajo';
-
-/**
- * Paleta de colores de la grafica por categoria (se repite si hay mas categorias que colores).
- * @type {string[]}
- */
 const PALETA_GRAFICAS = ['#1f2a44', '#3b5b92', '#5f8dd3', '#8fb3e8', '#c9a227', '#8a5a44', '#4f7f6b', '#9aa3b2'];
 
-/**
- * Plugin de Chart.js que dibuja el valor numerico al final de cada barra, para que
- * la cantidad sea legible tambien en el reporte impreso.
- * @type {Object}
- */
 const etiquetasValor = {
     id: 'etiquetasValor',
     afterDatasetsDraw(chart) {
@@ -42,20 +28,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const userRole = localStorage.getItem('userRole');
     const token = localStorage.getItem('token');
 
-    // Validacion de sesion activa
     if (!token || !userRole) {
         window.location.href = '/login';
         return;
     }
 
-    // Restriccion de acceso
-    if (userRole == 'cajero') {
+    if (userRole === 'cajero') {
         alert('Acceso no autorizado para tu rol.');
-        window.location.href = userRole === 'cajero' ? '/pos' : '/inventario';
+        window.location.href = '/pos';
         return;
     }
 
-    // CONFIGURACION DE INTERFAZ Y NAVEGACION
     configurarMenuPorRol(userRole);
 
     document.getElementById('btnLogout')?.addEventListener('click', (e) => {
@@ -64,7 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = '/login';
     });
 
-    // Referencias al DOM
     const formStockBajo = document.getElementById('formStockBajo');
     const limiteInput = document.getElementById('limiteStock');
     const ubicacionSelect = document.getElementById('ubicacionStock');
@@ -76,10 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnImprimir = document.getElementById('btnImprimir');
     const seccionGraficas = document.getElementById('seccionGraficas');
 
-    /**
-     * Ultimo reporte generado (se usa para las graficas y el encabezado de impresion).
-     * @type {{productos: Array<Object>, limite: number, ubicacion: string}|null}
-     */
     let reporteActual = null;
     let graficaProductos = null;
     let graficaCategorias = null;
@@ -87,13 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
     formStockBajo?.addEventListener('submit', generarReporte);
     btnImprimir?.addEventListener('click', imprimirReporte);
 
-    /**
-     * Configura la visibilidad del menu lateral segun el rol del usuario.
-     * Esta vista solo es accesible para el administrador, por lo que se muestran
-     * todos los modulos, incluido Reportes de Inventario.
-     *
-     * @param {string} rol Rol autenticado del usuario.
-     */
     function configurarMenuPorRol(rol) {
         const menuPersonal = document.getElementById('menuPersonal');
         const menuInventario = document.getElementById('menuInventario');
@@ -101,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const menuProveedores = document.getElementById('menuProveedores');
         const menuPos = document.getElementById('menuPos');
         const menuReportes = document.getElementById('menuReportes');
+        const menuReporteVentas = document.getElementById('menuReporteVentas');
 
         if (rol === 'administrador') {
             menuPersonal?.removeAttribute('hidden');
@@ -109,22 +81,17 @@ document.addEventListener('DOMContentLoaded', () => {
             menuProveedores?.removeAttribute('hidden');
             menuPos?.removeAttribute('hidden');
             menuReportes?.removeAttribute('hidden');
+            menuReporteVentas?.removeAttribute('hidden');
         } else if (rol === 'almacenista') {
             menuInventario?.removeAttribute('hidden');
             menuRecepcion?.removeAttribute('hidden');
             menuReportes?.removeAttribute('hidden');
+            if (menuReporteVentas) menuReporteVentas.hidden = true;
             if (menuPersonal) menuPersonal.hidden = true;
             if (menuPos) menuPos.hidden = true;
         }
     }
 
-    /**
-     * Valida el limite capturado, consulta el reporte de stock bajo en la ubicacion
-     * elegida (mostrador o almacen) y muestra los resultados en la tabla.
-     *
-     * @param {Event} e Evento submit del formulario del reporte.
-     * @returns {Promise<void>}
-     */
     async function generarReporte(e) {
         e.preventDefault();
         ocultarAlerta();
@@ -132,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const limite = Number(limiteInput.value);
         const ubicacion = ubicacionSelect.value;
         if (!Number.isInteger(limite) || limite < 1) {
-            mostrarAlerta('Ingresa un limite valido (numero entero mayor o igual a 1).', 'error');
+            mostrarAlerta('Ingresa un límite válido (número entero mayor o igual a 1).', 'error');
             return;
         }
 
@@ -153,37 +120,26 @@ document.addEventListener('DOMContentLoaded', () => {
             renderizarReporte(data.productos, data.limite, data.ubicacion);
         } catch (error) {
             console.error('Error al generar el reporte:', error);
-            mostrarAlerta('Error de comunicacion con el servidor.', 'error');
+            mostrarAlerta('Error de comunicación con el servidor.', 'error');
         } finally {
             btnGenerar.disabled = false;
             btnGenerar.textContent = 'Generar reporte';
         }
     }
 
-    /**
-     * Pinta en la tabla la lista de productos que estan por debajo del limite en la
-     * ubicacion elegida, mostrando unicamente la existencia de esa ubicacion.
-     * Si no hay coincidencias, muestra un mensaje indicando que no hace falta reabastecer.
-     *
-     * @param {Array<Object>} productos Productos devueltos por el backend.
-     * @param {number} limite Umbral utilizado para generar el reporte.
-     * @param {'mostrador'|'almacen'} ubicacion Ubicacion de stock evaluada.
-     * @returns {void}
-     */
     function renderizarReporte(productos, limite, ubicacion) {
-        const nombreUbicacion = ubicacion === 'almacen' ? 'almacen' : 'mostrador';
+        const nombreUbicacion = ubicacion === 'almacen' ? 'almacén' : 'mostrador';
 
         thExistencia.textContent = `Existencia en ${nombreUbicacion}`;
         tablaBody.innerHTML = '';
 
-        // Guarda el reporte para imprimirlo y actualiza las graficas
         reporteActual = { productos, limite, ubicacion: nombreUbicacion };
         btnImprimir.hidden = false;
         actualizarGraficas(productos, nombreUbicacion);
 
         if (!productos.length) {
-            reporteCount.textContent = '0 producto(s) por debajo del limite';
-            tablaBody.innerHTML = `<tr><td colspan="5" class="text-muted">Ningun producto tiene menos de ${limite} unidad(es) en ${nombreUbicacion}.</td></tr>`;
+            reporteCount.textContent = '0 producto(s) por debajo del límite';
+            tablaBody.innerHTML = `<tr><td colspan="5" class="text-muted">Ningún producto tiene menos de ${limite} unidad(es) en ${nombreUbicacion}.</td></tr>`;
             return;
         }
 
@@ -192,37 +148,21 @@ document.addEventListener('DOMContentLoaded', () => {
         productos.forEach((p) => {
             const fila = document.createElement('tr');
             fila.innerHTML = `
-        <td>${escaparHtml(p.codigo_barras)}</td>
-        <td>${escaparHtml(p.nombre)}</td>
-        <td>${escaparHtml(p.categoria || 'Sin categoria')}</td>
-        <td>${escaparHtml(p.presentacion || 'N/A')}</td>
-        <td><strong>${Number(p.existencia)}</strong></td>
-      `;
+                <td>${escaparHtml(p.codigo_barras)}</td>
+                <td>${escaparHtml(p.nombre)}</td>
+                <td>${escaparHtml(p.categoria || 'Sin categoría')}</td>
+                <td>${escaparHtml(p.presentacion || 'N/A')}</td>
+                <td><strong>${Number(p.existencia)}</strong></td>
+            `;
             tablaBody.appendChild(fila);
         });
     }
 
-    /**
-     * Acorta un texto largo para usarlo como etiqueta de una grafica.
-     *
-     * @param {string} texto Texto original.
-     * @param {number} max Longitud maxima permitida.
-     * @returns {string} Texto acortado con puntos suspensivos si excede el maximo.
-     */
     function acortar(texto, max) {
         const t = String(texto ?? '');
         return t.length > max ? `${t.slice(0, max - 1)}…` : t;
     }
 
-    /**
-     * Dibuja las dos graficas del reporte con los datos de la tabla:
-     * los 10 productos con menor existencia y la cantidad de productos por categoria.
-     * Si no hay productos (o la libreria Chart.js no cargo) oculta la seccion de graficas.
-     *
-     * @param {Array<Object>} productos Productos del reporte, ordenados de menor a mayor existencia.
-     * @param {string} nombreUbicacion Ubicacion evaluada ('mostrador' o 'almacen').
-     * @returns {void}
-     */
     function actualizarGraficas(productos, nombreUbicacion) {
         graficaProductos?.destroy();
         graficaCategorias?.destroy();
@@ -236,7 +176,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         seccionGraficas.hidden = false;
 
-        // Grafica 1: los 10 productos con menos existencia
         const menores = productos.slice(0, 10);
         graficaProductos = new Chart(document.getElementById('graficaProductos'), {
             type: 'bar',
@@ -262,10 +201,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         actualizarImagenImpresion(graficaProductos);
 
-        // Grafica 2: cantidad de productos bajo el limite por categoria
         const porCategoria = {};
         productos.forEach((p) => {
-            const categoria = p.categoria || 'Sin categoria';
+            const categoria = p.categoria || 'Sin categoría';
             porCategoria[categoria] = (porCategoria[categoria] || 0) + 1;
         });
         const categorias = Object.keys(porCategoria);
@@ -289,14 +227,6 @@ document.addEventListener('DOMContentLoaded', () => {
         actualizarImagenImpresion(graficaCategorias);
     }
 
-    /**
-     * Guarda una copia en imagen de la grafica dentro de su contenedor. Esa imagen es la que
-     * se muestra al imprimir (el canvas se oculta), para que la grafica no se corte ni se
-     * deforme cuando cambia el ancho de la pagina impresa.
-     *
-     * @param {Object} grafica Instancia de Chart.js ya dibujada.
-     * @returns {void}
-     */
     function actualizarImagenImpresion(grafica) {
         const contenedor = grafica.canvas.parentElement;
         let imagen = contenedor.querySelector('.chart-print-img');
@@ -304,20 +234,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!imagen) {
             imagen = document.createElement('img');
             imagen.className = 'chart-print-img print-only';
-            imagen.alt = 'Grafica del reporte';
+            imagen.alt = 'Gráfica del reporte';
             contenedor.appendChild(imagen);
         }
 
         imagen.src = grafica.toBase64Image('image/png', 1);
     }
 
-    /**
-     * Llena el encabezado de impresion (empresa, criterio del reporte, quien lo genera
-     * y fecha) y abre el dialogo de impresion del navegador, desde el cual tambien se
-     * puede guardar el reporte como PDF.
-     *
-     * @returns {void}
-     */
     function imprimirReporte() {
         if (!reporteActual) return;
 
@@ -332,12 +255,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.print();
     }
 
-    /**
-     * Escapa caracteres especiales de HTML para insertar texto de forma segura en la tabla.
-     *
-     * @param {*} valor Texto a escapar.
-     * @returns {string} Texto escapado.
-     */
     function escaparHtml(valor) {
         return String(valor ?? '')
             .replace(/&/g, '&amp;')
@@ -347,24 +264,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/'/g, '&#39;');
     }
 
-    /**
-     * Muestra un mensaje en la franja de alerta del reporte.
-     *
-     * @param {string} mensaje Texto a mostrar.
-     * @param {string} tipo Variante visual de la alerta (por ejemplo 'error').
-     * @returns {void}
-     */
     function mostrarAlerta(mensaje, tipo) {
         reporteAlert.textContent = mensaje;
         reporteAlert.className = `alert alert--${tipo}`;
         reporteAlert.hidden = false;
     }
 
-    /**
-     * Oculta y limpia la franja de alerta del reporte.
-     *
-     * @returns {void}
-     */
     function ocultarAlerta() {
         reporteAlert.hidden = true;
         reporteAlert.textContent = '';

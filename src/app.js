@@ -3,6 +3,7 @@
  * Archivo principal donde se registran los middlewares, se configuran las 
  * vistas estáticas y se montan las rutas de la API del sistema.
  * @author Citlaly Morales Viveros (Cliente / Programadora XP)
+ * @author Stephanie Elizdeth Hernández Prieto (HU-40: Reporte Mensual de Ventas)
  */
 const express = require('express');
 const path = require('path');
@@ -52,8 +53,8 @@ app.use('/api/alerts', alertsRoutes);
  * Ruta raíz que redirige automáticamente a la pantalla de inicio de sesión.
  * @name get/
  * @function
- * @param {Object} req - Objeto de petición HTTP.
- * @param {Object} res - Objeto de respuesta HTTP.
+ * @param {Object} req Objeto de petición HTTP.
+ * @param {Object} res Objeto de respuesta HTTP.
  */
 app.get('/', (req, res) => {
   res.redirect('/login');
@@ -63,8 +64,8 @@ app.get('/', (req, res) => {
  * Ruta para servir la interfaz de usuario del Login.
  * @name get/login
  * @function
- * @param {Object} req - Objeto de petición HTTP.
- * @param {Object} res - Objeto de respuesta HTTP, envía el archivo HTML.
+ * @param {Object} req Objeto de petición HTTP.
+ * @param {Object} res Objeto de respuesta HTTP, envía el archivo HTML.
  */
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'view', 'login.html'));
@@ -100,16 +101,23 @@ app.get('/empleados', (req, res) => {
 
 /** 
  * Ruta de la interfaz para Proveedores.
-*/
+ */
 app.get('/proveedores', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'view', 'proveedores.html'));
+  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'proveedores.html'));
 });
 
 /**
- * Ruta para la interfaz de reportes de inventario
+ * Ruta para la interfaz de reportes de inventario (HU-37: Citlaly).
  */
 app.get('/reportes-inventario', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'view', 'reportes-inventario.html'));
+});
+
+/**
+ * Ruta para la interfaz independiente de reportes de venta (HU-40: Stephanie).
+ */
+app.get('/reportes-ventas', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'reportes-ventas.html'));
 });
 
 module.exports = app;
