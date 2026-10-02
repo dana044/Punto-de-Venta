@@ -5,7 +5,7 @@
 
 const API_BUSCAR_PRODUCTO = '/api/inventory/productos/buscar-pos';
 const API_CALCULAR = '/api/pos/calcular';
-const API_COBRAR = '/api/pos/cobrar'; // Nuevo endpoint HU30
+const API_COBRAR = '/api/pos/cobrar';
 
 document.addEventListener('DOMContentLoaded', () => {
   const userRole = localStorage.getItem('userRole');
@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let carrito = [];
   let totalActual = 0; // Guardamos el total para validar el cobro
+  let ventaActivaId = null;
 
   function configurarMenuPorRol(rol) {
     const menuPersonal = document.getElementById('menuPersonal');
@@ -70,19 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
       menuReportes?.removeAttribute('hidden');
     }
   }
-
-  inputBuscarProducto.addEventListener('keypress', async (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      await buscarYAgregarProducto(inputBuscarProducto.value.trim());
-    }
-  });
-
-  btnAgregar.addEventListener('click', async () => {
-    await buscarYAgregarProducto(inputBuscarProducto.value.trim());
-  });
-
-  let ventaActivaId = null;
 
 /**
  * HU-25: Inicializa una nueva venta en el POS solicitando el folio consecutivo.
@@ -136,36 +124,42 @@ async function inicializarVenta() {
             return false;
         }
     } catch (error) {
-        console.error('[Error Log - Error de red al iniciar venta]:', error);
         return false;
     }
 }
 
-// Ejecutar al cargar la interfaz
-  document.addEventListener('DOMContentLoaded', () => {
-    inicializarVenta();
+  // Se inicia la venta al cargar la interfaz
+  inicializarVenta();
+
+  inputBuscarProducto.addEventListener('keypress', async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      await buscarYAgregarProducto(inputBuscarProducto.value.trim());
+    }
   });
 
-  /**
-   * HU26 / HU49: Realiza la búsqueda del producto en el backend por código o nombre
-   * y lo añade a la lista de cobro.
-   * @param {string} query Término de búsqueda (código de barras o nombre)
-   */
+  btnAgregar.addEventListener('click', async () => {
+    await buscarYAgregarProducto(inputBuscarProducto.value.trim());
+  });
+
   async function buscarYAgregarProducto(query) {
     if (!query) {
       mostrarMensaje('Ingresa un código de barras o nombre de producto.', 'error');
       return;
     }
 
-    // --- INYECCIÓN HU-25: Generar folio si es el primer producto del carrito ---
-  if (!ventaActivaId) {
-    const ventaAbierta = await inicializarVenta();
-    if (!ventaAbierta) {
-        mostrarError('No se pudo generar el folio de venta. Operación cancelada.');
-        return;
+    // Leemos valores previniendo números negativos y vacíos
+    const cantidadIngresada = Math.max(1, Number(inputCantidad.value) || 1);
+    const descuentoValorIngresado = Math.max(0, Number(inputDescuentoValor.value) || 0);
+    const descuentoTipoIngresado = selectDescuentoTipo.value;
+
+    if (!ventaActivaId) {
+      const ventaAbierta = await inicializarVenta();
+      if (!ventaAbierta) {
+          mostrarMensaje('No se pudo generar el folio de venta.', 'error');
+          return;
+      }
     }
-  }
-  // ---------------------------------------------------------------------------
 
     try {
       const res = await fetch(`${API_BUSCAR_PRODUCTO}?q=${encodeURIComponent(query)}`, {
@@ -174,24 +168,43 @@ async function inicializarVenta() {
       const data = await res.json();
 
       if (!res.ok || !data.producto) {
-        mostrarMensaje(data.mensaje || 'Producto no encontrado o inactivo.', 'error');
+        mostrarMensaje(data.mensaje || 'Producto no encontrado.', 'error');
         return;
       }
 
-      carrito.push({
-        productoId: data.producto.id,
-        productoNombre: data.producto.nombre,
-        cantidad: Number(inputCantidad.value) || 1,
-        descuentoTipo: selectDescuentoTipo.value,
-        descuentoValor: Number(inputDescuentoValor.value) || 0
-      });
+      // --- SOLUCIÓN AL CARRITO FANTASMA ---
+      // Creamos una foto del carrito actual por si el backend rechaza la compra
+      const backupCarrito = JSON.parse(JSON.stringify(carrito));
+      const indiceExistente = carrito.findIndex(item => item.productoId === data.producto.id);
 
+      if (indiceExistente !== -1) {
+        carrito[indiceExistente].cantidad += cantidadIngresada;
+        carrito[indiceExistente].descuentoTipo = descuentoTipoIngresado;
+        carrito[indiceExistente].descuentoValor = descuentoValorIngresado;
+      } else {
+        carrito.push({
+          productoId: data.producto.id,
+          productoNombre: data.producto.nombre,
+          cantidad: cantidadIngresada,
+          descuentoTipo: descuentoTipoIngresado,
+          descuentoValor: descuentoValorIngresado
+        });
+      }
+
+      // Limpiamos los inputs
       inputBuscarProducto.value = '';
       inputCantidad.value = 1;
       inputDescuentoValor.value = 0;
       inputBuscarProducto.focus();
 
-      recalcular();
+      // Le pedimos al backend que valide el stock y haga las sumas
+      const calculoExitoso = await recalcular();
+      
+      // Si el backend dice que no hay stock, borramos el "carrito fantasma"
+      if (!calculoExitoso) {
+        carrito = backupCarrito; 
+      }
+
     } catch (err) {
       mostrarMensaje('Error al comunicarse con el servidor.', 'error');
     }
@@ -207,7 +220,7 @@ async function inicializarVenta() {
     if (carrito.length === 0) {
       carritoBody.innerHTML = '<tr><td colspan="6" class="text-muted">El carrito está vacío.</td></tr>';
       pintarTotales({ subtotal: 0, descuentos: 0, iva: 0, total: 0 });
-      return;
+      return true;
     }
 
     try {
@@ -226,6 +239,7 @@ async function inicializarVenta() {
       alerta.hidden = true;
       pintarCarrito(data.items);
       pintarTotales(data);
+      return true;
     } catch (err) {
       mostrarMensaje('Error de comunicación con el servidor.', 'error');
     }

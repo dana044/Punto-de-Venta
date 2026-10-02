@@ -97,14 +97,14 @@
           <small id="lblFecha" style="color: #6b7280;">--/--/----</small>
         </div>
       </div>
-      <h1>Venta — Subtotal, Descuentos y Total</h1>
+      <h1>Punto de venta</h1>
       <p class="text-muted" style="margin-bottom: 1.5rem;">Agrega productos escaneando o buscando por nombre
         . Los totales se recalculan automáticamente.</p>
 
-      <h1>Venta en Curso</h1>
+      <h2>Venta en Curso</h2>
       <div id="alertMessage" class="alert alert--error" hidden></div>
 
-      <div class="carrito-toolbar">
+     <div class="carrito-toolbar">
         <div class="form-group" style="flex-grow: 1; min-width: 200px;">
           <label class="form-label">Buscar / Escanear Código</label>
           <input type="text" id="inputBuscarProducto" class="form-input"
@@ -114,17 +114,18 @@
           <label class="form-label">Cantidad</label>
           <input type="number" id="inputCantidad" class="form-input" min="1" value="1" style="width: 100px;" />
         </div>
-        <div class="form-group">
-          <label class="form-label">Descuento</label>
-          <select id="selectDescuentoTipo" class="form-select" style="width: 130px;">
+          <div class="form-group">
+          <label class="form-label" title="Si el producto no tiene descuento, deja el valor en 0">Descuento</label>
+          <select id="selectDescuentoTipo" class="form-select" style="width: 130px;" title="Elige si el descuento es dinero directo o porcentaje">
             <option value="monto">$ Monto</option>
             <option value="porcentaje">% Porcentaje</option>
           </select>
         </div>
         <div class="form-group">
           <label class="form-label">Valor</label>
-          <input type="number" id="inputDescuentoValor" class="form-input" min="0" value="0" style="width: 100px;" />
+          <input type="number" id="inputDescuentoValor" class="form-input" min="0" value="0" placeholder="Ej. 0" style="width: 100px;" title="Escribe 0 si no aplicarás descuento" />
         </div>
+        
         <button class="btn btn--primary" id="btnAgregar">+ Agregar a la venta</button>
       </div>
 
