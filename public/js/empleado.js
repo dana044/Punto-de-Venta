@@ -1,6 +1,7 @@
 /**
  * @file empleado.js
  * @description Controlador del lado del cliente para la gestion y registro de empleados.
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 
 const API_EMPLEADOS = '/api/employees';
@@ -52,6 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmarPasswordInput = document.getElementById('confirmarPassword');
   const preAlerta = document.getElementById('preAlertMessage');
 
+  // Referencia al checkbox de inactivos (misma mecanica que en inventario y proveedores)
+  const chkMostrarInactivos = document.getElementById('chkMostrarInactivos');
+
   let listaEmpleadosGlobal = [];
   let modoEdicion = false;
 
@@ -63,6 +67,11 @@ document.addEventListener('DOMContentLoaded', () => {
       filtrarYRenderizar(termino);
     });
   }
+
+  // Evento para alternar entre ver solo empleados activos o solo empleados inactivos
+  chkMostrarInactivos?.addEventListener('change', () => {
+    cargarEmpleados();
+  });
 
   function configurarMenuPorRol(rol) {
     const menuPersonal = document.getElementById('menuPersonal');
@@ -122,9 +131,36 @@ document.addEventListener('DOMContentLoaded', () => {
   btnCerrarModal?.addEventListener('click', ocultarModal);
   btnCancelar?.addEventListener('click', ocultarModal);
 
+  /**
+   * Determina si un empleado esta activo. Acepta los formatos que puede devolver la API
+   * (booleano, 1/0 numerico o '1'/'0' y 'true'/'false' en texto).
+   *
+   * @param {Object} emp Empleado devuelto por la API.
+   * @returns {boolean} true si el empleado esta activo.
+   */
+  function esEmpleadoActivo(emp) {
+    return emp.activo === true || emp.activo === 1 || emp.activo === '1' || emp.activo === 'true';
+  }
+
+  /**
+   * Devuelve los empleados que corresponde mostrar segun el estado del checkbox
+   * "Ver inactivos": con el check desmarcado solo los activos y con el check marcado
+   * unicamente los inactivos (nunca se mezclan, igual que en inventario).
+   *
+   * @returns {Array<Object>} Lista de empleados segun el filtro de estado.
+   */
+  function obtenerEmpleadosSegunEstado() {
+    const verInactivos = chkMostrarInactivos?.checked ?? false;
+    return listaEmpleadosGlobal.filter((emp) => esEmpleadoActivo(emp) !== verInactivos);
+  }
+
   async function cargarEmpleados() {
     try {
-      const res = await fetch(API_EMPLEADOS, {
+      // Si el checkbox esta marcado se solicitan los empleados inactivos
+      const mostrarInactivos = chkMostrarInactivos?.checked ?? false;
+      const url = mostrarInactivos ? `${API_EMPLEADOS}?inactivos=true` : API_EMPLEADOS;
+
+      const res = await fetch(url, {
         headers: { 'x-user-role': userRole }
       });
       const data = await res.json();
@@ -132,7 +168,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (res.ok) {
         listaEmpleadosGlobal = data.empleados || [];
         if (contadorEmpleados) {
-          contadorEmpleados.textContent = `(${listaEmpleadosGlobal.length})`;
+          const textoEstado = mostrarInactivos ? 'inactivos' : 'activos';
+          contadorEmpleados.textContent = `(${obtenerEmpleadosSegunEstado().length} ${textoEstado})`;
         }
         const terminoActual = inputBuscar ? inputBuscar.value.toLowerCase().trim() : '';
         filtrarYRenderizar(terminoActual);
@@ -145,17 +182,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function filtrarYRenderizar(termino) {
+    // Primero se aplica el filtro de estado (solo activos / solo inactivos) y despues la busqueda
+    const empleadosPorEstado = obtenerEmpleadosSegunEstado();
+
     if (!termino) {
-      renderizarTabla(listaEmpleadosGlobal);
+      renderizarTabla(empleadosPorEstado);
       return;
     }
 
-    const empleadosFiltrados = listaEmpleadosGlobal.filter((emp) => {
+    const empleadosFiltrados = empleadosPorEstado.filter((emp) => {
       const nombre = (emp.nombreCompleto || '').toLowerCase();
       const correo = (emp.correo || '').toLowerCase();
       const rol = (emp.role || '').toLowerCase();
 
-      return nombre.includes(termino) || correoInput.includes(termino) || rol.includes(termino);
+      return nombre.includes(termino) || correo.includes(termino) || rol.includes(termino);
     });
 
     renderizarTabla(empleadosFiltrados);
@@ -171,7 +211,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     empleados.forEach((emp) => {
       const tr = document.createElement('tr');
-      const opacityStyle = emp.activo ? '' : 'opacity: 0.6;';
+      // Estado normalizado (evita errores si la API devuelve 1/0 en lugar de true/false)
+      const activo = esEmpleadoActivo(emp);
+      const opacityStyle = activo ? '' : 'opacity: 0.6;';
  
       tr.innerHTML = `
         <td style="${opacityStyle}">
@@ -180,14 +222,14 @@ document.addEventListener('DOMContentLoaded', () => {
         <td style="${opacityStyle}">${emp.correo}</td>
         <td style="${opacityStyle}"><strong>${emp.role}</strong></td>
         <td>
-          <span class="badge ${emp.activo ? 'badge--success' : 'badge--danger'}">
-            ${emp.activo ? 'Activo' : 'Inactivo'}
+          <span class="badge ${activo ? 'badge--success' : 'badge--danger'}">
+            ${activo ? 'Activo' : 'Inactivo'}
           </span>
         </td>
         <td class="actions-cell">
           <button type="button" class="btn-icon-edit btn-editar" data-id="${emp.id}" title="Editar">Editar</button>
-          <button type="button" class="btn-icon-delete btn-estado" data-id="${emp.id}" data-activo="${emp.activo}" title="${emp.activo ? 'Desactivar' : 'Reactivar'}" style="${emp.activo ? 'background-color: #FEF3C7; color: #B45309;' : 'background-color: #E6F0EF; color: var(--color-primary);'}">
-            ${emp.activo ? 'Desactivar' : 'Reactivar'}
+          <button type="button" class="btn-icon-delete btn-estado" data-id="${emp.id}" data-activo="${activo}" title="${activo ? 'Desactivar' : 'Reactivar'}" style="${activo ? 'background-color: #FEF3C7; color: #B45309;' : 'background-color: #E6F0EF; color: var(--color-primary);'}">
+            ${activo ? 'Desactivar' : 'Reactivar'}
           </button>
           <button type="button" class="btn-icon-delete btn-eliminar" data-id="${emp.id}" title="Eliminar">Eliminar</button>
         </td>

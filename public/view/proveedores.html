@@ -1,5 +1,6 @@
 <!--
   Punto de Venta UV — Directorio de Distribuidores
+  @author Citlaly Morales Viveros (Cliente / Programadora XP)
 -->
 <!DOCTYPE html>
 <html lang="es">
@@ -58,15 +59,21 @@
       <div id="alertMessage" class="alert" hidden></div>
 
       <!-- Tabla de proveedores ACTIVOS -->
-      <section class="table-section">
+      <section class="table-section" id="seccionActivos">
         <div class="table-card">
           <div class="table-card__toolbar">
             <div>
               <h2>Proveedores activos</h2>
               <span class="table-card__count" id="proveedoresCount">&nbsp;</span>
             </div>
-            <div class="table-search">
-              <input type="text" id="buscarProveedor" placeholder="Buscar distribuidor..." />
+            <!-- Checkbox para cambiar a la tabla de proveedores inactivos (igual que en inventario) -->
+            <div style="display: flex; gap: 1rem; align-items: center;">
+              <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                <input type="checkbox" id="chkMostrarInactivos"> Ver inactivos
+              </label>
+              <div class="table-search">
+                <input type="text" id="buscarProveedor" placeholder="Buscar distribuidor..." />
+              </div>
             </div>
           </div>
 
@@ -88,12 +95,22 @@
       </section>
 
       <!-- Tabla de proveedores INACTIVOS -->
-      <section class="table-section" style="margin-top: 2rem;">
+      <!-- Oculta por defecto; reemplaza a la tabla de activos al marcar el checkbox "Ver inactivos" (ver proveedor.js) -->
+      <section class="table-section" id="seccionInactivos" style="margin-top: 2rem; display: none;">
         <div class="table-card">
           <div class="table-card__toolbar">
             <div>
               <h2 style="color: #6b7280;">Distribuidores Inactivos (Baja Lógica)</h2>
               <span class="table-card__count" id="inactivosCount">&nbsp;</span>
+            </div>
+            <!-- Checkbox (marcado) para regresar a la tabla de activos y buscador de la vista de inactivos -->
+            <div style="display: flex; gap: 1rem; align-items: center;">
+              <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                <input type="checkbox" id="chkMostrarInactivosAlt" checked> Ver inactivos
+              </label>
+              <div class="table-search">
+                <input type="text" id="buscarProveedorInactivo" placeholder="Buscar distribuidor..." />
+              </div>
             </div>
           </div>
           <table class="data-table">

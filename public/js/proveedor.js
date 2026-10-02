@@ -14,6 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCerrar = document.getElementById('btnCerrarModal');
     const btnCancelar = document.getElementById('cancelarBtn');
 
+    // Referencias a los checkbox de inactivos (uno por cada vista) y a las secciones de cada tabla
+    const chkMostrarInactivos = document.getElementById('chkMostrarInactivos');
+    const chkMostrarInactivosAlt = document.getElementById('chkMostrarInactivosAlt');
+    const seccionActivos = document.getElementById('seccionActivos');
+    const seccionInactivos = document.getElementById('seccionInactivos');
+
     // contenedores y botones de los medios de contacto dinámicos
     const telefonosContainer = document.getElementById('telefonosContainer');
     const correosContainer = document.getElementById('correosContainer');
@@ -55,6 +61,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cargar la lista al iniciar
     cargarProveedores();
 
+    /**
+     * Cambia de vista segun el estado del checkbox "Ver inactivos": con el check desmarcado se
+     * muestra unicamente la tabla de activos y con el check marcado unicamente la de inactivos
+     * (la otra desaparece). Mantiene sincronizados los checkbox de ambas vistas.
+     *
+     * @param {boolean} verInactivos true para mostrar la tabla de inactivos, false para la de activos.
+     * @returns {void}
+     */
+    function alternarTablaInactivos(verInactivos) {
+        if (chkMostrarInactivos) chkMostrarInactivos.checked = verInactivos;
+        if (chkMostrarInactivosAlt) chkMostrarInactivosAlt.checked = verInactivos;
+        if (seccionActivos) seccionActivos.style.display = verInactivos ? 'none' : '';
+        if (seccionInactivos) seccionInactivos.style.display = verInactivos ? '' : 'none';
+    }
+
+    // Sincroniza la vista inicial (el navegador puede conservar el checkbox marcado al recargar)
+    alternarTablaInactivos(chkMostrarInactivos?.checked ?? false);
+
+    // Evento para cambiar de tabla/vista por medio del checkbox de inactivos (en cualquiera de las dos vistas)
+    chkMostrarInactivos?.addEventListener('change', (e) => alternarTablaInactivos(e.target.checked));
+    chkMostrarInactivosAlt?.addEventListener('change', (e) => alternarTablaInactivos(e.target.checked));
+
     // Eventos del Modal
     btnNuevo.addEventListener('click', () => abrirModal());
     btnCerrar.addEventListener('click', cerrarModal);
@@ -65,15 +93,37 @@ document.addEventListener('DOMContentLoaded', () => {
     btnAgregarCorreo.addEventListener('click', () => agregarFilaCorreo());
 
     // Buscador en vivo
+    const inputBuscarInactivos = document.getElementById('buscarProveedorInactivo');
     document.getElementById('buscarProveedor').addEventListener('input', function(e) {
-        const termino = e.target.value.toLowerCase();
-        const filas = tablaBody.getElementsByTagName('tr');
+        // Se refleja el texto en el buscador de la vista de inactivos para que ambos coincidan
+        if (inputBuscarInactivos) inputBuscarInactivos.value = e.target.value;
+        filtrarFilasProveedores(e.target.value);
+    });
+
+    // Buscador de la vista de inactivos (misma logica que el buscador de la vista de activos)
+    inputBuscarInactivos?.addEventListener('input', function(e) {
+        document.getElementById('buscarProveedor').value = e.target.value;
+        filtrarFilasProveedores(e.target.value);
+    });
+
+    /**
+     * Filtra las filas de ambas tablas (activos e inactivos) segun el texto buscado.
+     *
+     * @param {string} texto - Texto a buscar dentro de cada fila.
+     * @returns {void}
+     */
+    function filtrarFilasProveedores(texto) {
+        const termino = texto.toLowerCase();
+        const filas = [
+            ...tablaBody.getElementsByTagName('tr'),
+            ...document.getElementById('tablaInactivosBody').getElementsByTagName('tr')
+        ];
         
         Array.from(filas).forEach(fila => {
             const textoFila = fila.textContent.toLowerCase();
             fila.style.display = textoFila.includes(termino) ? '' : 'none';
         });
-    });
+    }
 
     // Guardar o Editar Proveedor
     form.addEventListener('submit', async (e) => {
