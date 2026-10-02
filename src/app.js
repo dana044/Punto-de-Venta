@@ -29,6 +29,7 @@ const posRoutes = require('./routes/pos.routes.js');
 const employeesRoutes = require('./routes/employees.routes.js');
 const suppliersRoutes = require('./routes/suppliers.routes.js');
 const lotesRoutes = require('./routes/lotes.routes.js');
+const alertsRoutes = require('./routes/alerts.routes.js');
 
 /** Montaje de la ruta base para autenticación. */
 app.use('/api/auth', authRoutes);
@@ -44,6 +45,8 @@ app.use('/api/employees', employeesRoutes);
 app.use('/api/suppliers', suppliersRoutes);
 /** Montaje de la ruta para lotes dentro de inventario */
 app.use('/api/inventory', lotesRoutes);
+/** Montaje de la ruta para alertas de poco inventario para almacén y para mostrador */
+app.use('/api/alerts', alertsRoutes);
 
 /**
  * Ruta raíz que redirige automáticamente a la pantalla de inicio de sesión.

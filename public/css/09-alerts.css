@@ -1,0 +1,64 @@
+/* ==========================================================================
+   PANEL DE ALERTAS DE STOCK BAJO
+   ========================================================================== */
+.alertas-banner {
+  background: #FFF7E6;
+  border: 1px solid #F2C94C;
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.alertas-banner__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.alertas-banner__titulo {
+  font-weight: 700;
+  color: #92701A;
+}
+
+.alertas-banner__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.alertas-banner__item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: #6B5115;
+}
+
+.alertas-banner__vacio {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.umbrales-table input[type='number'] {
+  width: 80px;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.alertas-banner__lista {
+  max-height: 120px;
+  overflow-y: auto; 
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 5px;
+}
+
+.alertas-banner__lista::-webkit-scrollbar {
+  width: 6px;
+}
+.alertas-banner__lista::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
