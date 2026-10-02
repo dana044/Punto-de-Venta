@@ -1,5 +1,6 @@
 /**
- * Punto de Venta UV — Vista de Inicio de Sesion (HU01).
+ * Punto de Venta UV — Vista de Inicio de Sesion.
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 
 /**
@@ -157,6 +158,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function manejarRespuestaInicioSesion(datos) {
     localStorage.setItem("token", datos.token);
     localStorage.setItem("userRole", datos.usuario.role);
+    /** Nombre del usuario, se muestra en los reportes impresos (si no viene, se usa el correo). */
+    localStorage.setItem("userName", datos.usuario.nombre || datos.usuario.correo);
 
     switch (datos.usuario.role) {
       case 'administrador':

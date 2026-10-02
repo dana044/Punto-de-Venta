@@ -1,3 +1,8 @@
+<!--
+  Punto de Venta UV — Reportes de Inventario
+  HU-37: Reporte de stock bajo (mostrador o almacén), con gráficas e impresión.
+  @author Citlaly Morales Viveros (Cliente / Programadora XP)
+-->
 <!DOCTYPE html>
 <html lang="es">
 
@@ -11,6 +16,7 @@
     <link rel="stylesheet" href="/css/04-components.css" />
     <link rel="stylesheet" href="/css/05-modals.css" />
     <link rel="stylesheet" href="/css/06-tables.css" />
+    <link rel="stylesheet" href="/css/08-reportes.css" />
 </head>
 
 <body>
@@ -43,6 +49,18 @@
         </aside>
 
         <main class="main-content">
+            <!-- Encabezado visible solo al imprimir: empresa, logo y quién genera el reporte -->
+            <div class="print-header print-only">
+                <img src="/img/logo.png" alt="Logo La Number One" class="print-header__logo" />
+                <div>
+                    <h1 class="print-header__empresa">La Number One</h1>
+                    <p class="print-header__titulo" id="printTitulo"></p>
+                    <p class="print-header__meta" id="printCriterio"></p>
+                    <p class="print-header__meta" id="printGeneradoPor"></p>
+                    <p class="print-header__meta" id="printFecha"></p>
+                </div>
+            </div>
+
             <div class="page-header">
                 <div>
                     <h1>Reportes de Inventario</h1>
@@ -74,6 +92,8 @@
                             </div>
                             <button type="submit" class="btn btn--primary" id="btnGenerarReporte">Generar
                                 reporte</button>
+                            <button type="button" class="btn btn--secondary no-print" id="btnImprimir" hidden>Imprimir
+                                reporte</button>
                         </form>
                     </div>
 
@@ -98,9 +118,24 @@
                     </table>
                 </div>
             </section>
+
+            <!-- Gráficas del reporte (se calculan con los datos de la tabla) -->
+            <section id="seccionGraficas" hidden>
+                <div class="charts-grid">
+                    <div class="table-card chart-card">
+                        <h3>Productos con menor existencia</h3>
+                        <div class="chart-box"><canvas id="graficaProductos"></canvas></div>
+                    </div>
+                    <div class="table-card chart-card">
+                        <h3>Productos por categoría bajo el límite</h3>
+                        <div class="chart-box"><canvas id="graficaCategorias"></canvas></div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
+    <script src="/js/chart.umd.min.js"></script>
     <script src="/js/reportes-inventario.js"></script>
     <script src="/js/inactividad.js"></script>
 </body>

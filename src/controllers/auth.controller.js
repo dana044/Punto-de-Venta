@@ -3,6 +3,7 @@
  * Se encarga de procesar las peticiones de inicio de sesión y validar credenciales.
  * El inicio de sesión se hace únicamente con correo electrónico (HU01): no
  * existe una vía de acceso por nombre de usuario.
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 const { findUserByCorreo } = require('../models/user.model.js');
 
@@ -40,6 +41,8 @@ const login = async (req, res) => {
       token: 'token_falso_12345',
       usuario: {
         id: user.id,
+        /** Nombre completo, se usa por ejemplo en el encabezado de los reportes impresos. */
+        nombre: user.nombre_completo,
         correo: user.correo,
         role: user.role
       }

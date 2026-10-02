@@ -14,11 +14,12 @@ USE punto_de_venta;
 CREATE TABLE IF NOT EXISTS usuarios (
   id                INT AUTO_INCREMENT PRIMARY KEY,
   nombre_completo   VARCHAR(150) NOT NULL,
-  correo            VARCHAR(150),
+  correo            VARCHAR(255) NOT NULL,
   password          VARCHAR(255) NOT NULL,
   role              ENUM('administrador', 'cajero', 'almacenista') NOT NULL,
   activo            BOOLEAN NOT NULL DEFAULT TRUE,
   creado_en         DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY username (correo),
   UNIQUE KEY uq_correo_role (correo, role)
 );
 
@@ -150,42 +151,148 @@ CREATE TABLE IF NOT EXISTS venta_detalle (
 );
 
 -- ============================================================
--- Datos de prueba
+-- Datos (importados de la base de datos local)
+-- Las ventas existentes quedan con `folio` en NULL porque la base local no tenía esa columna.
 -- ============================================================
 
-INSERT IGNORE INTO usuarios (id, nombre_completo, correo, password, role, activo) VALUES
-  (1, 'Administrador', 'admin@uv.mx',   'password123', 'administrador', TRUE),
-  (2, 'Cajero 01',     'caja01@uv.mx',  'password123', 'cajero', TRUE),
-  (3, 'Almacenista',   'almacen@uv.mx', 'password123', 'almacenista', TRUE);
+-- Usuarios / Empleados
+INSERT INTO usuarios (id, nombre_completo, correo, password, role, activo, creado_en) VALUES
+  (1,'Administrador','admin@uv.mx','123456789','administrador',1,'2026-09-22 08:11:59'),
+  (2,'Cajero 01','caja01@uv.mx','123456789','cajero',1,'2026-09-22 08:11:59'),
+  (3,'Almacenista','almacen@uv.mx','123456789','almacenista',1,'2026-09-22 08:11:59'),
+  (4,'Cajero P','p@uv.mx','123456789','cajero',1,'2026-09-22 09:26:00'),
+  (5,'Cajero 02','caja02@uv.mx','123456789','cajero',1,'2026-10-01 19:09:05'),
+  (6,'Cajero 03','caja03@uv.mx','123456789','cajero',1,'2026-10-01 19:09:05'),
+  (7,'Almacenista 02','almacen02@uv.mx','123456789','almacenista',1,'2026-10-01 19:09:05');
 
-INSERT IGNORE INTO proveedores (id, nombre) VALUES
-  (1, 'Distribuidora Central Papelera S.A.'),
-  (2, 'Abarrotes y Suministros del Golfo'),
-  (3, 'Comercializadora Universitaria UV');
+-- Proveedores / Distribuidores
+INSERT INTO proveedores (id, nombre, direccion, telefono, email, activo) VALUES
+  (1,'Distribuidora Central Papelera S.A.',NULL,NULL,NULL,1),
+  (2,'Abarrotes y Suministros del Golfo',NULL,NULL,NULL,1),
+  (3,'Comercializadora Universitaria UV',NULL,NULL,NULL,0),
+  (4,'Deicbi','Carolino Anaya','2282782080','pepilindro@uv.us',1),
+  (5,'Papelería del Centro','Centro, Xalapa, Veracruz',NULL,NULL,1),
+  (6,'Bebidas y Consumo Xalapa','Zona comercial, Xalapa, Veracruz',NULL,NULL,1),
+  (7,'Tecnología y Accesorios MX','Xalapa, Veracruz',NULL,NULL,1);
 
-INSERT IGNORE INTO productos (id, nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_mostrador, activo) VALUES
-  (1, 'Agua Mineral 600ml', '7501234500016', 'Bebidas', 'Botella', 'Pieza', 15.00, 10, TRUE),
-  (2, 'Jugo de Naranja 1L',  '7501234500023', 'Bebidas', 'Caja',    'Litro', 28.00, 5, TRUE);
+-- Teléfonos de proveedores
+INSERT INTO proveedor_telefonos (id, proveedor_id, telefono, tipo, es_principal) VALUES
+  (1,4,'2282782080','oficina',1),
+  (2,4,'1234568912','whatsapp',0),
+  (3,1,'2282759153','oficina',1),
+  (4,1,'2281467925','whatsapp',0),
+  (5,2,'2282765213','oficina',1),
+  (6,2,'2282641985','celular',0),
+  (7,5,'2283680650','oficina',1),
+  (8,5,'2283050623','whatsapp',0),
+  (9,5,'2283016235','celular',0),
+  (10,6,'2284354386','oficina',1),
+  (11,6,'2287638453','whatsapp',0),
+  (12,7,'2285652386','oficina',1);
 
-INSERT INTO lotes_producto (producto_id, cantidad, fecha_caducidad) VALUES
-  (1, 50, NULL),
-  (2, 30, NULL);
-  
-INSERT IGNORE INTO producto_proveedor (producto_id, proveedor_id) VALUES
-  (1, 1),
-  (2, 2);
+-- Correos de proveedores
+INSERT INTO proveedor_correos (id, proveedor_id, correo, es_principal) VALUES
+  (1,4,'pepilindro@uv.us',1),
+  (2,1,'ventas@centralpapelera.com',1),
+  (3,1,'pedidos@centralpapelera.com',0),
+  (4,2,'contacto@golfo.com',1),
+  (5,5,'ventas@papeleriacentro.es',1),
+  (6,5,'pedidos@papeleriacentro.es',0),
+  (7,6,'contacto@bebidasxalapa.mx',1),
+  (8,6,'ventas@bebidasxalapa.mx',0),
+  (9,7,'ventas@tecnomx.es',1);
 
--- 1. Insertar los encabezados de los pedidos
-INSERT INTO pedidos (folio, proveedor_id, fecha, destino, estado) VALUES
-  ('OC-2026-001', 1, NOW(), 'almacen', 'pendiente'),
-  ('OC-2026-002', 2, NOW(), 'almacen', 'pendiente');
+-- Productos
+INSERT INTO productos (id, nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_mostrador, creado_en, activo) VALUES
+  (1,'Agua Mineral 600ml','7501234500016','Comida','Botella','Pieza',15.00,0,'2026-09-22 08:11:59',1),
+  (2,'Cuaderno profesional','7501234500023','Papelería','100 hojas','Pieza',38.50,25,'2026-10-01 19:09:05',1),
+  (3,'Bolígrafo azul','7501234500030','Papelería','Punto mediano','Pieza',8.00,60,'2026-10-01 19:09:05',1),
+  (4,'Lápiz HB','7501234500047','Papelería','Unidad','Pieza',5.50,80,'2026-10-01 19:09:05',1),
+  (5,'Borrador blanco','7501234500054','Papelería','Unidad','Pieza',6.00,40,'2026-10-01 19:09:05',1),
+  (6,'Poco x7 PRO','1234567891234','Tecnología','Telefono mediano','Pieza',5999.00,7,'2026-09-30 07:25:34',1),
+  (7,'Marcador permanente negro','7501234500078','Papelería','Unidad','Pieza',19.00,18,'2026-10-01 19:09:05',1),
+  (8,'Resaltador amarillo','7501234500085','Papelería','Unidad','Pieza',14.00,30,'2026-10-01 19:09:05',1),
+  (9,'Carpeta tamaño carta','7501234500092','Papelería','Tamaño carta','Pieza',22.00,20,'2026-10-01 19:09:05',1),
+  (10,'Hojas blancas','7501234500108','Papelería','Paquete 100 hojas','Paquete',35.00,15,'2026-10-01 19:09:05',1),
+  (11,'Pegamento en barra','7501234500115','Papelería','21 g','Pieza',17.50,22,'2026-10-01 19:09:05',1),
+  (12,'Tijeras escolares','7501234500122','Papelería','13 cm','Pieza',25.00,12,'2026-10-01 19:09:05',1),
+  (13,'Agua natural 1 L','7501234500139','Bebidas','Botella','Pieza',18.00,35,'2026-10-01 19:09:05',1),
+  (14,'Jugo de naranja 500 ml','7501234500146','Bebidas','Botella','Pieza',23.00,20,'2026-10-01 19:09:05',1),
+  (15,'Galletas integrales','7501234500153','Comida','Paquete','Pieza',16.00,28,'2026-10-01 19:09:05',1),
+  (16,'Papas clásicas','7501234500160','Comida','Bolsa 45 g','Pieza',18.50,24,'2026-10-01 19:09:05',1),
+  (17,'Audífonos alámbricos','7501234500177','Tecnología','Cable 1.2 m','Pieza',149.00,8,'2026-10-01 19:09:05',1),
+  (18,'Cable USB-C','7501234500184','Tecnología','1 metro','Pieza',89.00,10,'2026-10-01 19:09:05',1),
+  (19,'Memoria USB 32 GB','7501234500191','Tecnología','32 GB','Pieza',129.00,6,'2026-10-01 19:09:05',1),
+  (20,'Cinta adhesiva','7501234500207','Papelería','Rollo','Pieza',12.00,26,'2026-10-01 19:09:05',1);
 
--- 2. Insertar el detalle (los items) de cada pedido
--- Asumiendo que el pedido OC-2026-001 toma el ID 1 y el OC-2026-002 toma el ID 2
--- Asumiendo que el Agua Mineral es el producto ID 1 y el Jugo es el ID 2
+-- Lotes de producto (existencias de almacén y caducidades)
+INSERT INTO lotes_producto (id, producto_id, cantidad, fecha_caducidad, recibido_en) VALUES
+  (1,1,149,NULL,'2026-10-01 11:22:34'),
+  (2,6,14,NULL,'2026-10-01 11:22:34'),
+  (4,6,50,'2035-10-15','2026-10-01 11:37:03');
 
-INSERT INTO pedido_detalle (pedido_id, producto_id, cantidad_solicitada, cantidad_recibida, costo_unitario, estado_linea) VALUES
-  -- Ítems para el pedido 1 (OC-2026-001)
-  (1, 1, 50, 0, 10.00, 'pendiente'),
-  (2, 1, 30, 0, 10.00, 'pendiente'),
-  (2, 2, 20, 0, 18.00, 'pendiente');
+-- Relación producto <-> proveedores
+INSERT INTO producto_proveedor (producto_id, proveedor_id) VALUES
+  (2,1),
+  (3,1),
+  (4,1),
+  (5,1),
+  (1,2),
+  (15,2),
+  (16,2),
+  (6,4),
+  (7,5),
+  (8,5),
+  (9,5),
+  (10,5),
+  (11,5),
+  (12,5),
+  (20,5),
+  (13,6),
+  (14,6),
+  (17,7),
+  (18,7),
+  (19,7);
+
+-- Pedidos a proveedor
+INSERT INTO pedidos (id, folio, proveedor_id, fecha, destino, estado, fecha_recepcion) VALUES
+  (1,'OC-2026-001',1,'2026-09-23 17:37:36','almacen','recibido','2026-09-30 07:34:41'),
+  (2,'OC-2026-002',2,'2026-09-23 17:37:36','almacen','pendiente',NULL),
+  (3,'OC-2026-8973',2,'2026-09-30 09:07:49','almacen','recibido','2026-09-30 09:08:00');
+
+-- Detalle de pedidos
+INSERT INTO pedido_detalle (id, pedido_id, producto_id, cantidad_solicitada, cantidad_recibida, costo_unitario, estado_linea) VALUES
+  (1,1,1,50,50,10.00,'completo'),
+  (2,2,1,30,0,10.00,'pendiente'),
+  (4,3,6,15,15,10.00,'completo');
+
+-- Ventas
+INSERT INTO ventas (id, folio, usuario_id, fecha, metodo_pago, subtotal, descuentos, iva, total) VALUES
+  (1,'OC-2026-001',2,'2026-09-30 08:54:53','efectivo',15.00,0.00,2.40,17.40),
+  (2,'OC-2026-002',2,'2026-09-30 08:58:12','efectivo',65989.00,0.00,10558.24,76547.24),
+  (3,'OC-2026-003',4,'2026-08-15 09:10:00','efectivo',38.50,0.00,6.16,44.66),
+  (4,'OC-2026-004',2,'2026-08-15 09:25:00','tarjeta',24.00,0.00,3.84,27.84),
+  (5,'OC-2026-005',5,'2026-10-01 10:00:00','efectivo',35.00,0.00,5.60,40.60),
+  (6,'OC-2026-006',6,'2026-10-01 10:35:00','transferencia',149.00,0.00,23.84,172.84),
+  (7,'OC-2026-007',4,'2026-10-01 11:05:00','tarjeta',39.00,0.00,6.24,45.24),
+  (8,'OC-2026-008',2,'2026-08-15 11:40:00','efectivo',18.50,0.00,2.96,21.46),
+  (9,'OC-2026-009',5,'2026-10-01 12:15:00','tarjeta',129.00,0.00,20.64,149.64),
+  (10,'OC-2026-010',6,'2026-10-01 13:00:00','efectivo',51.50,0.00,8.24,59.74);
+
+-- Detalle de ventas
+INSERT INTO venta_detalle (id, venta_id, producto_id, cantidad, precio_unitario, descuento_tipo, descuento_valor, subtotal_linea, descuento_linea, total_linea) VALUES
+  (1,1,1,1,15.00,'monto',0.00,15.00,0.00,15.00),
+  (2,2,6,4,5999.00,'monto',0.00,23996.00,0.00,23996.00),
+  (3,2,6,6,5999.00,'monto',0.00,35994.00,0.00,35994.00),
+  (4,2,6,1,5999.00,'monto',0.00,5999.00,0.00,5999.00),
+  (5,3,2,1,38.50,'monto',0.00,38.50,0.00,38.50),
+  (6,4,3,3,8.00,'monto',0.00,24.00,0.00,24.00),
+  (7,5,10,1,35.00,'monto',0.00,35.00,0.00,35.00),
+  (8,6,17,1,149.00,'monto',0.00,149.00,0.00,149.00),
+  (9,7,4,2,5.50,'monto',0.00,11.00,0.00,11.00),
+  (10,7,8,2,14.00,'monto',0.00,28.00,0.00,28.00),
+  (11,8,16,1,18.50,'monto',0.00,18.50,0.00,18.50),
+  (12,9,19,1,129.00,'monto',0.00,129.00,0.00,129.00),
+  (13,10,13,1,18.00,'monto',0.00,18.00,0.00,18.00),
+  (14,10,15,1,16.00,'monto',0.00,16.00,0.00,16.00),
+  (15,10,11,1,17.50,'monto',0.00,17.50,0.00,17.50);

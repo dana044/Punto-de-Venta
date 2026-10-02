@@ -1,0 +1,166 @@
+/**
+ * 08-reportes.css
+ * Estilos de la vista de Reportes de Inventario: tarjetas de graficas y diseno de impresion (HU-37).
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
+ */
+
+/* ---------- Pantalla ---------- */
+@media screen {
+  /* El encabezado de impresion solo se ve al imprimir */
+  .print-only {
+    display: none !important;
+  }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .chart-card {
+    padding: 1rem 1.5rem 1.25rem;
+  }
+
+  .chart-card h3 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+  }
+
+  .chart-box {
+    position: relative;
+    height: 320px;
+  }
+}
+
+/* ---------- Impresion ---------- */
+@page {
+  size: letter;
+  margin: 1.5cm;
+}
+
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Oculta todo lo que no forma parte del reporte */
+  .sidebar,
+  .page-header,
+  .no-print,
+  #formStockBajo,
+  #reporteAlert {
+    display: none !important;
+  }
+
+  .app-container {
+    display: block !important;
+  }
+
+  /* Orden de impresion: encabezado, graficas y tabla */
+  .main-content {
+    display: flex !important;
+    flex-direction: column;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .print-header { order: 0; }
+  #seccionGraficas { order: 1; }
+  .table-section { order: 2; }
+
+  .print-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #000;
+  }
+
+  .print-header__logo {
+    height: 70px;
+    width: auto;
+  }
+
+  .print-header__empresa {
+    margin: 0;
+    font-size: 1.6rem;
+  }
+
+  .print-header__titulo {
+    margin: 0.15rem 0 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .print-header__meta {
+    margin: 0.1rem 0 0;
+    font-size: 0.85rem;
+  }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+  }
+
+  .chart-card {
+    border: 1px solid #ccc;
+    box-shadow: none !important;
+    padding: 0.5rem 0.75rem;
+    break-inside: avoid;
+  }
+
+  .chart-card h3 {
+    margin: 0 0 0.4rem;
+    font-size: 0.95rem;
+  }
+
+  .chart-box {
+    position: relative;
+    height: 220px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* En impresion se muestra la imagen de la grafica en lugar del canvas */
+  .chart-box canvas {
+    display: none !important;
+  }
+
+  .chart-print-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .table-card {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    border: 1px solid #999;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .data-table thead {
+    display: table-header-group;
+  }
+
+  .data-table tr {
+    break-inside: avoid;
+  }
+}

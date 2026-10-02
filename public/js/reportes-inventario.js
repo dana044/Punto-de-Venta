@@ -12,6 +12,32 @@
  */
 const API_STOCK_BAJO = '/api/inventory/reportes/stock-bajo';
 
+/**
+ * Paleta de colores de la grafica por categoria (se repite si hay mas categorias que colores).
+ * @type {string[]}
+ */
+const PALETA_GRAFICAS = ['#1f2a44', '#3b5b92', '#5f8dd3', '#8fb3e8', '#c9a227', '#8a5a44', '#4f7f6b', '#9aa3b2'];
+
+/**
+ * Plugin de Chart.js que dibuja el valor numerico al final de cada barra, para que
+ * la cantidad sea legible tambien en el reporte impreso.
+ * @type {Object}
+ */
+const etiquetasValor = {
+    id: 'etiquetasValor',
+    afterDatasetsDraw(chart) {
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillStyle = '#111827';
+        ctx.textBaseline = 'middle';
+        chart.getDatasetMeta(0).data.forEach((barra, i) => {
+            ctx.fillText(String(chart.data.datasets[0].data[i]), barra.x + 6, barra.y);
+        });
+        ctx.restore();
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const userRole = localStorage.getItem('userRole');
     const token = localStorage.getItem('token');
@@ -47,8 +73,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const tablaBody = document.getElementById('tablaStockBajoBody');
     const reporteCount = document.getElementById('reporteCount');
     const reporteAlert = document.getElementById('reporteAlert');
+    const btnImprimir = document.getElementById('btnImprimir');
+    const seccionGraficas = document.getElementById('seccionGraficas');
+
+    /**
+     * Ultimo reporte generado (se usa para las graficas y el encabezado de impresion).
+     * @type {{productos: Array<Object>, limite: number, ubicacion: string}|null}
+     */
+    let reporteActual = null;
+    let graficaProductos = null;
+    let graficaCategorias = null;
 
     formStockBajo?.addEventListener('submit', generarReporte);
+    btnImprimir?.addEventListener('click', imprimirReporte);
 
     /**
      * Configura la visibilidad del menu lateral segun el rol del usuario.
@@ -139,6 +176,11 @@ document.addEventListener('DOMContentLoaded', () => {
         thExistencia.textContent = `Existencia en ${nombreUbicacion}`;
         tablaBody.innerHTML = '';
 
+        // Guarda el reporte para imprimirlo y actualiza las graficas
+        reporteActual = { productos, limite, ubicacion: nombreUbicacion };
+        btnImprimir.hidden = false;
+        actualizarGraficas(productos, nombreUbicacion);
+
         if (!productos.length) {
             reporteCount.textContent = '0 producto(s) por debajo del limite';
             tablaBody.innerHTML = `<tr><td colspan="5" class="text-muted">Ningun producto tiene menos de ${limite} unidad(es) en ${nombreUbicacion}.</td></tr>`;
@@ -158,6 +200,136 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
             tablaBody.appendChild(fila);
         });
+    }
+
+    /**
+     * Acorta un texto largo para usarlo como etiqueta de una grafica.
+     *
+     * @param {string} texto Texto original.
+     * @param {number} max Longitud maxima permitida.
+     * @returns {string} Texto acortado con puntos suspensivos si excede el maximo.
+     */
+    function acortar(texto, max) {
+        const t = String(texto ?? '');
+        return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+    }
+
+    /**
+     * Dibuja las dos graficas del reporte con los datos de la tabla:
+     * los 10 productos con menor existencia y la cantidad de productos por categoria.
+     * Si no hay productos (o la libreria Chart.js no cargo) oculta la seccion de graficas.
+     *
+     * @param {Array<Object>} productos Productos del reporte, ordenados de menor a mayor existencia.
+     * @param {string} nombreUbicacion Ubicacion evaluada ('mostrador' o 'almacen').
+     * @returns {void}
+     */
+    function actualizarGraficas(productos, nombreUbicacion) {
+        graficaProductos?.destroy();
+        graficaCategorias?.destroy();
+        graficaProductos = null;
+        graficaCategorias = null;
+
+        if (!productos.length || typeof Chart === 'undefined') {
+            seccionGraficas.hidden = true;
+            return;
+        }
+
+        seccionGraficas.hidden = false;
+
+        // Grafica 1: los 10 productos con menos existencia
+        const menores = productos.slice(0, 10);
+        graficaProductos = new Chart(document.getElementById('graficaProductos'), {
+            type: 'bar',
+            data: {
+                labels: menores.map((p) => acortar(p.nombre, 28)),
+                datasets: [{
+                    label: `Existencia en ${nombreUbicacion}`,
+                    data: menores.map((p) => Number(p.existencia)),
+                    backgroundColor: PALETA_GRAFICAS[0],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                layout: { padding: { right: 32 } },
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+            },
+            plugins: [etiquetasValor]
+        });
+        actualizarImagenImpresion(graficaProductos);
+
+        // Grafica 2: cantidad de productos bajo el limite por categoria
+        const porCategoria = {};
+        productos.forEach((p) => {
+            const categoria = p.categoria || 'Sin categoria';
+            porCategoria[categoria] = (porCategoria[categoria] || 0) + 1;
+        });
+        const categorias = Object.keys(porCategoria);
+
+        graficaCategorias = new Chart(document.getElementById('graficaCategorias'), {
+            type: 'doughnut',
+            data: {
+                labels: categorias.map((c) => `${acortar(c, 24)} (${porCategoria[c]})`),
+                datasets: [{
+                    data: categorias.map((c) => porCategoria[c]),
+                    backgroundColor: categorias.map((_, i) => PALETA_GRAFICAS[i % PALETA_GRAFICAS.length])
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: { legend: { position: 'right' } }
+            }
+        });
+        actualizarImagenImpresion(graficaCategorias);
+    }
+
+    /**
+     * Guarda una copia en imagen de la grafica dentro de su contenedor. Esa imagen es la que
+     * se muestra al imprimir (el canvas se oculta), para que la grafica no se corte ni se
+     * deforme cuando cambia el ancho de la pagina impresa.
+     *
+     * @param {Object} grafica Instancia de Chart.js ya dibujada.
+     * @returns {void}
+     */
+    function actualizarImagenImpresion(grafica) {
+        const contenedor = grafica.canvas.parentElement;
+        let imagen = contenedor.querySelector('.chart-print-img');
+
+        if (!imagen) {
+            imagen = document.createElement('img');
+            imagen.className = 'chart-print-img print-only';
+            imagen.alt = 'Grafica del reporte';
+            contenedor.appendChild(imagen);
+        }
+
+        imagen.src = grafica.toBase64Image('image/png', 1);
+    }
+
+    /**
+     * Llena el encabezado de impresion (empresa, criterio del reporte, quien lo genera
+     * y fecha) y abre el dialogo de impresion del navegador, desde el cual tambien se
+     * puede guardar el reporte como PDF.
+     *
+     * @returns {void}
+     */
+    function imprimirReporte() {
+        if (!reporteActual) return;
+
+        const { limite, ubicacion } = reporteActual;
+        const nombre = localStorage.getItem('userName') || 'Usuario';
+
+        document.getElementById('printTitulo').textContent = `Reporte de stock bajo en ${ubicacion}`;
+        document.getElementById('printCriterio').textContent = `Productos con menos de ${limite} unidad(es) en ${ubicacion}`;
+        document.getElementById('printGeneradoPor').textContent = `Generado por: ${nombre} (${userRole})`;
+        document.getElementById('printFecha').textContent = `Fecha y hora: ${new Date().toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' })}`;
+
+        window.print();
     }
 
     /**
