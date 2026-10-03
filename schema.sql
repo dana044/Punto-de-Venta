@@ -68,11 +68,15 @@ CREATE TABLE IF NOT EXISTS productos (
   presentacion    VARCHAR(50),
   unidad_medida   VARCHAR(50),
   precio          DECIMAL(10,2) NOT NULL,
+  -- Existencia total de almacén: se mantiene sola (triggers) como la suma de lotes_producto
+  stock_almacen   INT NOT NULL DEFAULT 0,
   stock_mostrador INT NOT NULL DEFAULT 0,
+  -- 0 = inactivo, 1 = activo, 2 = archivado
   activo          BOOLEAN NOT NULL DEFAULT TRUE,
   creado_en       DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tabla para el control de Lotes en Almacén
 CREATE TABLE IF NOT EXISTS lotes_producto (
   id              INT AUTO_INCREMENT PRIMARY KEY,
   producto_id     INT NOT NULL,
@@ -81,6 +85,20 @@ CREATE TABLE IF NOT EXISTS lotes_producto (
   recibido_en     DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE
 );
+
+-- Triggers: mantienen productos.stock_almacen = SUM(lotes_producto.cantidad)
+-- sin importar qué módulo (inventario, recepción, etc.) toque los lotes.
+CREATE TRIGGER trg_lotes_ai AFTER INSERT ON lotes_producto FOR EACH ROW
+  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id)
+  WHERE id = NEW.producto_id;
+
+CREATE TRIGGER trg_lotes_au AFTER UPDATE ON lotes_producto FOR EACH ROW
+  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id)
+  WHERE id IN (NEW.producto_id, OLD.producto_id);
+
+CREATE TRIGGER trg_lotes_ad AFTER DELETE ON lotes_producto FOR EACH ROW
+  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id)
+  WHERE id = OLD.producto_id;
 
 -- Relación muchos-a-muchos: producto <-> proveedores
 CREATE TABLE IF NOT EXISTS producto_proveedor (
@@ -150,6 +168,23 @@ CREATE TABLE IF NOT EXISTS venta_detalle (
   FOREIGN KEY (producto_id) REFERENCES productos(id)
 );
 
+-- ------------------------------------------------------------
+-- Movimientos de Inventario (Kardex / Historial)
+-- ------------------------------------------------------------
+-- Tipos que registra el modulo de stock: 'mover_mostrador', 'regresar_almacen', 'merma', 'daño', 'conteo_mostrador', 'lote_agregado', 'lote_eliminado'
+CREATE TABLE IF NOT EXISTS movimientos_inventario (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  producto_id INT NOT NULL,
+  tipo VARCHAR(50) NOT NULL, -- Ej: 'transferencia', 'merma', 'daño', 'conteo_mostrador', 'lote_nuevo', 'lote_editado'
+  cantidad INT NOT NULL,
+  ubicacion ENUM('almacen', 'mostrador') NOT NULL,
+  motivo VARCHAR(255) NOT NULL,
+  usuario_id INT NOT NULL,
+  fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+);
+
 -- ============================================================
 -- Datos (importados de la base de datos local)
 -- Las ventas existentes quedan con `folio` en NULL porque la base local no tenía esa columna.
@@ -203,33 +238,36 @@ INSERT INTO proveedor_correos (id, proveedor_id, correo, es_principal) VALUES
   (9,7,'ventas@tecnomx.es',1);
 
 -- Productos
-INSERT INTO productos (id, nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_mostrador, creado_en, activo) VALUES
-  (1,'Agua Mineral 600ml','7501234500016','Comida','Botella','Pieza',15.00,0,'2026-09-22 08:11:59',1),
-  (2,'Cuaderno profesional','7501234500023','Papelería','100 hojas','Pieza',38.50,25,'2026-10-01 19:09:05',1),
-  (3,'Bolígrafo azul','7501234500030','Papelería','Punto mediano','Pieza',8.00,60,'2026-10-01 19:09:05',1),
-  (4,'Lápiz HB','7501234500047','Papelería','Unidad','Pieza',5.50,80,'2026-10-01 19:09:05',1),
-  (5,'Borrador blanco','7501234500054','Papelería','Unidad','Pieza',6.00,40,'2026-10-01 19:09:05',1),
-  (6,'Poco x7 PRO','1234567891234','Tecnología','Telefono mediano','Pieza',5999.00,7,'2026-09-30 07:25:34',1),
-  (7,'Marcador permanente negro','7501234500078','Papelería','Unidad','Pieza',19.00,18,'2026-10-01 19:09:05',1),
-  (8,'Resaltador amarillo','7501234500085','Papelería','Unidad','Pieza',14.00,30,'2026-10-01 19:09:05',1),
-  (9,'Carpeta tamaño carta','7501234500092','Papelería','Tamaño carta','Pieza',22.00,20,'2026-10-01 19:09:05',1),
-  (10,'Hojas blancas','7501234500108','Papelería','Paquete 100 hojas','Paquete',35.00,15,'2026-10-01 19:09:05',1),
-  (11,'Pegamento en barra','7501234500115','Papelería','21 g','Pieza',17.50,22,'2026-10-01 19:09:05',1),
-  (12,'Tijeras escolares','7501234500122','Papelería','13 cm','Pieza',25.00,12,'2026-10-01 19:09:05',1),
-  (13,'Agua natural 1 L','7501234500139','Bebidas','Botella','Pieza',18.00,35,'2026-10-01 19:09:05',1),
-  (14,'Jugo de naranja 500 ml','7501234500146','Bebidas','Botella','Pieza',23.00,20,'2026-10-01 19:09:05',1),
-  (15,'Galletas integrales','7501234500153','Comida','Paquete','Pieza',16.00,28,'2026-10-01 19:09:05',1),
-  (16,'Papas clásicas','7501234500160','Comida','Bolsa 45 g','Pieza',18.50,24,'2026-10-01 19:09:05',1),
-  (17,'Audífonos alámbricos','7501234500177','Tecnología','Cable 1.2 m','Pieza',149.00,8,'2026-10-01 19:09:05',1),
-  (18,'Cable USB-C','7501234500184','Tecnología','1 metro','Pieza',89.00,10,'2026-10-01 19:09:05',1),
-  (19,'Memoria USB 32 GB','7501234500191','Tecnología','32 GB','Pieza',129.00,6,'2026-10-01 19:09:05',1),
-  (20,'Cinta adhesiva','7501234500207','Papelería','Rollo','Pieza',12.00,26,'2026-10-01 19:09:05',1);
+INSERT INTO productos (id, nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen, stock_mostrador, creado_en, activo) VALUES
+  (1,'Agua Mineral 600ml','7501234500016','Comida','Botella','Pieza',15.00,50,0,'2026-09-22 08:11:59',1),
+  (2,'Cuaderno profesional','7501234500023','Papelería','100 hojas','Pieza',38.50,100,25,'2026-10-01 19:09:05',1),
+  (3,'Bolígrafo azul','7501234500030','Papelería','Punto mediano','Pieza',8.00,25,60,'2026-10-01 19:09:05',1),
+  (4,'Lápiz HB','7501234500047','Papelería','Unidad','Pieza',5.50,120,80,'2026-10-01 19:09:05',1),
+  (5,'Borrador blanco','7501234500054','Papelería','Unidad','Pieza',6.00,68,40,'2026-10-01 19:09:05',1),
+  (6,'Poco x7 PRO','1234567891234','Tecnología','Telefono mediano','Pieza',5999.00,29,7,'2026-09-30 07:25:34',1),
+  (7,'Marcador permanente negro','7501234500078','Papelería','Unidad','Pieza',19.00,109,18,'2026-10-01 19:09:05',1),
+  (8,'Resaltador amarillo','7501234500085','Papelería','Unidad','Pieza',14.00,40,30,'2026-10-01 19:09:05',1),
+  (9,'Carpeta tamaño carta','7501234500092','Papelería','Tamaño carta','Pieza',22.00,52,20,'2026-10-01 19:09:05',1),
+  (10,'Hojas blancas','7501234500108','Papelería','Paquete 100 hojas','Paquete',35.00,78,15,'2026-10-01 19:09:05',1),
+  (11,'Pegamento en barra','7501234500115','Papelería','21 g','Pieza',17.50,35,22,'2026-10-01 19:09:05',1),
+  (12,'Tijeras escolares','7501234500122','Papelería','13 cm','Pieza',25.00,45,12,'2026-10-01 19:09:05',1),
+  (13,'Agua natural 1 L','7501234500139','Bebidas','Botella','Pieza',18.00,64,35,'2026-10-01 19:09:05',1),
+  (14,'Jugo de naranja 500 ml','7501234500146','Bebidas','Botella','Pieza',23.00,46,20,'2026-10-01 19:09:05',1),
+  (15,'Galletas integrales','7501234500153','Comida','Paquete','Pieza',16.00,37,28,'2026-10-01 19:09:05',1),
+  (16,'Papas clásicas','7501234500160','Comida','Bolsa 45 g','Pieza',18.50,86,24,'2026-10-01 19:09:05',1),
+  (17,'Audífonos alámbricos','7501234500177','Tecnología','Cable 1.2 m','Pieza',149.00,10,8,'2026-10-01 19:09:05',1),
+  (18,'Cable USB-C','7501234500184','Tecnología','1 metro','Pieza',89.00,12,10,'2026-10-01 19:09:05',1),
+  (19,'Memoria USB 32 GB','7501234500191','Tecnología','32 GB','Pieza',129.00,28,6,'2026-10-01 19:09:05',1),
+  (20,'Cinta adhesiva','7501234500207','Papelería','Rollo','Pieza',12.00,41,26,'2026-10-01 19:09:05',1);
 
 -- Lotes de producto (existencias de almacén y caducidades)
 INSERT INTO lotes_producto (id, producto_id, cantidad, fecha_caducidad, recibido_en) VALUES
   (1,1,149,NULL,'2026-10-01 11:22:34'),
   (2,6,14,NULL,'2026-10-01 11:22:34'),
   (4,6,50,'2035-10-15','2026-10-01 11:37:03');
+
+-- Recalcula el stock de almacén de todos los productos (útil también para migrar una BD existente)
+UPDATE productos p SET p.stock_almacen = (SELECT COALESCE(SUM(l.cantidad), 0) FROM lotes_producto l WHERE l.producto_id = p.id);
 
 -- Relación producto <-> proveedores
 INSERT INTO producto_proveedor (producto_id, proveedor_id) VALUES

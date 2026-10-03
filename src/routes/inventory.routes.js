@@ -7,7 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const inventoryController = require('../controllers/inventory.controller.js');
-const { validateProduct, validateAjuste } = require('../middlewares/validate.middleware.js');
+const { validateProduct } = require('../middlewares/validate.middleware.js');
 const { permitirRoles } = require('../middlewares/auth.middleware.js');
 
 /**
@@ -53,7 +53,7 @@ router.post(
 router.get('/productos', inventoryController.getProducto);
 
 /**
- * Ruta para gestionar la baja de un producto mediante eliminación o desactivación.
+ * Ruta para gestionar la baja de un producto mediante archivado o desactivación.
  * Operación restringida exclusivamente para personal de inventario ('administrador', 'almacenista').
  * @name patch/productos/:id/baja
  * @route {PATCH} /api/inventory/productos/:id/baja
@@ -65,8 +65,8 @@ router.patch(
 );
 
 /**
- * Ruta para editar un producto existente: datos generales, distribuidores
- * asociados y fecha de caducidad.
+ * Ruta para editar un producto existente: datos generales y distribuidores
+ * asociados (el stock y la caducidad se gestionan por lotes y ajustes).
  * Restringida a los roles 'administrador' y 'almacenista'.
  * @name put/productos/:id
  * @route {PUT} /api/inventory/productos/:id
@@ -79,7 +79,8 @@ router.put(
 );
 
 /**
- * Ruta para registrar ajustes manuales (HU-17).
+ * Ruta para registrar ajustes manuales (HU-17): mover a mostrador, regresar a almacén,
+ * merma, daño y conteo de mostrador. Los datos se validan en el controlador.
  * Restringida a los roles 'administrador' y 'almacenista'.
  * @name post/productos/:id/ajuste
  * @route {POST} /api/inventory/productos/:id/ajuste
@@ -87,8 +88,38 @@ router.put(
 router.post(
   '/productos/:id/ajuste',
   permitirRoles('administrador', 'almacenista'),
-  validateAjuste,
   inventoryController.registrarAjuste
+);
+
+/**
+ * Ruta para consultar los lotes de almacén de un producto (orden FEFO).
+ * @name get/productos/:id/lotes
+ * @route {GET} /api/inventory/productos/:id/lotes
+ */
+router.get('/productos/:id/lotes', inventoryController.obtenerLotes);
+
+/**
+ * Ruta para agregar un lote al almacén (actualiza el stock de almacén).
+ * Restringida a los roles 'administrador' y 'almacenista'.
+ * @name post/productos/:id/lotes
+ * @route {POST} /api/inventory/productos/:id/lotes
+ */
+router.post(
+  '/productos/:id/lotes',
+  permitirRoles('administrador', 'almacenista'),
+  inventoryController.crearLote
+);
+
+/**
+ * Ruta para eliminar un lote del almacén (actualiza el stock de almacén).
+ * Restringida a los roles 'administrador' y 'almacenista'.
+ * @name delete/productos/:id/lotes/:idLote
+ * @route {DELETE} /api/inventory/productos/:id/lotes/:idLote
+ */
+router.delete(
+  '/productos/:id/lotes/:idLote',
+  permitirRoles('administrador', 'almacenista'),
+  inventoryController.borrarLote
 );
 
 /**

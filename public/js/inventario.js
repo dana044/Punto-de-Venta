@@ -9,6 +9,8 @@
 const API_PRODUCTOS = '/api/inventory/productos';
 const API_PROVEEDORES = '/api/inventory/proveedores';
 
+const API_ALERTAS = '/api/alerts';
+
 document.addEventListener('DOMContentLoaded', () => {
   const userRole = localStorage.getItem('userRole');
   const token = localStorage.getItem('token');
@@ -32,12 +34,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const TIEMPO_LIMITE_INACTIVIDAD = 5 * 60 * 1000;
   let temporizadorInactividad;
 
+  /**
+   * Cierra la sesión automáticamente cuando se agota el tiempo de inactividad.
+   * Limpia el almacenamiento local, avisa al usuario y redirige al login.
+   */
   function cerrarSesionPorInactividad() {
     localStorage.clear();
     alert('Tu sesion ha expirado automaticamente por inactividad.');
     window.location.replace('/login');
   }
 
+  /**
+   * Reinicia el temporizador de inactividad cada vez que el usuario interactúa con la página.
+   */
   function reiniciarTemporizador() {
     clearTimeout(temporizadorInactividad);
     temporizadorInactividad = setTimeout(cerrarSesionPorInactividad, TIEMPO_LIMITE_INACTIVIDAD);
@@ -75,9 +84,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const productosCount = document.getElementById('productosCount');
   const buscarInput = document.getElementById('buscarProducto');
   const chkMostrarInactivos = document.getElementById('chkMostrarInactivos');
+  const chkStockBajo = document.getElementById('chkStockBajo');
+  const ordenStockBajo = document.getElementById('ordenStockBajo');
+  let idsStockBajo = new Set();
+  let idsAlertaAlmacen = new Set();
+  let idsAlertaMostrador = new Set();
 
   let productosCache = [];
 
+  /**
+   * Muestra u oculta el modal de producto. Al ocultarlo restablece el formulario,
+   * el título, el texto del botón y la alerta.
+   *
+   * @param {boolean} mostrar - true para mostrar el modal, false para ocultarlo.
+   */
   const toggleModal = (mostrar) => {
     modalOverlay.style.display = mostrar ? 'flex' : 'none';
     if (!mostrar) {
@@ -133,6 +153,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  /**
+   * Consulta los distribuidores y los dibuja como checkboxes en el formulario de producto.
+   *
+   * @async
+   * @function cargarProveedores
+   * @returns {Promise<void>}
+   */
   async function cargarProveedores() {
     try {
       const res = await fetch(API_PROVEEDORES, { headers: { 'x-user-role': userRole } });
@@ -165,6 +192,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  /**
+   * Consulta el catálogo (general o filtrado por búsqueda), lo guarda en caché y lo renderiza.
+   * Respeta el checkbox "Ver inactivos".
+   *
+   * @async
+   * @function cargarProductos
+   * @param {string} [termino=''] - Texto de búsqueda (nombre, código o categoría).
+   * @returns {Promise<void>}
+   */
   async function cargarProductos(termino = '') {
     try {
       let url = termino
@@ -181,7 +217,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (res.ok && Array.isArray(data.productos)) {
         productosCache = data.productos;
-        renderizarTabla(data.productos);
+        if (chkStockBajo?.checked) await cargarIdsStockBajo();
+        renderizarTabla(chkStockBajo?.checked ? filtrarYOrdenarStockBajo(data.productos) : data.productos);
+        // Refresca el banner de alertas.js (mismos umbrales que usa el backend)
+        if (typeof window.cargarAlertas === 'function') window.cargarAlertas();
       } else {
         tablaBody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color: red; text-align:center;">Error: ${data.mensaje || 'Datos no validos'}</td></tr>`;
       }
@@ -190,6 +229,58 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  /**
+   * Consulta las alertas de stock bajo del backend (/api/alerts) y guarda los ids de los
+   * productos afectados (en total y por ubicación). Así el filtro usa exactamente los mismos
+   * umbrales que el banner.
+   *
+   * @async
+   * @function cargarIdsStockBajo
+   * @returns {Promise<void>}
+   */
+  async function cargarIdsStockBajo() {
+    try {
+      const res = await fetch(API_ALERTAS, { headers: { 'x-user-role': userRole } });
+      const data = await res.json();
+      const alertas = res.ok && Array.isArray(data.alertas) ? data.alertas : [];
+      idsStockBajo = new Set(alertas.map((a) => a.productoId));
+      idsAlertaAlmacen = new Set(alertas.filter((a) => a.ubicacion === 'almacen').map((a) => a.productoId));
+      idsAlertaMostrador = new Set(alertas.filter((a) => a.ubicacion === 'mostrador').map((a) => a.productoId));
+    } catch (error) {
+      idsStockBajo = new Set();
+      idsAlertaAlmacen = new Set();
+      idsAlertaMostrador = new Set();
+    }
+  }
+
+  /**
+   * Deja solo los productos que están en alerta y los ordena de menor a mayor existencia.
+   * Según la opción elegida muestra todos los que están en alerta (ordenados por almacén y,
+   * en empate, por mostrador), solo los que están en alerta en almacén o solo en mostrador.
+   *
+   * @param {Array<Object>} lista - Productos a filtrar.
+   * @returns {Array<Object>} Productos en alerta ya ordenados.
+   */
+  function filtrarYOrdenarStockBajo(lista) {
+    const opcion = ordenStockBajo.value;
+    const ids = opcion === 'almacen' ? idsAlertaAlmacen
+      : opcion === 'mostrador' ? idsAlertaMostrador
+      : idsStockBajo;
+    const principal = opcion === 'mostrador' ? 'stock_mostrador' : 'stock_almacen';
+    const secundaria = principal === 'stock_almacen' ? 'stock_mostrador' : 'stock_almacen';
+
+    return lista
+      .filter((p) => ids.has(p.id))
+      .sort((a, b) => (Number(a[principal] || 0) - Number(b[principal] || 0))
+        || (Number(a[secundaria] || 0) - Number(b[secundaria] || 0)));
+  }
+
+  /**
+   * Genera el badge HTML según la cercanía de una fecha de caducidad.
+   *
+   * @param {string|null} fecha - Fecha de caducidad o null si no aplica.
+   * @returns {string} HTML del badge (Sin fecha, Caducado, Caduca en Nd o Vigente).
+   */
   function calcularBadgeCaducidad(fecha) {
     if (!fecha) return '<span class="text-muted">Sin fecha</span>';
 
@@ -202,9 +293,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<span class="badge badge--success">Vigente</span>`;
   }
 
+  /**
+   * Dibuja las filas de la tabla de productos con sus existencias y acciones
+   * (Stock, Editar y el menú ⋮ con Desactivar/Reactivar y Archivar).
+   *
+   * @param {Array<Object>} lista - Productos a mostrar.
+   */
   function renderizarTabla(lista) {
     tablaBody.innerHTML = '';
-    const textoEstado = chkMostrarInactivos?.checked ? 'incluyendo inactivos' : 'activos';
+    const textoEstado = (chkMostrarInactivos?.checked ? 'incluyendo inactivos' : 'activos')
+      + (chkStockBajo?.checked ? ' con stock bajo' : '');
     productosCount.textContent = `${lista.length} producto(s) ${textoEstado}`;
 
     if (lista.length === 0) {
@@ -227,6 +325,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `<button class="btn-icon-delete btn-desactivar" data-id="${p.id}" title="Desactivar" style="background-color: #FEF3C7; color: #B45309;">Desactivar</button>`
         : `<button class="btn-icon-delete btn-activar" data-id="${p.id}" title="Reactivar" style="background-color: #E6F0EF; color: var(--color-primary);">Reactivar</button>`;
 
+      // Menú ⋮: agrupa las acciones de baja (Desactivar/Reactivar y Archivar)
+      const menuOpcionesHTML = `
+        <div class="menu-acciones" style="position: relative; display: inline-block;">
+          <button class="btn-icon-edit btn-menu" data-id="${p.id}" title="Más opciones" style="background-color: #F3F4F6; color: #374151;">⋮</button>
+          <div class="menu-acciones__lista" style="display: none; position: absolute; right: 0; z-index: 10; min-width: 120px; flex-direction: column; gap: 0.4rem; padding: 0.4rem; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+            ${botonEstadoHTML}
+            <button class="btn-icon-delete btn-archivar" data-id="${p.id}" title="Archivar">Archivar</button>
+          </div>
+        </div>`;
+
       fila.innerHTML = `
         <td style="${opacidad}"><code>${p.codigo_barras || 'N/A'}</code></td>
       <td style="${opacidad}">
@@ -243,11 +351,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <small class="text-muted">${p.proveedores_nombres || 'Sin proveedor'}</small>
       </td>
       <td class="actions-cell" style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-start; min-width: 280px;">
-        <button class="btn-icon-edit btn-lotes" data-id="${p.id}" title="Ver Lotes" style="background-color: #DBEAFE; color: #1E3A8A;">Lotes</button>
-        <button class="btn-icon-edit btn-ajustar" data-id="${p.id}" title="Ajustar Stock" style="background-color: #F3E8FF; color: #7E22CE;">Ajustar</button>
+        <button class="btn-icon-edit btn-stock" data-id="${p.id}" title="Gestionar Stock (lotes, mover y ajustar)" style="background-color: #DBEAFE; color: #1E3A8A;">Stock</button>
         <button class="btn-icon-edit btn-editar" data-id="${p.id}" title="Editar">Editar</button>
-        ${botonEstadoHTML}
-        <button class="btn-icon-delete btn-eliminar" data-id="${p.id}" title="Eliminar">Eliminar</button>
+        ${menuOpcionesHTML}
       </td>
       `;
       tablaBody.appendChild(fila);
@@ -262,6 +368,21 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarProductos(buscarInput.value.trim());
   });
 
+  // "Ver stock bajo": muestra el selector de orden y recarga la tabla filtrada
+  chkStockBajo?.addEventListener('change', () => {
+    ordenStockBajo.style.display = chkStockBajo.checked ? 'block' : 'none';
+    cargarProductos(buscarInput.value.trim());
+  });
+
+  ordenStockBajo?.addEventListener('change', () => {
+    cargarProductos(buscarInput.value.trim());
+  });
+
+  /**
+   * Abre el modal de producto cargado con los datos de catálogo (sin stock ni caducidad).
+   *
+   * @param {Object} producto - Producto a editar.
+   */
   function abrirModalEdicion(producto) {
     document.getElementById('productoId').value = producto.id;
     document.getElementById('nombreProducto').value = producto.nombre;
@@ -270,17 +391,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('presentacion').value = producto.presentacion || '';
     document.getElementById('unidadMedida').value = producto.unidad_medida || '';
     document.getElementById('precio').value = producto.precio;
-    const inputStock = document.getElementById('stock');
-    inputStock.value = producto.stock_almacen || 0;;
-    const inputMostrador = document.getElementById('stockMostrador');
-    inputMostrador.value = producto.stock_mostrador || 0;
-    inputMostrador.disabled = true;
-    inputMostrador.title = "Para enviar mercancía al mostrador, utiliza el botón 'Ajustar'."
-
-    document.getElementById('fechaCaducidad').value = producto.fecha_caducidad
-      ? String(producto.fecha_caducidad).substring(0, 10)
-      : '';
-
     const idsSeleccionados = (producto.proveedores_ids || '')
       .toString()
       .split(',')
@@ -316,9 +426,6 @@ document.addEventListener('DOMContentLoaded', () => {
       presentacion: document.getElementById('presentacion').value.trim(),
       unidad_medida: document.getElementById('unidadMedida').value,
       precio: parseFloat(document.getElementById('precio').value),
-      stock_almacen: parseInt(document.getElementById('stock').value, 10) || 0,
-      stock_mostrador: parseInt(document.getElementById('stockMostrador').value, 10) || 0,
-      fecha_caducidad: document.getElementById('fechaCaducidad').value || null,
       proveedoresIds: proveedoresSeleccionados
     };
 
@@ -367,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnDesactivar = e.target.closest('.btn-desactivar');
     const btnActivar = e.target.closest('.btn-activar');
-    const btnEliminar = e.target.closest('.btn-eliminar');
+    const btnArchivar = e.target.closest('.btn-archivar');
 
     let id = null, accion = null, mensajeConfirmacion = '';
 
@@ -377,9 +484,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (btnActivar) {
       id = btnActivar.dataset.id; accion = 'activar';
       mensajeConfirmacion = '¿Deseas reactivar este producto para que vuelva a estar disponible?';
-    } else if (btnEliminar) {
-      id = btnEliminar.dataset.id; accion = 'eliminar';
-      mensajeConfirmacion = '¿Estas seguro de que deseas eliminar definitivamente este producto?';
+    } else if (btnArchivar) {
+      id = btnArchivar.dataset.id; accion = 'archivar';
+      mensajeConfirmacion = '⚠️ ATENCIÓN: El producto será archivado y desaparecerá del sistema. Si deseas recuperarlo en el futuro, deberás contactar a tu programador. ¿Continuar?';
     }
 
     if (id && accion && confirm(mensajeConfirmacion)) {
@@ -403,12 +510,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  /**
+   * Muestra una alerta dentro del modal de producto.
+   *
+   * @param {string} mensaje - Texto a mostrar.
+   * @param {'success'|'error'} tipo - Tipo de alerta.
+   */
   function mostrarAlerta(mensaje, tipo) {
     modalAlert.textContent = mensaje;
     modalAlert.className = `alert alert--${tipo}`;
     modalAlert.hidden = false;
   }
 
+  /**
+   * Oculta y limpia la alerta del modal de producto.
+   */
   function ocultarAlerta() {
     if (modalAlert) {
       modalAlert.hidden = true;
@@ -416,130 +532,155 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  const modalAjuste = document.getElementById('modalAjusteOverlay');
-  const formAjuste = document.getElementById('formAjuste');
-  const alertAjuste = document.getElementById('modalAlertAjuste');
-  const btnGuardarAjuste = document.getElementById('btnGuardarAjuste');
+  // ==========================================================================
+  // MENÚ DE OPCIONES (⋮) DE CADA FILA
+  // ==========================================================================
 
-  const toggleModalAjuste = (mostrar) => {
-    modalAjuste.style.display = mostrar ? 'flex' : 'none';
-    if (!mostrar) {
-      formAjuste.reset();
-      alertAjuste.hidden = true;
-      document.getElementById('grupoTipoStock').style.display = 'block';
-    }
-  };
-
-  document.getElementById('btnCerrarModalAjuste')?.addEventListener('click', () => toggleModalAjuste(false));
-  document.getElementById('btnCancelarAjuste')?.addEventListener('click', () => toggleModalAjuste(false));
-
-  function abrirModalAjuste(producto) {
-    document.getElementById('ajusteProductoId').value = producto.id;
-    document.getElementById('nombreProductoAjuste').textContent = `${producto.nombre} (Almacén: ${producto.stock_almacen || 0} | Mostrador: ${producto.stock_mostrador || 0})`;
-    toggleModalAjuste(true);
+  /**
+   * Cierra todos los menús ⋮ abiertos en la tabla.
+   */
+  function cerrarMenusAcciones() {
+    document.querySelectorAll('.menu-acciones__lista').forEach((lista) => {
+      lista.style.display = 'none';
+    });
   }
 
   tablaBody.addEventListener('click', (e) => {
-    const btnAjustar = e.target.closest('.btn-ajustar');
-    if (btnAjustar) {
-      e.preventDefault();
-      const producto = productosCache.find((p) => p.id == btnAjustar.dataset.id);
-      if (producto) abrirModalAjuste(producto);
+    const btnMenu = e.target.closest('.btn-menu');
+    if (btnMenu) {
+      const lista = btnMenu.nextElementSibling;
+      const estabaAbierto = lista.style.display === 'flex';
+      cerrarMenusAcciones();
+      lista.style.display = estabaAbierto ? 'none' : 'flex';
+      return;
     }
-  });
-  
-  document.getElementById('tipoAjuste').addEventListener('change', (e) => {
-    const val = e.target.value;
-    const grupo = document.getElementById('grupoTipoStock');
-    if (val.includes('transferencia')) grupo.style.display = 'none';
-    else grupo.style.display = 'block';
+    cerrarMenusAcciones();
   });
 
-  formAjuste.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('ajusteProductoId').value;
-    const payload = {
-      tipoAjuste: document.getElementById('tipoAjuste').value,
-      tipoStock: document.getElementById('tipoStock') ? document.getElementById('tipoStock').value : 'almacen',
-      cantidad: Number(document.getElementById('cantidadAjuste').value),
-      motivo: document.getElementById('motivoAjuste').value.trim()
-    };
-
-    btnGuardarAjuste.disabled = true;
-    btnGuardarAjuste.textContent = 'Procesando...';
-    alertAjuste.hidden = true;
-
-    try {
-      const res = await fetch(`/api/inventory/productos/${id}/ajuste`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': userRole
-        },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        alertAjuste.textContent = data.mensaje;
-        alertAjuste.className = 'alert alert--success';
-        alertAjuste.hidden = false;
-        cargarProductos(document.getElementById('buscarProducto')?.value.trim());
-        setTimeout(() => toggleModalAjuste(false), 1500);
-      } else {
-        alertAjuste.textContent = data.mensaje || 'Error al realizar el ajuste.';
-        alertAjuste.className = 'alert alert--error';
-        alertAjuste.hidden = false;
-      }
-    } catch (err) {
-      alertAjuste.textContent = 'Error de comunicación con el servidor.';
-      alertAjuste.className = 'alert alert--error';
-      alertAjuste.hidden = false;
-    } finally {
-      btnGuardarAjuste.disabled = false;
-      btnGuardarAjuste.textContent = 'Registrar Ajuste';
-    }
+  // Un clic fuera del menú también lo cierra
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.menu-acciones')) cerrarMenusAcciones();
   });
 
   // ==========================================================================
-  // LÓGICA DEL MODAL DE LOTES (FEFO)
+  // LÓGICA DEL MODAL DE STOCK (LOTES + MOVER / AJUSTAR)
   // ==========================================================================
-  const modalLotesOverlay = document.getElementById('modalLotesOverlay');
+  const modalStock = document.getElementById('modalStockOverlay');
+  const alertStock = document.getElementById('modalAlertStock');
+  const stockProductoId = document.getElementById('stockProductoId');
   const formNuevoLote = document.getElementById('formNuevoLote');
   const tablaLotesBody = document.getElementById('tablaLotesBody');
-  const alertLotes = document.getElementById('modalAlertLotes');
   const btnGuardarLote = document.getElementById('btnGuardarLote');
-  let loteEnEdicionId = null;
+  const formAjuste = document.getElementById('formAjuste');
+  const btnGuardarAjuste = document.getElementById('btnGuardarAjuste');
+  const inputCantidadAjuste = document.getElementById('cantidadAjuste');
 
-  const toggleModalLotes = (mostrar) => {
-    if (!modalLotesOverlay) return; 
+  /**
+   * Obtiene la fecha local de hoy en formato YYYY-MM-DD (para el atributo min de las caducidades).
+   *
+   * @returns {string} Fecha actual local.
+   */
+  function fechaLocalHoy() {
+    const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+    return (new Date(Date.now() - tzOffset)).toISOString().slice(0, 10);
+  }
 
-    modalLotesOverlay.style.display = mostrar ? 'flex' : 'none';
+  /**
+   * Muestra una alerta dentro del modal de stock.
+   *
+   * @param {string} mensaje - Texto a mostrar.
+   * @param {'success'|'error'} tipo - Tipo de alerta.
+   */
+  function mostrarAlertaStock(mensaje, tipo) {
+    alertStock.textContent = mensaje;
+    alertStock.className = `alert alert--${tipo}`;
+    alertStock.hidden = false;
+  }
+
+  /**
+   * Cambia la pestaña activa del modal de stock.
+   *
+   * @param {string} idPestana - Id del contenido a mostrar ('tab-lotes' o 'tab-ajuste').
+   */
+  function cambiarPestana(idPestana) {
+    modalStock.querySelectorAll('.tab-btn').forEach((btn) => {
+      const activa = btn.dataset.target === idPestana;
+      btn.classList.toggle('active', activa);
+      btn.style.fontWeight = activa ? 'bold' : 'normal';
+      btn.style.borderBottom = activa ? '2px solid var(--color-primary)' : 'none';
+    });
+    modalStock.querySelectorAll('.tab-content').forEach((contenido) => {
+      contenido.style.display = contenido.id === idPestana ? 'block' : 'none';
+    });
+    alertStock.hidden = true;
+  }
+
+  /**
+   * Muestra u oculta el modal de stock. Al ocultarlo restablece formularios y alertas.
+   *
+   * @param {boolean} mostrar - true para mostrar el modal, false para ocultarlo.
+   */
+  const toggleModalStock = (mostrar) => {
+    modalStock.style.display = mostrar ? 'flex' : 'none';
     if (!mostrar) {
       formNuevoLote.reset();
-      alertLotes.hidden = true;
-      
-      loteEnEdicionId = null;
-      btnGuardarLote.textContent = 'Agregar Lote';
-      document.querySelector('#formNuevoLote p strong').textContent = '+ Ingresar nueva mercancía';
+      formAjuste.reset();
+      alertStock.hidden = true;
+      document.getElementById('grupoCaducidadAjuste').style.display = 'none';
+      inputCantidadAjuste.min = 1;
     } else {
-      const inputCaducidad = document.getElementById('loteCaducidad');
-      
-      const tzOffset = (new Date()).getTimezoneOffset() * 60000;
-      const localISOTime = (new Date(Date.now() - tzOffset)).toISOString().slice(0, 10);
-      
-      inputCaducidad.setAttribute('min', localISOTime);
+      const hoy = fechaLocalHoy();
+      document.getElementById('loteCaducidad').setAttribute('min', hoy);
+      document.getElementById('caducidadAjuste').setAttribute('min', hoy);
     }
   };
 
-  document.getElementById('btnCerrarModalLotes')?.addEventListener('click', () => toggleModalLotes(false));
-  document.getElementById('btnCerrarLotesFooter')?.addEventListener('click', () => toggleModalLotes(false));
+  document.getElementById('btnCerrarModalStock')?.addEventListener('click', () => toggleModalStock(false));
+  document.getElementById('btnCerrarLotesFooter')?.addEventListener('click', () => toggleModalStock(false));
+  document.getElementById('btnCancelarAjuste')?.addEventListener('click', () => toggleModalStock(false));
 
+  modalStock.querySelectorAll('.tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => cambiarPestana(btn.dataset.target));
+  });
+
+  /**
+   * Actualiza el subtítulo del modal con las existencias actuales del producto.
+   *
+   * @param {Object} producto - Producto con stock_almacen y stock_mostrador.
+   */
+  function actualizarSubtituloStock(producto) {
+    document.getElementById('stockSubtitle').textContent =
+      `${producto.codigo_barras} - ${producto.nombre} (Almacén: ${producto.stock_almacen || 0} | Mostrador: ${producto.stock_mostrador || 0})`;
+  }
+
+  /**
+   * Recarga la tabla principal, los lotes y el subtítulo del modal tras un cambio de stock.
+   *
+   * @async
+   * @function refrescarStock
+   * @param {number|string} productoId - Producto que se está gestionando.
+   * @returns {Promise<void>}
+   */
+  async function refrescarStock(productoId) {
+    await cargarProductos(buscarInput?.value.trim());
+    const producto = productosCache.find((p) => p.id == productoId);
+    if (producto) actualizarSubtituloStock(producto);
+    await cargarLotesDeProducto(productoId);
+  }
+
+  /**
+   * Consulta los lotes de almacén de un producto y los dibuja en la tabla del modal.
+   *
+   * @async
+   * @function cargarLotesDeProducto
+   * @param {number|string} productoId - Producto cuyos lotes se consultan.
+   * @returns {Promise<void>}
+   */
   async function cargarLotesDeProducto(productoId) {
     tablaLotesBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando lotes...</td></tr>';
     try {
-      const res = await fetch(`/api/inventory/productos/${productoId}/lotes`, { 
-        headers: { 'x-user-role': userRole } 
+      const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes`, {
+        headers: { 'x-user-role': userRole }
       });
       const data = await res.json();
 
@@ -550,19 +691,18 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        data.lotes.forEach(lote => {
+        data.lotes.forEach((lote) => {
           const caducidadFormateada = lote.fecha_caducidad ? String(lote.fecha_caducidad).substring(0, 10) : '';
           const textoCaducidad = caducidadFormateada || 'Sin caducidad';
           const fechaRegistro = new Date(lote.recibido_en).toLocaleDateString();
-          
+
           tablaLotesBody.innerHTML += `
             <tr>
               <td><span class="badge" style="background:#E5E7EB; color:#374151;">L-${lote.id}</span></td>
               <td><strong>${lote.cantidad}</strong></td>
               <td>${calcularBadgeCaducidad(lote.fecha_caducidad)} <br><small class="text-muted">${textoCaducidad}</small></td>
               <td>${fechaRegistro}</td>
-              <td style="display: flex; gap: 0.25rem;">
-                <button class="btn-editar-lote" data-id="${lote.id}" data-fecha="${caducidadFormateada}" data-cantidad="${lote.cantidad}" style="background-color: #FEF3C7; color: #B45309; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Editar</button>
+              <td>
                 <button class="btn-eliminar-lote" data-id="${lote.id}" style="background-color: #FEE2E2; color: #991B1B; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Eliminar</button>
               </td>
             </tr>
@@ -576,131 +716,133 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Interceptar el clic en el botón "Lotes" de la tabla principal
-  tablaBody.addEventListener('click', async (e) => {
-    const btnLotes = e.target.closest('.btn-lotes');
-    if (btnLotes) {
+  // Interceptar el clic en el botón "Stock" de la tabla principal
+  tablaBody.addEventListener('click', (e) => {
+    const btnStock = e.target.closest('.btn-stock');
+    if (btnStock) {
       e.preventDefault();
-      const producto = productosCache.find((p) => p.id == btnLotes.dataset.id);
+      const producto = productosCache.find((p) => p.id == btnStock.dataset.id);
       if (producto) {
-        document.getElementById('loteProductoId').value = producto.id;
-        document.getElementById('lotesSubtitle').textContent = `${producto.codigo_barras} - ${producto.nombre}`;
-        toggleModalLotes(true);
+        stockProductoId.value = producto.id;
+        document.getElementById('stockTitle').textContent = 'Gestión de Stock';
+        actualizarSubtituloStock(producto);
+        cambiarPestana('tab-lotes');
+        toggleModalStock(true);
         cargarLotesDeProducto(producto.id);
       }
-      return;
     }
   });
 
   // Interceptar el envío del formulario para crear un nuevo lote
   formNuevoLote?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const productoId = document.getElementById('loteProductoId').value;
-    
+    const productoId = stockProductoId.value;
+
     const payload = {
       cantidad: Number(document.getElementById('loteCantidad').value),
-      fechaCaducidad: document.getElementById('loteCaducidad').value || null
+      fecha_caducidad: document.getElementById('loteCaducidad').value || null
     };
 
     btnGuardarLote.disabled = true;
     btnGuardarLote.textContent = 'Guardando...';
-    alertLotes.hidden = true;
-
-    // Decidimos si es POST (Crear) o PUT (Editar)
-    const url = loteEnEdicionId !== null 
-      ? `/api/inventory/lotes/${loteEnEdicionId}` 
-      : `/api/inventory/productos/${productoId}/lotes`;
-      
-    const metodo = loteEnEdicionId !== null ? 'PUT' : 'POST';
+    alertStock.hidden = true;
 
     try {
-      const res = await fetch(url, {
-        method: metodo,
+      const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
         body: JSON.stringify(payload)
       });
       const data = await res.json();
-      
+
       if (res.ok) {
-        alertLotes.textContent = loteEnEdicionId ? 'Lote actualizado correctamente.' : 'Lote agregado exitosamente al almacén.';
-        alertLotes.className = 'alert alert--success';
-        alertLotes.hidden = false;
-        
+        mostrarAlertaStock('Lote agregado exitosamente al almacén.', 'success');
         formNuevoLote.reset();
-        
-        // Regresamos la interfaz al modo "Crear"
-        loteEnEdicionId = null;
-        btnGuardarLote.textContent = 'Agregar Lote';
-        document.querySelector('#formNuevoLote p strong').textContent = '+ Ingresar nueva mercancía';
-        
-        cargarLotesDeProducto(productoId);
-        cargarProductos(buscarInput?.value.trim());
+        await refrescarStock(productoId);
       } else {
-        alertLotes.textContent = data.mensaje || 'Error al procesar el lote.';
-        alertLotes.className = 'alert alert--error';
-        alertLotes.hidden = false;
+        mostrarAlertaStock(data.mensaje || 'Error al procesar el lote.', 'error');
       }
     } catch (error) {
-      alertLotes.textContent = 'Error de comunicación con el servidor.';
-      alertLotes.className = 'alert alert--error';
-      alertLotes.hidden = false;
+      mostrarAlertaStock('Error de comunicación con el servidor.', 'error');
     } finally {
       btnGuardarLote.disabled = false;
-      if (alertLotes.className.includes('error')) {
-         btnGuardarLote.textContent = loteEnEdicionId ? 'Actualizar Lote' : 'Agregar Lote';
-      }
+      btnGuardarLote.textContent = 'Agregar Lote';
     }
   });
 
   // Interceptar el clic para eliminar un lote específico
   tablaLotesBody?.addEventListener('click', async (e) => {
-    const productoId = document.getElementById('loteProductoId').value;
-
-    // 1. Botón Editar Lote
-    const btnEditar = e.target.closest('.btn-editar-lote');
-    if (btnEditar) {
-      // Llenamos el formulario con los datos del lote
-      document.getElementById('loteCantidad').value = btnEditar.dataset.cantidad;
-      document.getElementById('loteCaducidad').value = btnEditar.dataset.fecha || '';
-      
-      // Guardamos el ID que estamos editando y cambiamos la interfaz
-      loteEnEdicionId = btnEditar.dataset.id;
-      btnGuardarLote.textContent = 'Actualizar Lote';
-      document.querySelector('#formNuevoLote p strong').textContent = '✎ Editar Lote Existente';
-      
-      // Hacemos scroll hacia arriba suavemente para que el usuario vea el formulario
-      document.querySelector('#modalLotesOverlay .modal-card').scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    // 2. Botón Eliminar Lote
     const btnEliminar = e.target.closest('.btn-eliminar-lote');
-    if (btnEliminar) {
-      if (confirm('¿Estás seguro de que deseas eliminar este lote? Esta acción descontará las unidades del almacén general.')) {
-        try {
-          const res = await fetch(`/api/inventory/lotes/${btnEliminar.dataset.id}`, {
-            method: 'DELETE',
-            headers: { 'x-user-role': userRole }
-          });
-          
-          if (res.ok) {
-            // Si eliminamos un lote que estábamos editando, limpiamos el formulario
-            if (loteEnEdicionId === btnEliminar.dataset.id) {
-                formNuevoLote.reset();
-                loteEnEdicionId = null;
-                btnGuardarLote.textContent = 'Agregar Lote';
-                document.querySelector('#formNuevoLote p strong').textContent = '+ Ingresar nueva mercancía';
-            }
+    if (!btnEliminar) return;
 
-            cargarLotesDeProducto(productoId);
-            cargarProductos(buscarInput?.value.trim()); 
-          } else {
-            alert('Error al eliminar el lote.');
-          }
-        } catch (error) {
-          alert('Error de conexión.');
+    const productoId = stockProductoId.value;
+    if (confirm('¿Estás seguro de que deseas eliminar este lote? Esta acción descontará las unidades del almacén general.')) {
+      try {
+        const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes/${btnEliminar.dataset.id}`, {
+          method: 'DELETE',
+          headers: { 'x-user-role': userRole }
+        });
+
+        if (res.ok) {
+          mostrarAlertaStock('Lote eliminado. El stock de almacén se actualizó.', 'success');
+          await refrescarStock(productoId);
+        } else {
+          const data = await res.json();
+          mostrarAlertaStock(data.mensaje || 'Error al eliminar el lote.', 'error');
         }
+      } catch (error) {
+        mostrarAlertaStock('Error de conexión.', 'error');
       }
+    }
+  });
+
+  // Mostrar la caducidad solo al regresar a almacén; el conteo físico permite cantidad 0
+  document.getElementById('tipoAjuste').addEventListener('change', (e) => {
+    const val = e.target.value;
+    document.getElementById('grupoCaducidadAjuste').style.display = val === 'regresar_almacen' ? 'block' : 'none';
+    inputCantidadAjuste.min = val === 'conteo_mostrador' ? 0 : 1;
+  });
+
+  // Aplicar ajuste / mover stock
+  formAjuste.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const productoId = stockProductoId.value;
+    const payload = {
+      tipoAjuste: document.getElementById('tipoAjuste').value,
+      cantidad: Number(inputCantidadAjuste.value),
+      motivo: document.getElementById('motivoAjuste').value.trim(),
+      caducidad: document.getElementById('caducidadAjuste').value || null
+    };
+
+    btnGuardarAjuste.disabled = true;
+    btnGuardarAjuste.textContent = 'Procesando...';
+    alertStock.hidden = true;
+
+    try {
+      const res = await fetch(`${API_PRODUCTOS}/${productoId}/ajuste`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': userRole
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        mostrarAlertaStock(data.mensaje, 'success');
+        formAjuste.reset();
+        document.getElementById('grupoCaducidadAjuste').style.display = 'none';
+        inputCantidadAjuste.min = 1;
+        await refrescarStock(productoId);
+      } else {
+        mostrarAlertaStock(data.mensaje || 'Error al realizar el ajuste.', 'error');
+      }
+    } catch (err) {
+      mostrarAlertaStock('Error de comunicación con el servidor.', 'error');
+    } finally {
+      btnGuardarAjuste.disabled = false;
+      btnGuardarAjuste.textContent = 'Registrar Acción';
     }
   });
 });

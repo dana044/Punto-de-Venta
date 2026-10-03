@@ -30,6 +30,16 @@ const db = require('../config/db.js');
  * @property {boolean} activo - Estado lógico del producto (Activo/Inactivo).
  * @property {Array<number>} [proveedoresIds] - Identificadores de distribuidores vinculados.
  * @property {string} [proveedores_nombres] - Cadena agrupada con nombres de proveedores.
+ * @property {string} [proxima_caducidad] - Caducidad más cercana entre los lotes de almacén con existencia.
+ */
+
+/**
+ * @typedef {Object} Lote
+ * @property {number} id - Identificador único del lote.
+ * @property {number} producto_id - Producto al que pertenece el lote.
+ * @property {number} cantidad - Piezas disponibles en el lote.
+ * @property {string|null} fecha_caducidad - Fecha de caducidad (YYYY-MM-DD) o null si no caduca.
+ * @property {string} recibido_en - Fecha y hora de registro del lote.
  */
 
 /**
@@ -49,7 +59,6 @@ const createProduct = async (productData) => {
     presentacion,
     unidad_medida,
     precio,
-    stock_mostrador,
     proveedoresIds
   } = productData;
 
@@ -58,17 +67,17 @@ const createProduct = async (productData) => {
   try {
     await connection.beginTransaction();
 
+    // El stock inicia en 0: las existencias se gestionan desde el modal de Stock (lotes y ajustes)
     const [result] = await connection.execute(
-      `INSERT INTO productos (nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_mostrador) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO productos (nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen, stock_mostrador) 
+       VALUES (?, ?, ?, ?, ?, ?, 0, 0)`,
       [
         nombre,
         codigo_barras,
         categoria || 'Sin categoría',
         presentacion || 'N/A',
         unidad_medida || 'Pieza',
-        precio,
-        stock_mostrador || 0
+        precio
       ]
     );
 
@@ -95,7 +104,8 @@ const createProduct = async (productData) => {
       presentacion: presentacion || 'N/A',
       unidad_medida: unidad_medida || 'Pieza',
       precio,
-      stock_mostrador: stock_mostrador || 0,
+      stock_almacen: 0,
+      stock_mostrador: 0,
       proveedoresIds: proveedoresIds ? proveedoresIds.map(Number) : []
     };
   } catch (error) {
@@ -107,22 +117,21 @@ const createProduct = async (productData) => {
 };
 
 /**
- * Actualiza la información general de un producto existente y resincroniza
- * sus distribuidores asociados en una sola transacción. También
- * permite registrar o modificar la fecha de caducidad del producto.
+ * Actualiza la información general (solo catálogo) de un producto existente y resincroniza
+ * sus distribuidores asociados en una sola transacción. El stock y la caducidad
+ * ya no se editan aquí: se gestionan mediante lotes y ajustes (ver agregarLote y ajustarStock).
  *
  * @async
  * @function updateProduct
  * @param {number|string} id - Identificador del producto a actualizar.
  * @param {Object} productData - Datos capturados en el formulario de edición.
- * @param {string} [productData.fecha_caducidad] - Nueva fecha de caducidad (YYYY-MM-DD) o null si no aplica.
  * @returns {Promise<Producto>} Datos del producto ya actualizado.
  * @throws {Error} Lanza error si falla la transacción o si el código de barras ya está en uso.
  */
 const updateProduct = async (id, productData) => {
   const {
     nombre, codigo_barras, categoria, presentacion, unidad_medida,
-    precio, stock_mostrador, proveedoresIds
+    precio, proveedoresIds
   } = productData;
 
   const connection = await db.getConnection();
@@ -131,7 +140,7 @@ const updateProduct = async (id, productData) => {
 
     await connection.execute(
       `UPDATE productos SET nombre=?, codigo_barras=?, categoria=?, presentacion=?, 
-       unidad_medida=?, precio=?, stock_mostrador=? WHERE id=?`,
+       unidad_medida=?, precio=? WHERE id=?`,
       [
         nombre || '', 
         codigo_barras || '', 
@@ -139,7 +148,6 @@ const updateProduct = async (id, productData) => {
         presentacion || 'N/A',
         unidad_medida || 'Pieza', 
         Number(precio) || 0, 
-        Number(stock_mostrador) || 0, 
         Number(id)
       ]
     );
@@ -188,7 +196,8 @@ const getProveedores = async () => {
  * @returns {Promise<Array<Producto>>} Lista de productos con distribuidores asociados.
  */
 const getProducts = async (mostrarInactivos = false) => {
-  const estadoRequerido = mostrarInactivos ? 0 : 1;
+  // Con inactivos: activos (1) e inactivos (0). Los archivados (2) nunca se listan.
+  const condicionEstado = mostrarInactivos ? 'p.activo != 2' : 'p.activo = 1';
   const query = `
     SELECT 
       p.id, 
@@ -196,26 +205,24 @@ const getProducts = async (mostrarInactivos = false) => {
       p.codigo_barras, 
       p.categoria, p.presentacion, 
       p.unidad_medida, p.precio, 
-      p.stock_mostrador, p.activo,
-      COALESCE(l.stock_almacen, 0) AS stock_almacen,
+      p.stock_almacen, p.stock_mostrador, p.activo,
       l.proxima_caducidad,
       GROUP_CONCAT(DISTINCT prov.id SEPARATOR ',') AS proveedores_ids,
       GROUP_CONCAT(DISTINCT prov.nombre SEPARATOR ', ') AS proveedores_nombres
     FROM productos p
     LEFT JOIN (
         SELECT producto_id, 
-               SUM(cantidad) AS stock_almacen, 
                MIN(CASE WHEN cantidad > 0 THEN fecha_caducidad END) AS proxima_caducidad
         FROM lotes_producto
         GROUP BY producto_id
     ) l ON l.producto_id = p.id
     LEFT JOIN producto_proveedor pp ON p.id = pp.producto_id
     LEFT JOIN proveedores prov ON pp.proveedor_id = prov.id
-    WHERE p.activo = ?
+    WHERE ${condicionEstado}
     GROUP BY p.id
     ORDER BY p.creado_en DESC
   `;
-  const [rows] = await db.execute(query, [estadoRequerido]);
+  const [rows] = await db.execute(query);
   return rows;
 };
 
@@ -242,7 +249,7 @@ const findById = async (id) => {
  * @returns {Promise<Array<Producto>>} Lista de productos que coinciden con el criterio.
  */
 const buscarProductos = async (termino, mostrarInactivos = false) => {
-  const estadoRequerido = mostrarInactivos ? 0 : 1;
+  const condicionEstado = mostrarInactivos ? 'p.activo != 2' : 'p.activo = 1';
   const query = `
     SELECT 
       p.id, p.nombre, 
@@ -251,38 +258,37 @@ const buscarProductos = async (termino, mostrarInactivos = false) => {
       p.presentacion, 
       p.unidad_medida, 
       p.precio, 
+      p.stock_almacen, 
       p.stock_mostrador, 
       p.activo,
-      COALESCE(l.stock_almacen, 0) AS stock_almacen,
       l.proxima_caducidad,
       GROUP_CONCAT(DISTINCT prov.id SEPARATOR ',') AS proveedores_ids,
       GROUP_CONCAT(DISTINCT prov.nombre SEPARATOR ', ') AS proveedores_nombres
     FROM productos p
     LEFT JOIN (
         SELECT producto_id, 
-               SUM(cantidad) AS stock_almacen, 
                MIN(CASE WHEN cantidad > 0 THEN fecha_caducidad END) AS proxima_caducidad
         FROM lotes_producto
         GROUP BY producto_id
     ) l ON l.producto_id = p.id
     LEFT JOIN producto_proveedor pp ON p.id = pp.producto_id
     LEFT JOIN proveedores prov ON pp.proveedor_id = prov.id
-    WHERE (p.nombre LIKE ? OR p.codigo_barras LIKE ? OR p.categoria LIKE ?) AND p.activo = ?
+    WHERE (p.nombre LIKE ? OR p.codigo_barras LIKE ? OR p.categoria LIKE ?) AND ${condicionEstado}
     GROUP BY p.id
     ORDER BY p.nombre ASC
   `;
   const valor = `%${termino}%`;
-  const [rows] = await db.execute(query, [valor, valor, valor, estadoRequerido]);
+  const [rows] = await db.execute(query, [valor, valor, valor]);
   return rows;
 };
 
 /**
- * Da de baja, activa o elimina permanentemente un producto en el sistema.
+ * Da de baja, activa o archiva un producto en el sistema.
  *
  * @async
  * @function darDeBajaProducto
  * @param {number|string} id - Identificador único del producto en la base de datos.
- * @param {'desactivar'|'activar'|'eliminar'} accion - Tipo de operación a realizar por el almacenista.
+ * @param {'desactivar'|'activar'|'archivar'} accion - Tipo de operación a realizar por el almacenista.
  * @returns {Promise<void>} Promesa que se resuelve al completar la sentencia SQL.
  */
 const darDeBajaProducto = async (id, accion) => {
@@ -292,16 +298,165 @@ const darDeBajaProducto = async (id, accion) => {
   } else if (accion === 'activar') {
     // 1 = Activo (Aparece en el inventario principal)
     await db.execute('UPDATE productos SET activo = 1 WHERE id = ?', [id]);
-  } else if (accion === 'eliminar') {
+  } else if (accion === 'archivar') {
     // 2 = Archivado/Eliminado (No aparece en activos ni inactivos, pero conserva el historial)
     await db.execute('UPDATE productos SET activo = 2 WHERE id = ?', [id]);
   }
 };
 
 /**
- * Registra un ajuste manual en el inventario afectando la base de datos (HU-17).
+ * Consulta los lotes de almacén de un producto ordenados por FEFO
+ * (primero los que caducan antes; los lotes sin caducidad al final).
+ *
+ * @async
+ * @function getLotesByProducto
+ * @param {number|string} productoId - Identificador del producto.
+ * @returns {Promise<Array<Lote>>} Lotes registrados del producto.
  */
-const ajustarStock = async (id, cantidad, tipoAjuste, tipoStock = 'almacen') => {
+const getLotesByProducto = async (productoId) => {
+  const [rows] = await db.execute(
+    `SELECT id, producto_id, cantidad, fecha_caducidad, recibido_en
+     FROM lotes_producto
+     WHERE producto_id = ?
+     ORDER BY fecha_caducidad IS NULL, fecha_caducidad ASC, id ASC`,
+    [Number(productoId)]
+  );
+  return rows;
+};
+
+/**
+ * Recalcula productos.stock_almacen como la suma de los lotes del producto.
+ * El conteo de lotes sustituye al conteo manual de almacén. Se ejecuta dentro de la
+ * transacción recibida (los triggers de la BD ya lo mantienen; esto es respaldo).
+ *
+ * @async
+ * @function actualizarStockAlmacenPorLotes
+ * @param {Object} connection - Conexión activa con transacción abierta.
+ * @param {number|string} productoId - Identificador del producto.
+ * @returns {Promise<number>} Nuevo total de almacén.
+ */
+const actualizarStockAlmacenPorLotes = async (connection, productoId) => {
+  const [rows] = await connection.execute(
+    'SELECT COALESCE(SUM(cantidad), 0) AS total FROM lotes_producto WHERE producto_id = ?',
+    [Number(productoId)]
+  );
+  const total = Number(rows[0].total);
+  await connection.execute('UPDATE productos SET stock_almacen = ? WHERE id = ?', [total, Number(productoId)]);
+  return total;
+};
+
+/**
+ * Registra el movimiento en el historial (kardex) dentro de la transacción recibida.
+ *
+ * @async
+ * @function registrarMovimiento
+ * @param {Object} connection - Conexión activa con transacción abierta.
+ * @param {number|string} productoId - Producto afectado.
+ * @param {string} tipo - Tipo de movimiento (ej. 'merma', 'lote_agregado').
+ * @param {number} cantidad - Piezas involucradas.
+ * @param {'almacen'|'mostrador'} ubicacion - Ubicación afectada (u origen en un traslado).
+ * @param {string} motivo - Motivo capturado para auditoría.
+ * @param {number} [usuarioId] - Usuario que realiza la acción (por defecto 1).
+ * @returns {Promise<void>}
+ */
+const registrarMovimiento = async (connection, productoId, tipo, cantidad, ubicacion, motivo, usuarioId) => {
+  await connection.execute(
+    `INSERT INTO movimientos_inventario (producto_id, tipo, cantidad, ubicacion, motivo, usuario_id) VALUES (?, ?, ?, ?, ?, ?)`,
+    [Number(productoId), tipo, Number(cantidad), ubicacion, motivo, usuarioId || 1]
+  );
+};
+
+/**
+ * Agrega un lote al almacén, actualiza el stock de almacén y lo registra en movimientos.
+ *
+ * @async
+ * @function agregarLote
+ * @param {number|string} productoId - Producto al que pertenece el lote.
+ * @param {number|string} cantidad - Piezas del lote.
+ * @param {string|null} fecha_caducidad - Caducidad (YYYY-MM-DD) o null si no aplica.
+ * @param {number} [usuarioId] - Usuario que registra el lote.
+ * @returns {Promise<number>} Nuevo total de almacén.
+ * @throws {Error} 'Producto no encontrado' o error de transacción.
+ */
+const agregarLote = async (productoId, cantidad, fecha_caducidad, usuarioId) => {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [prod] = await connection.execute('SELECT id FROM productos WHERE id = ? FOR UPDATE', [Number(productoId)]);
+    if (prod.length === 0) throw new Error('Producto no encontrado');
+
+    await connection.execute(
+      'INSERT INTO lotes_producto (producto_id, cantidad, fecha_caducidad) VALUES (?, ?, ?)',
+      [Number(productoId), Number(cantidad), fecha_caducidad || null]
+    );
+    const nuevoTotal = await actualizarStockAlmacenPorLotes(connection, productoId);
+    await registrarMovimiento(connection, productoId, 'lote_agregado', cantidad, 'almacen', 'Ingreso de nuevo lote', usuarioId);
+
+    await connection.commit();
+    return nuevoTotal;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
+/**
+ * Elimina un lote del almacén, descuenta sus piezas del stock y lo registra en movimientos.
+ *
+ * @async
+ * @function eliminarLote
+ * @param {number|string} loteId - Identificador del lote.
+ * @param {number|string} productoId - Producto dueño del lote.
+ * @param {number} [usuarioId] - Usuario que elimina el lote.
+ * @returns {Promise<number>} Nuevo total de almacén.
+ * @throws {Error} 'Lote no encontrado' o error de transacción.
+ */
+const eliminarLote = async (loteId, productoId, usuarioId) => {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [lote] = await connection.execute(
+      'SELECT cantidad FROM lotes_producto WHERE id = ? AND producto_id = ? FOR UPDATE',
+      [Number(loteId), Number(productoId)]
+    );
+    if (lote.length === 0) throw new Error('Lote no encontrado');
+
+    await connection.execute('DELETE FROM lotes_producto WHERE id = ?', [Number(loteId)]);
+    const nuevoTotal = await actualizarStockAlmacenPorLotes(connection, productoId);
+    await registrarMovimiento(connection, productoId, 'lote_eliminado', lote[0].cantidad, 'almacen', 'Lote eliminado manualmente', usuarioId);
+
+    await connection.commit();
+    return nuevoTotal;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
+/**
+ * Registra un ajuste manual en el inventario afectando la base de datos (HU-17).
+ * Acciones: mover_mostrador (almacén -> mostrador, descuenta lotes por FEFO),
+ * regresar_almacen (mostrador -> almacén, crea un lote), merma / daño (restan del mostrador)
+ * y conteo_mostrador (reemplaza el total del mostrador). Cada acción queda en movimientos_inventario.
+ *
+ * @async
+ * @function ajustarStock
+ * @param {number|string} id - Identificador del producto.
+ * @param {number|string} cantidad - Piezas del ajuste (en conteo_mostrador, el nuevo total).
+ * @param {'mover_mostrador'|'regresar_almacen'|'merma'|'daño'|'conteo_mostrador'} tipoAjuste - Acción a realizar.
+ * @param {string} motivo - Motivo capturado para auditoría.
+ * @param {number} [usuario_id] - Usuario que realiza el ajuste (por defecto 1).
+ * @param {string|null} [caducidad=null] - Caducidad del lote creado al regresar a almacén.
+ * @returns {Promise<{stock_almacen: number, stock_mostrador: number}>} Existencias resultantes.
+ * @throws {Error} 'Producto no encontrado', mensajes de stock insuficiente o 'Tipo de ajuste no válido'.
+ */
+const ajustarStock = async (id, cantidad, tipoAjuste, motivo, usuario_id, caducidad = null) => {
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
@@ -310,62 +465,53 @@ const ajustarStock = async (id, cantidad, tipoAjuste, tipoStock = 'almacen') => 
       'SELECT stock_mostrador FROM productos WHERE id = ? FOR UPDATE',
       [Number(id)]
     );
-    
     if (rows.length === 0) throw new Error('Producto no encontrado');
-    
+
     let nuevoStockMostrador = rows[0].stock_mostrador;
+    let ubicacionHistorial = 'mostrador';
+    const cantNum = Number(cantidad);
 
-    const [lotes] = await connection.execute(
-      `SELECT id, cantidad, fecha_caducidad 
-       FROM lotes_producto 
-       WHERE producto_id = ? AND cantidad > 0 
-       ORDER BY fecha_caducidad IS NULL, fecha_caducidad ASC 
-       FOR UPDATE`,
-      [Number(id)]
-    );
-    let stockAlmacenTotal = lotes.reduce((sum, lote) => sum + lote.cantidad, 0);
-
-    const cantidadAjuste = Number(cantidad);
-
-    if (tipoAjuste === 'transferencia_mostrador') {
-      if (stockAlmacenTotal < cantidadAjuste) throw new Error('Stock en almacén insuficiente para mover al mostrador');
-      nuevoStockMostrador += cantidadAjuste;
-      await restarDeLotes(connection, lotes, cantidadAjuste);
-    } 
-    else if (tipoAjuste === 'transferencia_almacen') {
-      if (nuevoStockMostrador < cantidadAjuste) throw new Error('Stock en mostrador insuficiente para regresar al almacén');
-      nuevoStockMostrador -= cantidadAjuste;
-      await connection.execute('INSERT INTO lotes_producto (producto_id, cantidad) VALUES (?, ?)', [id, cantidadAjuste]);
-    } 
-    else {
-      if (tipoStock === 'mostrador') {
-        if (tipoAjuste === 'ingreso_manual') nuevoStockMostrador += cantidadAjuste;
-        else if (tipoAjuste === 'merma' || tipoAjuste === 'daño') nuevoStockMostrador = Math.max(0, nuevoStockMostrador - cantidadAjuste);
-        else if (tipoAjuste === 'conteo') nuevoStockMostrador = cantidadAjuste;
-      } else {
-        if (tipoAjuste === 'ingreso_manual') {
-          await connection.execute('INSERT INTO lotes_producto (producto_id, cantidad) VALUES (?, ?)', [id, cantidadAjuste]);
-        } 
-        else if (tipoAjuste === 'merma' || tipoAjuste === 'daño') {
-           if (stockAlmacenTotal < cantidadAjuste) throw new Error('Stock en almacén insuficiente para descontar la merma');
-           await restarDeLotes(connection, lotes, cantidadAjuste);
-        } 
-        else if (tipoAjuste === 'conteo') {
-           await connection.execute('DELETE FROM lotes_producto WHERE producto_id = ?', [id]);
-           if (cantidadAjuste > 0) {
-             await connection.execute('INSERT INTO lotes_producto (producto_id, cantidad) VALUES (?, ?)', [id, cantidadAjuste]);
-           }
-        }
-      }
+    if (tipoAjuste === 'mover_mostrador') {
+      const [lotes] = await connection.execute(
+        `SELECT id, cantidad, fecha_caducidad 
+         FROM lotes_producto 
+         WHERE producto_id = ? AND cantidad > 0 
+         ORDER BY fecha_caducidad IS NULL, fecha_caducidad ASC 
+         FOR UPDATE`,
+        [Number(id)]
+      );
+      const stockAlmacenTotal = lotes.reduce((sum, lote) => sum + lote.cantidad, 0);
+      if (stockAlmacenTotal < cantNum) throw new Error('Stock en almacén insuficiente para mover a mostrador');
+      nuevoStockMostrador += cantNum;
+      await restarDeLotes(connection, lotes, cantNum);
+      ubicacionHistorial = 'almacen'; // Origen
+    } else if (tipoAjuste === 'regresar_almacen') {
+      if (nuevoStockMostrador < cantNum) throw new Error('Stock en mostrador insuficiente para regresar a almacén');
+      nuevoStockMostrador -= cantNum;
+      // Para sumar al almacén se registra un lote nuevo (con o sin caducidad)
+      await connection.execute(
+        'INSERT INTO lotes_producto (producto_id, cantidad, fecha_caducidad) VALUES (?, ?, ?)',
+        [Number(id), cantNum, caducidad || null]
+      );
+    } else if (tipoAjuste === 'merma' || tipoAjuste === 'daño') {
+      // La merma rápida se hace del mostrador; si es de almacén, se elimina el lote correspondiente
+      if (nuevoStockMostrador < cantNum) throw new Error('Stock en mostrador insuficiente para merma/daño');
+      nuevoStockMostrador -= cantNum;
+    } else if (tipoAjuste === 'conteo_mostrador') {
+      nuevoStockMostrador = cantNum;
+    } else {
+      throw new Error('Tipo de ajuste no válido');
     }
 
     await connection.execute(
       'UPDATE productos SET stock_mostrador = ? WHERE id = ?',
       [nuevoStockMostrador, Number(id)]
     );
+    const stockAlmacen = await actualizarStockAlmacenPorLotes(connection, id);
+    await registrarMovimiento(connection, id, tipoAjuste, cantNum, ubicacionHistorial, motivo, usuario_id);
 
     await connection.commit();
-    return await findById(id);
+    return { stock_almacen: stockAlmacen, stock_mostrador: nuevoStockMostrador };
   } catch (error) {
     await connection.rollback();
     throw error;
@@ -492,5 +638,8 @@ module.exports = {
   updateProduct,
   ajustarStock,
   findProductForPOS,
-  getLowStock
+  getLowStock,
+  getLotesByProducto,
+  agregarLote,
+  eliminarLote
 };

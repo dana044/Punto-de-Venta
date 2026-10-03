@@ -3,6 +3,10 @@
  * @description Panel de alertas automáticas de stock bajo (lado del cliente).
  * El umbral es fijo (igual para todos los productos), así que esta pantalla
  * solo muestra el banner; ya no hay configuración por producto.
+ * El banner muestra únicamente el total de productos con stock bajo; el detalle
+ * se consulta en inventario con el botón "Ver stock bajo".
+ * @author Jetzaly Josmery Tello Campos (Coach / Programador XP)
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,10 +16,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const userRole = localStorage.getItem('userRole');
 
+  // Se expone para que inventario.js pueda refrescar el banner tras cambiar el stock
+  window.cargarAlertas = cargarAlertas;
+
   cargarAlertas();
 
   /**
    * Consulta las alertas activas y las pinta en el banner.
+   * Cuenta productos distintos: un producto bajo en almacén y en mostrador cuenta una sola vez.
+   *
+   * @async
+   * @function cargarAlertas
+   * @returns {Promise<void>}
    */
   async function cargarAlertas() {
     try {
@@ -27,22 +39,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const items = data.alertas
-        .map((a) => `
-          <div class="alertas-banner__item">
-            <span>${a.productoNombre} — ${a.ubicacion === 'almacen' ? 'Almacén' : 'Mostrador'}</span>
-            <span>${a.existencia} unidades disponibles</span>              
-
-          </div>
-        `)
-        .join('');
+      const totalProductos = new Set(data.alertas.map((alerta) => alerta.productoId)).size;
 
       panelAlertas.innerHTML = `
         <div class="alertas-banner">
           <div class="alertas-banner__header">
-            <span class="alertas-banner__titulo">⚠ ${data.total} producto(s) con stock bajo</span>
+            <span class="alertas-banner__titulo">⚠️ ${totalProductos} producto(s) con stock bajo</span>
           </div>
-          <div class="alertas-banner__lista">${items}</div>
         </div>
       `;
     } catch (err) {
