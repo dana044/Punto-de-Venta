@@ -1,7 +1,7 @@
 <!--
-  Punto de Venta UV — Reportes de Inventario
-  HU-37: Reporte de stock bajo (mostrador o almacén), con gráficas e impresión.
+  Punto de Venta UV — Gestión de Inventario
   @author Citlaly Morales Viveros (Cliente / Programadora XP)
+  @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
 -->
 <!DOCTYPE html>
 <html lang="es">
@@ -9,22 +9,38 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>La Number One - Reportes de Inventario</title>
+  <title>La Number One - Gestión de Inventario</title>
   <link rel="stylesheet" href="/css/01-variables.css" />
   <link rel="stylesheet" href="/css/02-base.css" />
   <link rel="stylesheet" href="/css/03-layout.css" />
   <link rel="stylesheet" href="/css/04-components.css" />
   <link rel="stylesheet" href="/css/05-modals.css" />
   <link rel="stylesheet" href="/css/06-tables.css" />
-  <link rel="stylesheet" href="/css/08-reportes.css" />
+  <link rel="stylesheet" href="/css/09-alerts.css" />
+  <style>
+    .table-scroll {
+      max-height: 60vh;
+      overflow-y: auto;
+      overflow-x: auto;
+    }
+
+    .table-scroll .data-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #F9FAFB;
+      box-shadow: 0 1px 0 #E5E7EB;
+    }
+  </style>
 </head>
 
 <body>
   <div class="app-container">
+    <!-- Barra lateral con soporte dinámico para HU-03 -->
     <aside class="sidebar">
       <div class="sidebar__brand">La Number One</div>
 
-      <!-- Perfil del usuario activo con Avatar dinámico -->
+      <!-- Tarjeta de Perfil y Avatar dinámico -->
       <div class="sidebar__user-profile">
         <img id="userAvatarImg" src="/img/avatars/admin.png" alt="Avatar" class="sidebar__avatar" />
         <div class="sidebar__user-info">
@@ -38,10 +54,10 @@
           <a href="/empleados" class="sidebar__link">Administrar Personal</a>
         </li>
         <li id="menuInventario" hidden>
-          <a href="/inventario" class="sidebar__link">Inventario</a>
+          <a href="/inventario" class="sidebar__link sidebar__link--active">Inventario</a>
         </li>
         <li id="menuReportes" hidden>
-          <a href="/reportes-inventario" class="sidebar__link sidebar__link--active">Reportes de Inventario</a>
+          <a href="/reportes-inventario" class="sidebar__link">Reportes de Inventario</a>
         </li>
         <li id="menuReporteVentas" hidden>
           <a href="/reportes-ventas" class="sidebar__link">Reporte de Ventas</a>
@@ -62,91 +78,270 @@
     </aside>
 
     <main class="main-content">
-      <div class="print-header print-only">
-        <img src="/img/logo.png" alt="Logo La Number One" class="print-header__logo" />
-        <div>
-          <h1 class="print-header__empresa">La Number One</h1>
-          <p class="print-header__titulo" id="printTitulo"></p>
-          <p class="print-header__meta" id="printCriterio"></p>
-          <p class="print-header__meta" id="printGeneradoPor"></p>
-          <p class="print-header__meta" id="printFecha"></p>
-        </div>
-      </div>
-
       <div class="page-header">
         <div>
-          <h1>Reportes de Inventario</h1>
-          <p>Consulta qué productos tienen poca existencia en mostrador o en almacén para reabastecer a tiempo.</p>
+          <h1>Gestión de Inventario</h1>
+          <p>Consulta, busca, actualiza stock y administra el catálogo de productos disponibles.</p>
         </div>
+        <button type="button" class="btn btn--primary" id="btnNuevoProducto">+ Registrar Producto</button>
       </div>
 
+      <div id="panelAlertasStock"></div>
+
+      <!-- Tabla de productos en inventario -->
       <section class="table-section">
         <div class="table-card">
           <div class="table-card__toolbar">
             <div>
-              <h2>Reporte de stock bajo</h2>
-              <span class="table-card__count" id="reporteCount">&nbsp;</span>
+              <h2>Catálogo de Productos</h2>
+              <span class="table-card__count" id="productosCount">&nbsp;</span>
+            </div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+              <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                <input type="checkbox" id="chkMostrarInactivos"> Ver inactivos
+              </label>
+              <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                <input type="checkbox" id="chkStockBajo"> Ver stock bajo
+              </label>
+              <select id="ordenStockBajo" class="form-select" style="display: none; width: auto; font-size: 0.85rem;">
+                <option value="todos">Todos los que están en alerta</option>
+                <option value="almacen">Solo alerta en almacén</option>
+                <option value="mostrador">Solo alerta en mostrador</option>
+              </select>
+              <div class="table-search">
+                <input type="text" id="buscarProducto" placeholder="Buscar por nombre, código o categoría..." />
+              </div>
+            </div>
+          </div>
+
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Producto</th>
+                  <th>Categoría</th>
+                  <th>Precio</th>
+                  <th>Almacén</th>
+                  <th>Mostrador</th>
+                  <th>Caducidad</th>
+                  <th>Distribuidores</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tablaProductosBody">
+                <!-- Renderizado dinámicamente desde inventario.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Modal de Producto -->
+      <div id="modalOverlay" class="modal-overlay" style="display:none;">
+        <div class="modal-card stepped-card">
+          <header class="stepped-card__header">
+            <div>
+              <strong id="formTitle">Registro de Nuevos Productos</strong>
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;">Ingresa los datos generales y asocia los distribuidores correspondientes.</p>
+            </div>
+            <button type="button" id="btnCerrarModal" class="btn-close-modal">&times;</button>
+          </header>
+
+          <div id="modalAlertMessage" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
+
+          <form id="productForm">
+            <input type="hidden" id="productoId" />
+
+            <section class="stepped-card__section">
+              <p><span class="step-badge">1</span><strong>Información General</strong></p>
+
+              <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label" for="nombreProducto">Nombre del Producto</label>
+                <input type="text" id="nombreProducto" class="form-input" placeholder="Ej. Libreta Universitaria" required />
+              </div>
+
+              <div class="field-row">
+                <div class="form-group">
+                  <label class="form-label" for="codigoBarras">Código de Barras</label>
+                  <input type="text" id="codigoBarras" class="form-input" placeholder="Ej. 7501234567890" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="categoria">Categoría</label>
+                  <select id="categoria" class="form-select" required>
+                    <option value="">Selecciona una categoría...</option>
+                    <option value="Papelería">Papelería</option>
+                    <option value="Bebidas">Bebidas</option>
+                    <option value="Comida">Comida</option>
+                    <option value="Tecnología">Tecnología</option>
+                    <option value="Limpieza">Limpieza</option>
+                    <option value="Herramientas">Herramientas</option>
+                    <option value="Hogar">Hogar</option>
+                    <option value="Cuidado personal">Cuidado personal</option>
+                    <option value="Mascotas">Mascotas</option>
+                    <option value="Otros">Otros</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="form-group">
+                  <label class="form-label" for="presentacion">Presentación</label>
+                  <input type="text" id="presentacion" class="form-input" placeholder="Ej. Cuadro Chico 100 hojas" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="unidadMedida">Unidad de Medida</label>
+                  <select id="unidadMedida" class="form-select" required>
+                    <option value="">Selecciona una unidad...</option>
+                    <option value="Pieza">Pieza</option>
+                    <option value="Caja">Caja</option>
+                    <option value="Litro">Litro</option>
+                    <option value="Kilogramo">Kilogramo</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section class="stepped-card__section">
+              <p><span class="step-badge">2</span><strong>Precio y Proveedores</strong></p>
+
+              <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label" for="precio">Precio Unitario ($)</label>
+                <input type="number" step="0.01" min="0" id="precio" class="form-input" placeholder="0.00" required />
+              </div>
+
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.75rem;">Las existencias y caducidades se administran desde el botón «Stock» del producto.</p>
+
+              <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label">Distribuidores / Proveedores Asociados</label>
+                <div id="proveedoresContainer" class="form-input" style="min-height: 60px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; background-color: #FAFAFA;">
+                  <span class="text-muted">Cargando distribuidores...</span>
+                </div>
+              </div>
+            </section>
+
+            <footer class="stepped-card__footer">
+              <button type="button" class="btn btn--secondary" id="cancelarBtn">Cancelar</button>
+              <button type="submit" class="btn btn--primary" id="submitBtn">Registrar Producto</button>
+            </footer>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modal de Stock (Lotes + Mover / Ajustar) -->
+      <div id="modalStockOverlay" class="modal-overlay" style="display:none;">
+        <div class="modal-card stepped-card" style="max-width: 650px;">
+          <header class="stepped-card__header">
+            <div>
+              <strong id="stockTitle">Gestión de Stock</strong>
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;" id="stockSubtitle">Producto seleccionado</p>
+            </div>
+            <button type="button" id="btnCerrarModalStock" class="btn-close-modal">&times;</button>
+          </header>
+
+          <input type="hidden" id="stockProductoId" />
+
+          <!-- Pestañas -->
+          <div style="display: flex; gap: 1rem; border-bottom: 1px solid #E5E7EB; margin: 0 1.5rem; padding-top: 1rem;">
+            <button type="button" class="tab-btn active" data-target="tab-lotes"
+              style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-weight: bold; border-bottom: 2px solid var(--color-primary);">Lotes (Almacén)</button>
+            <button type="button" class="tab-btn" data-target="tab-ajuste"
+              style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer;">Mover / Ajustar</button>
+          </div>
+
+          <div id="modalAlertStock" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
+
+          <!-- Pestaña: Lotes -->
+          <div id="tab-lotes" class="tab-content">
+            <form id="formNuevoLote" style="padding: 1.5rem; background: #FAFAFA; border-bottom: 1px solid #E5E7EB;">
+              <p style="font-size: 0.9rem; margin-bottom: 0.3rem;"><strong>+ Ingresar nueva mercancía</strong></p>
+              <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.8rem;">Al agregar o eliminar lotes, el stock de almacén se ajusta automáticamente.</p>
+              <div class="field-row" style="align-items: flex-end;">
+                <div class="form-group">
+                  <label class="form-label" for="loteCantidad">Cantidad</label>
+                  <input type="number" id="loteCantidad" class="form-input" min="1" placeholder="Ej. 50" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="loteCaducidad">Caducidad (Opcional)</label>
+                  <input type="date" id="loteCaducidad" class="form-input" />
+                </div>
+                <button type="submit" class="btn btn--primary" id="btnGuardarLote">Agregar Lote</button>
+              </div>
+            </form>
+
+            <div style="padding: 1.5rem; max-height: 300px; overflow-y: auto;">
+              <table class="data-table" style="width: 100%;">
+                <thead>
+                  <tr>
+                    <th>ID Lote</th>
+                    <th>Cantidad</th>
+                    <th>Caducidad</th>
+                    <th>Registro</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="tablaLotesBody"></tbody>
+              </table>
             </div>
 
-            <form id="formStockBajo" style="display: flex; gap: 1rem; align-items: flex-end;">
-              <div class="form-group" style="margin: 0;">
-                <label class="form-label" for="ubicacionStock">Ubicación</label>
-                <select id="ubicacionStock" class="form-select">
-                  <option value="mostrador">Mostrador</option>
-                  <option value="almacen">Almacén</option>
-                </select>
-              </div>
-              <div class="form-group" style="margin: 0;">
-                <label class="form-label" for="limiteStock">Mostrar productos con menos de</label>
-                <input type="number" id="limiteStock" class="form-input" min="1" step="1"
-                  placeholder="Ej. 10" required />
-              </div>
-              <button type="submit" class="btn btn--primary" id="btnGenerarReporte">Generar reporte</button>
-              <button type="button" class="btn btn--secondary no-print" id="btnImprimir" hidden>Imprimir reporte</button>
+            <footer class="stepped-card__footer">
+              <button type="button" class="btn btn--secondary" id="btnCerrarLotesFooter">Cerrar</button>
+            </footer>
+          </div>
+
+          <!-- Pestaña: Mover / Ajustar -->
+          <div id="tab-ajuste" class="tab-content" style="display:none;">
+            <form id="formAjuste">
+              <section class="stepped-card__section">
+                <p><span class="step-badge">!</span><strong>Mover o ajustar existencias</strong></p>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                  <label class="form-label" for="tipoAjuste">Tipo de Acción</label>
+                  <select id="tipoAjuste" class="form-select" required>
+                    <option value="" disabled selected>Selecciona la operación...</option>
+                    <optgroup label="Transferencias entre Stocks">
+                      <option value="mover_mostrador">Mover a Mostrador (restar almacén)</option>
+                      <option value="regresar_almacen">Regresar a Almacén (restar mostrador)</option>
+                    </optgroup>
+                    <optgroup label="Ajustes Regulares">
+                      <option value="merma">Merma (restar del mostrador)</option>
+                      <option value="daño">Daño/Caducidad (restar del mostrador)</option>
+                      <option value="conteo_mostrador">Conteo Físico (reemplazar total del mostrador)</option>
+                    </optgroup>
+                  </select>
+                </div>
+
+                <div class="field-row">
+                  <div class="form-group">
+                    <label class="form-label" for="cantidadAjuste">Cantidad</label>
+                    <input type="number" id="cantidadAjuste" class="form-input" min="1" required />
+                  </div>
+                  <div class="form-group" id="grupoCaducidadAjuste" style="display:none;">
+                    <label class="form-label" for="caducidadAjuste">Caducidad (Opcional)</label>
+                    <input type="date" id="caducidadAjuste" class="form-input" />
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                  <label class="form-label" for="motivoAjuste">Motivo (Auditoría)</label>
+                  <input type="text" id="motivoAjuste" class="form-input" placeholder="Ej. Inventario mensual, caja rota..." required />
+                </div>
+              </section>
+
+              <footer class="stepped-card__footer">
+                <button type="button" class="btn btn--secondary" id="btnCancelarAjuste">Cancelar</button>
+                <button type="submit" class="btn btn--primary" id="btnGuardarAjuste">Registrar Acción</button>
+              </footer>
             </form>
           </div>
-
-          <div id="reporteAlert" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
-
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Producto</th>
-                <th>Categoría</th>
-                <th>Presentación</th>
-                <th id="thExistencia">Existencia en mostrador</th>
-              </tr>
-            </thead>
-            <tbody id="tablaStockBajoBody">
-              <tr>
-                <td colspan="5" class="text-muted">Elige la ubicación, ingresa un límite y genera el reporte para ver los productos.</td>
-              </tr>
-            </tbody>
-          </table>
-          </div>
         </div>
-      </section>
-
-      <section id="seccionGraficas" hidden>
-        <div class="charts-grid">
-          <div class="table-card chart-card">
-            <h3>Productos con menor existencia</h3>
-            <div class="chart-box"><canvas id="graficaProductos"></canvas></div>
-          </div>
-          <div class="table-card chart-card">
-            <h3>Productos por categoría bajo el límite</h3>
-            <div class="chart-box"><canvas id="graficaCategorias"></canvas></div>
-          </div>
-        </div>
-      </section>
+      </div>
     </main>
   </div>
 
-  <script src="/js/chart.umd.min.js"></script>
-  <script src="/js/reportes-inventario.js"></script>
+  <script src="/js/inventario.js"></script>
   <script src="/js/perfil.js"></script>
   <script src="/js/inactividad.js"></script>
+  <script src="/js/alertas.js"></script>
 </body>
-
 </html>

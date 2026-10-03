@@ -1,9 +1,9 @@
 /**
  * @file inventario.js
- * @description Controlador del lado del cliente para la gestión de inventario y proveedores.
- * Administra el control de acceso, catálogo de productos, lotes y ajustes.
- * (El control de inactividad HU-05 se delega globalmente a /js/inactividad.js)
- * @author Citlaly Morales Viveros & Stephanie Elizdeth Hernández Prieto
+ * @description Controlador del lado del cliente para la gestion de inventario y proveedores.
+ * Administra el control de acceso, sesion por inactividad, despliegue de menu por rol,
+ * catalogo de productos y asociacion con distribuidores.
+ * @author Citlaly Morales Viveros (Cliente / Programador XP)
  */
 
 const API_PRODUCTOS = '/api/inventory/productos';
@@ -15,13 +15,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const userRole = localStorage.getItem('userRole');
   const token = localStorage.getItem('token');
 
-  // Validación de sesión activa
+  // Validacion de sesion activa
   if (!token || !userRole) {
     window.location.href = '/login';
     return;
   }
 
-  // Restricción de acceso para cajero
+  // Restriccion de acceso para cajero
   if (userRole === 'cajero') {
     alert('Acceso no autorizado para tu rol.');
     window.location.href = '/pos';
@@ -29,7 +29,38 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================================================
-  // CONFIGURACIÓN DE INTERFAZ Y NAVEGACIÓN
+  // CIERRE AUTOMATICO DE SESION POR INACTIVIDAD
+  // ==========================================================================
+  const TIEMPO_LIMITE_INACTIVIDAD = 5 * 60 * 1000;
+  let temporizadorInactividad;
+
+  /**
+   * Cierra la sesión automáticamente cuando se agota el tiempo de inactividad.
+   * Limpia el almacenamiento local, avisa al usuario y redirige al login.
+   */
+  function cerrarSesionPorInactividad() {
+    localStorage.clear();
+    alert('Tu sesion ha expirado automaticamente por inactividad.');
+    window.location.replace('/login');
+  }
+
+  /**
+   * Reinicia el temporizador de inactividad cada vez que el usuario interactúa con la página.
+   */
+  function reiniciarTemporizador() {
+    clearTimeout(temporizadorInactividad);
+    temporizadorInactividad = setTimeout(cerrarSesionPorInactividad, TIEMPO_LIMITE_INACTIVIDAD);
+  }
+
+  const eventosMonitoreo = ['mousemove', 'mousedown', 'keydown', 'scroll', 'click', 'touchstart'];
+  eventosMonitoreo.forEach((evento) => {
+    window.addEventListener(evento, reiniciarTemporizador, { passive: true });
+  });
+
+  reiniciarTemporizador();
+
+  // ==========================================================================
+  // CONFIGURACION DE INTERFAZ Y NAVEGACION
   // ==========================================================================
   configurarMenuPorRol(userRole);
 
@@ -86,7 +117,11 @@ document.addEventListener('DOMContentLoaded', () => {
   cargarProductos();
 
   /**
-   * Configura la visibilidad del menú lateral según el rol del usuario.
+   * Configura la visibilidad del menu lateral segun el rol del usuario.
+   * - Administrador: Acceso a todos los modulos.
+   * - Almacenista: Acceso a Inventario, Reportes de inventario y Recepcion.
+   * - Cajero: Acceso exclusivo a Punto de Venta.
+   *
    * @param {string} rol Rol autenticado del usuario.
    */
   function configurarMenuPorRol(rol) {
@@ -111,7 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
       menuInventario?.removeAttribute('hidden');
       menuRecepcion?.removeAttribute('hidden');
       menuReportes?.removeAttribute('hidden');
-      if (menuReporteVentas) menuReporteVentas.hidden = true;
       if (menuPos) menuPos.hidden = true;
     } else if (rol === 'cajero') {
       if (menuPersonal) menuPersonal.hidden = true;
@@ -190,10 +224,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Refresca el banner de alertas.js (mismos umbrales que usa el backend)
         if (typeof window.cargarAlertas === 'function') window.cargarAlertas();
       } else {
-        tablaBody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color: red; text-align:center;">Error: ${data.mensaje || 'Datos no válidos'}</td></tr>`;
+        tablaBody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color: red; text-align:center;">Error: ${data.mensaje || 'Datos no validos'}</td></tr>`;
       }
     } catch (error) {
-      tablaBody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color: red; text-align:center;">Error de conexión.</td></tr>`;
+      tablaBody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color: red; text-align:center;">Error de conexion.</td></tr>`;
     }
   }
 
@@ -305,25 +339,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
       fila.innerHTML = `
         <td style="${opacidad}"><code>${p.codigo_barras || 'N/A'}</code></td>
-        <td style="${opacidad}">
-          <strong>${p.nombre}</strong><br/>
-          <small class="text-muted">${p.presentacion || ''} ${p.unidad_medida ? `(${p.unidad_medida})` : ''}</small>
-        </td>
-        <td style="${opacidad}">${badgeHTML}</td>
-        <td style="${opacidad}">$${Number(p.precio).toFixed(2)}</td>
-        <td style="${opacidad}"><strong>${p.stock_almacen !== undefined ? p.stock_almacen : 0}</strong></td>
-        <td style="${opacidad}">${p.stock_mostrador !== undefined ? p.stock_mostrador : 0}</td>
-        <td style="${opacidad}">${badgeCaducidad}</td>
-        <td style="${opacidad}">
-          <small class="text-muted">${p.proveedores_nombres || 'Sin proveedor'}</small>
-        </td>
-        <td class="actions-cell" style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-start; min-width: 280px;">
-          <button class="btn-icon-edit btn-lotes" data-id="${p.id}" title="Ver Lotes" style="background-color: #DBEAFE; color: #1E3A8A;">Lotes</button>
-          <button class="btn-icon-edit btn-ajustar" data-id="${p.id}" title="Ajustar Stock" style="background-color: #F3E8FF; color: #7E22CE;">Ajustar</button>
-          <button class="btn-icon-edit btn-editar" data-id="${p.id}" title="Editar">Editar</button>
-          ${botonEstadoHTML}
-          <button class="btn-icon-delete btn-eliminar" data-id="${p.id}" title="Eliminar">Eliminar</button>
-        </td>
+      <td style="${opacidad}">
+        <strong>${p.nombre}</strong><br/>
+        <small class="text-muted">${p.presentacion || ''} ${p.unidad_medida ? `(${p.unidad_medida})` : ''}</small>
+      </td>
+      <td style="${opacidad}">${badgeHTML}</td>
+      <td style="${opacidad}">$${Number(p.precio).toFixed(2)}</td>
+      <!-- stock_total representa la sumatoria del almacén (lotes) -->
+      <td style="${opacidad}"><strong>${p.stock_almacen !== undefined ? p.stock_almacen : 0}</strong></td>
+      <td style="${opacidad}">${p.stock_mostrador !== undefined ? p.stock_mostrador : 0}</td>
+      <td style="${opacidad}">${badgeCaducidad}</td>
+      <td style="${opacidad}">
+        <small class="text-muted">${p.proveedores_nombres || 'Sin proveedor'}</small>
+      </td>
+      <td class="actions-cell" style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-start; min-width: 280px;">
+        <button class="btn-icon-edit btn-stock" data-id="${p.id}" title="Gestionar Stock (lotes, mover y ajustar)" style="background-color: #DBEAFE; color: #1E3A8A;">Stock</button>
+        <button class="btn-icon-edit btn-editar" data-id="${p.id}" title="Editar">Editar</button>
+        ${menuOpcionesHTML}
+      </td>
       `;
       tablaBody.appendChild(fila);
     });
@@ -360,17 +393,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('presentacion').value = producto.presentacion || '';
     document.getElementById('unidadMedida').value = producto.unidad_medida || '';
     document.getElementById('precio').value = producto.precio;
-    const inputStock = document.getElementById('stock');
-    inputStock.value = producto.stock_almacen || 0;
-    const inputMostrador = document.getElementById('stockMostrador');
-    inputMostrador.value = producto.stock_mostrador || 0;
-    inputMostrador.disabled = true;
-    inputMostrador.title = "Para enviar mercancía al mostrador, utiliza el botón 'Ajustar'.";
-
-    document.getElementById('fechaCaducidad').value = producto.fecha_caducidad
-      ? String(producto.fecha_caducidad).substring(0, 10)
-      : '';
-
     const idsSeleccionados = (producto.proveedores_ids || '')
       .toString()
       .split(',')
@@ -437,7 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarAlerta(data.mensaje || 'Error al guardar el producto.', 'error');
       }
     } catch (err) {
-      mostrarAlerta('Error de comunicación con el servidor.', 'error');
+      mostrarAlerta('Error de comunicacion con el servidor.', 'error');
     } finally {
       btnSubmit.disabled = false;
       btnSubmit.textContent = textoDefault;
@@ -460,13 +482,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnDesactivar) {
       id = btnDesactivar.dataset.id; accion = 'desactivar';
-      mensajeConfirmacion = '¿Estás seguro de que deseas desactivar este producto?';
+      mensajeConfirmacion = '¿Estas seguro de que deseas desactivar este producto?';
     } else if (btnActivar) {
       id = btnActivar.dataset.id; accion = 'activar';
       mensajeConfirmacion = '¿Deseas reactivar este producto para que vuelva a estar disponible?';
-    } else if (btnEliminar) {
-      id = btnEliminar.dataset.id; accion = 'eliminar';
-      mensajeConfirmacion = '¿Estás seguro de que deseas eliminar definitivamente este producto?';
+    } else if (btnArchivar) {
+      id = btnArchivar.dataset.id; accion = 'archivar';
+      mensajeConfirmacion = '⚠️ ATENCIÓN: El producto será archivado y desaparecerá del sistema. Si deseas recuperarlo en el futuro, deberás contactar a tu programador. ¿Continuar?';
     }
 
     if (id && accion && confirm(mensajeConfirmacion)) {
@@ -482,10 +504,10 @@ document.addEventListener('DOMContentLoaded', () => {
           alert(datos.mensaje);
           cargarProductos(buscarInput?.value.trim());
         } else {
-          alert(datos.mensaje || 'Error al procesar la acción.');
+          alert(datos.mensaje || 'Error al procesar la accion.');
         }
       } catch (error) {
-        alert('Error de comunicación con el servidor.');
+        alert('Error de comunicacion con el servidor.');
       }
     }
   });
@@ -513,91 +535,33 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================================================
-  // AJUSTES DE INVENTARIO
+  // MENÚ DE OPCIONES (⋮) DE CADA FILA
   // ==========================================================================
-  const modalAjuste = document.getElementById('modalAjusteOverlay');
-  const formAjuste = document.getElementById('formAjuste');
-  const alertAjuste = document.getElementById('modalAlertAjuste');
-  const btnGuardarAjuste = document.getElementById('btnGuardarAjuste');
 
-  const toggleModalAjuste = (mostrar) => {
-    modalAjuste.style.display = mostrar ? 'flex' : 'none';
-    if (!mostrar) {
-      formAjuste.reset();
-      alertAjuste.hidden = true;
-      document.getElementById('grupoTipoStock').style.display = 'block';
-    }
-  };
-
-  document.getElementById('btnCerrarModalAjuste')?.addEventListener('click', () => toggleModalAjuste(false));
-  document.getElementById('btnCancelarAjuste')?.addEventListener('click', () => toggleModalAjuste(false));
-
-  function abrirModalAjuste(producto) {
-    document.getElementById('ajusteProductoId').value = producto.id;
-    document.getElementById('nombreProductoAjuste').textContent = `${producto.nombre} (Almacén: ${producto.stock_almacen || 0} | Mostrador: ${producto.stock_mostrador || 0})`;
-    toggleModalAjuste(true);
+  /**
+   * Cierra todos los menús ⋮ abiertos en la tabla.
+   */
+  function cerrarMenusAcciones() {
+    document.querySelectorAll('.menu-acciones__lista').forEach((lista) => {
+      lista.style.display = 'none';
+    });
   }
 
   tablaBody.addEventListener('click', (e) => {
-    const btnAjustar = e.target.closest('.btn-ajustar');
-    if (btnAjustar) {
-      e.preventDefault();
-      const producto = productosCache.find((p) => p.id == btnAjustar.dataset.id);
-      if (producto) abrirModalAjuste(producto);
+    const btnMenu = e.target.closest('.btn-menu');
+    if (btnMenu) {
+      const lista = btnMenu.nextElementSibling;
+      const estabaAbierto = lista.style.display === 'flex';
+      cerrarMenusAcciones();
+      lista.style.display = estabaAbierto ? 'none' : 'flex';
+      return;
     }
-  });
-  
-  document.getElementById('tipoAjuste').addEventListener('change', (e) => {
-    const val = e.target.value;
-    const grupo = document.getElementById('grupoTipoStock');
-    if (val.includes('transferencia')) grupo.style.display = 'none';
-    else grupo.style.display = 'block';
+    cerrarMenusAcciones();
   });
 
-  formAjuste.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('ajusteProductoId').value;
-    const payload = {
-      tipoAjuste: document.getElementById('tipoAjuste').value,
-      tipoStock: document.getElementById('tipoStock') ? document.getElementById('tipoStock').value : 'almacen',
-      cantidad: Number(document.getElementById('cantidadAjuste').value),
-      motivo: document.getElementById('motivoAjuste').value.trim()
-    };
-
-    btnGuardarAjuste.disabled = true;
-    btnGuardarAjuste.textContent = 'Procesando...';
-    alertAjuste.hidden = true;
-
-    try {
-      const res = await fetch(`/api/inventory/productos/${id}/ajuste`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': userRole
-        },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        alertAjuste.textContent = data.mensaje;
-        alertAjuste.className = 'alert alert--success';
-        alertAjuste.hidden = false;
-        cargarProductos(document.getElementById('buscarProducto')?.value.trim());
-        setTimeout(() => toggleModalAjuste(false), 1500);
-      } else {
-        alertAjuste.textContent = data.mensaje || 'Error al realizar el ajuste.';
-        alertAjuste.className = 'alert alert--error';
-        alertAjuste.hidden = false;
-      }
-    } catch (err) {
-      alertAjuste.textContent = 'Error de comunicación con el servidor.';
-      alertAjuste.className = 'alert alert--error';
-      alertAjuste.hidden = false;
-    } finally {
-      btnGuardarAjuste.disabled = false;
-      btnGuardarAjuste.textContent = 'Registrar Acción';
-    }
+  // Un clic fuera del menú también lo cierra
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.menu-acciones')) cerrarMenusAcciones();
   });
 
   // ==========================================================================
@@ -667,10 +631,9 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('grupoCaducidadAjuste').style.display = 'none';
       inputCantidadAjuste.min = 1;
     } else {
-      const inputCaducidad = document.getElementById('loteCaducidad');
-      const tzOffset = (new Date()).getTimezoneOffset() * 60000;
-      const localISOTime = (new Date(Date.now() - tzOffset)).toISOString().slice(0, 10);
-      inputCaducidad.setAttribute('min', localISOTime);
+      const hoy = fechaLocalHoy();
+      document.getElementById('loteCaducidad').setAttribute('min', hoy);
+      document.getElementById('caducidadAjuste').setAttribute('min', hoy);
     }
   };
 
@@ -755,9 +718,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  tablaBody.addEventListener('click', async (e) => {
-    const btnLotes = e.target.closest('.btn-lotes');
-    if (btnLotes) {
+  // Interceptar el clic en el botón "Stock" de la tabla principal
+  tablaBody.addEventListener('click', (e) => {
+    const btnStock = e.target.closest('.btn-stock');
+    if (btnStock) {
       e.preventDefault();
       const producto = productosCache.find((p) => p.id == btnStock.dataset.id);
       if (producto) {
@@ -771,6 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Interceptar el envío del formulario para crear un nuevo lote
   formNuevoLote?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const productoId = stockProductoId.value;
@@ -782,17 +747,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnGuardarLote.disabled = true;
     btnGuardarLote.textContent = 'Guardando...';
-    alertLotes.hidden = true;
-
-    const url = loteEnEdicionId !== null 
-      ? `/api/inventory/lotes/${loteEnEdicionId}` 
-      : `/api/inventory/productos/${productoId}/lotes`;
-      
-    const metodo = loteEnEdicionId !== null ? 'PUT' : 'POST';
+    alertStock.hidden = true;
 
     try {
-      const res = await fetch(url, {
-        method: metodo,
+      const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
         body: JSON.stringify(payload)
       });
@@ -801,12 +760,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (res.ok) {
         mostrarAlertaStock('Lote agregado exitosamente al almacén.', 'success');
         formNuevoLote.reset();
-        loteEnEdicionId = null;
-        btnGuardarLote.textContent = 'Agregar Lote';
-        document.querySelector('#formNuevoLote p strong').textContent = '+ Ingresar nueva mercancía';
-        
-        cargarLotesDeProducto(productoId);
-        cargarProductos(buscarInput?.value.trim());
+        await refrescarStock(productoId);
       } else {
         mostrarAlertaStock(data.mensaje || 'Error al procesar el lote.', 'error');
       }
@@ -818,46 +772,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Interceptar el clic para eliminar un lote específico
   tablaLotesBody?.addEventListener('click', async (e) => {
-    const productoId = document.getElementById('loteProductoId').value;
-
-    const btnEditar = e.target.closest('.btn-editar-lote');
-    if (btnEditar) {
-      document.getElementById('loteCantidad').value = btnEditar.dataset.cantidad;
-      document.getElementById('loteCaducidad').value = btnEditar.dataset.fecha || '';
-      
-      loteEnEdicionId = btnEditar.dataset.id;
-      btnGuardarLote.textContent = 'Actualizar Lote';
-      document.querySelector('#formNuevoLote p strong').textContent = '✎ Editar Lote Existente';
-      document.querySelector('#modalLotesOverlay .modal-card').scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
     const btnEliminar = e.target.closest('.btn-eliminar-lote');
-    if (btnEliminar) {
-      if (confirm('¿Estás seguro de que deseas eliminar este lote? Esta acción descontará las unidades del almacén general.')) {
-        try {
-          const res = await fetch(`/api/inventory/lotes/${btnEliminar.dataset.id}`, {
-            method: 'DELETE',
-            headers: { 'x-user-role': userRole }
-          });
-          
-          if (res.ok) {
-            if (loteEnEdicionId === btnEliminar.dataset.id) {
-                formNuevoLote.reset();
-                loteEnEdicionId = null;
-                btnGuardarLote.textContent = 'Agregar Lote';
-                document.querySelector('#formNuevoLote p strong').textContent = '+ Ingresar nueva mercancía';
-            }
+    if (!btnEliminar) return;
 
-            cargarLotesDeProducto(productoId);
-            cargarProductos(buscarInput?.value.trim()); 
-          } else {
-            alert('Error al eliminar el lote.');
-          }
-        } catch (error) {
-          alert('Error de conexión.');
+    const productoId = stockProductoId.value;
+    if (confirm('¿Estás seguro de que deseas eliminar este lote? Esta acción descontará las unidades del almacén general.')) {
+      try {
+        const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes/${btnEliminar.dataset.id}`, {
+          method: 'DELETE',
+          headers: { 'x-user-role': userRole }
+        });
+
+        if (res.ok) {
+          mostrarAlertaStock('Lote eliminado. El stock de almacén se actualizó.', 'success');
+          await refrescarStock(productoId);
+        } else {
+          const data = await res.json();
+          mostrarAlertaStock(data.mensaje || 'Error al eliminar el lote.', 'error');
         }
+      } catch (error) {
+        mostrarAlertaStock('Error de conexión.', 'error');
       }
     }
   });

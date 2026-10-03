@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuProveedores = document.getElementById('menuProveedores');
     const menuPos = document.getElementById('menuPos');
     const menuReportes = document.getElementById('menuReportes');
+    const menuReporteVentas = document.getElementById('menuReporteVentas');
 
     if (rol === 'administrador') {
       menuPersonal?.removeAttribute('hidden');
@@ -63,12 +64,14 @@ document.addEventListener('DOMContentLoaded', () => {
       menuProveedores?.removeAttribute('hidden');
       menuPos?.removeAttribute('hidden');
       menuReportes?.removeAttribute('hidden');
+      menuReporteVentas?.removeAttribute('hidden');
     } else if (rol === 'cajero') {
       menuPos?.removeAttribute('hidden');
     } else if (rol === 'almacenista') {
       menuInventario?.removeAttribute('hidden');
       menuRecepcion?.removeAttribute('hidden');
       menuReportes?.removeAttribute('hidden');
+      menuReporteVentas?.removeAttribute('hidden');
     }
   }
 
