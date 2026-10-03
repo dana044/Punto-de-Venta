@@ -51,6 +51,17 @@
     .btn-icon-delete-cell {
       text-align: center;
     }
+
+    /* Estilos exclusivos para imprimir el ticket (HU-29) */
+    @media print {
+      body * { visibility: hidden; } /* Ocultar todo el sistema */
+      #modalTicket, #modalTicket * { visibility: visible; } /* Mostrar solo el ticket */
+      #modalTicket { 
+        position: absolute; left: 0; top: 0; width: 100%; 
+        background: white; box-shadow: none; display: block !important;
+      }
+      .no-print { display: none !important; } /* Ocultar botones de imprimir/cerrar */
+    }
   </style>
 </head>
 
@@ -202,6 +213,68 @@
         style="padding: 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 1rem;">
         <button class="btn btn--secondary" id="btnCancelarCobro">Cancelar</button>
         <button class="btn btn--primary" id="btnConfirmarPago">Confirmar Transacción</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- HU-29: Modal del Comprobante / Ticket de Venta -->
+  <div id="modalTicket" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;">
+    <div style="background: #fff; width: 320px; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000;">
+      
+      <!-- Cabecera del Ticket -->
+      <div style="text-align: center; margin-bottom: 15px;">
+        <h3 style="margin: 0; font-size: 16px;">PUNTO DE VENTA UV</h3>
+        <p style="margin: 2px 0;">Sucursal Centro · Ruiz Cortines 125</p>
+        <p style="margin: 2px 0;">RFC: PUV260901ABC · Rég. General</p>
+      </div>
+
+      <!-- Datos de la Transacción -->
+      <div style="margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between;"><span>Folio:</span> <strong id="tkFolio">---</strong></div>
+        <div style="display: flex; justify-content: space-between;"><span>Cajero:</span> <span id="tkCajero">---</span></div>
+        <div style="display: flex; justify-content: space-between;"><span>Fecha:</span> <span id="tkFecha">---</span></div>
+      </div>
+
+      <!-- Detalle de Artículos -->
+      <table style="width: 100%; text-align: left; margin-bottom: 10px; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 1px dashed #000;">
+            <th>CANT</th>
+            <th>DESCRIPCIÓN</th>
+            <th style="text-align: right;">IMPORTE</th>
+          </tr>
+        </thead>
+        <tbody id="tkArticulos">
+          <!-- Los artículos se inyectarán aquí con JS -->
+        </tbody>
+      </table>
+
+      <!-- Totales -->
+      <div style="border-top: 1px dashed #000; padding-top: 10px; margin-bottom: 15px;">
+        <div style="display: flex; justify-content: space-between;"><span>Subtotal:</span> <span id="tkSubtotal">$0.00</span></div>
+        <div style="display: flex; justify-content: space-between;"><span>IVA (16%):</span> <span id="tkIva">$0.00</span></div>
+        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-top: 5px;">
+          <span>TOTAL:</span> <span id="tkTotal">$0.00</span>
+        </div>
+      </div>
+
+      <!-- Método de Pago -->
+      <div style="border-top: 1px dashed #000; padding-top: 10px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between;"><span>Método de Pago:</span> <span id="tkMetodo">---</span></div>
+        <div style="display: flex; justify-content: space-between;"><span>Recibido:</span> <span id="tkRecibido">$0.00</span></div>
+        <div style="display: flex; justify-content: space-between;"><span>Cambio:</span> <span id="tkCambio">$0.00</span></div>
+      </div>
+
+      <!-- Pie del Ticket -->
+      <div style="text-align: center;">
+        <p style="margin: 2px 0; font-weight: bold;">¡GRACIAS POR SU COMPRA!</p>
+        <p style="margin: 2px 0;">Conserve su ticket para aclaraciones.</p>
+      </div>
+
+      <!-- Botones de Acción (No se imprimen) -->
+      <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;" class="no-print">
+        <button id="btnImprimirTicket" style="background: #046b4e; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; width: 100%;">Imprimir Ticket</button>
+        <button id="btnCerrarTicket" style="background: #e5e7eb; color: #374151; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; width: 100%;">Cerrar Venta</button>
       </div>
     </div>
   </div>

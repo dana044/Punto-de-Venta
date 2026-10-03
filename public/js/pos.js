@@ -129,7 +129,7 @@ async function inicializarVenta() {
 }
 
   // Se inicia la venta al cargar la interfaz
-  inicializarVenta();
+  //inicializarVenta();
 
   inputBuscarProducto.addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
@@ -237,7 +237,11 @@ async function inicializarVenta() {
       }
 
       alerta.hidden = true;
-      pintarCarrito(data.items);
+      
+      // --- 1. CORRECCIÓN DOOMSAYER: Sincronizar el carrito con los precios del backend ---
+      carrito = data.items; 
+      
+      pintarCarrito(carrito);
       pintarTotales(data);
       return true;
     } catch (err) {
@@ -322,35 +326,102 @@ async function inicializarVenta() {
     btnConfirmarPago.textContent = 'Procesando...';
 
     try {
-      const res = await fetch(API_COBRAR, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
-        body: JSON.stringify({
-          items: carrito,
-          metodoPago: selectMetodoPago.value,
-          montoRecibido: Number(inputMontoRecibido.value)
-        })
-      });
+        // --- 2. CORRECCIÓN DOOMSAYER: Incluir JWT Token y Folio (venta_id) ---
+        const currentToken = localStorage.getItem('token') || sessionStorage.getItem('token');
 
-      const data = await res.json();
+        const res = await fetch('/api/pos/cobrar', {
+          method: 'POST',
+          headers: { 
+              'Content-Type': 'application/json', 
+              'x-user-role': userRole,
+              'Authorization': `Bearer ${currentToken}` 
+          },
+          body: JSON.stringify({
+            items: carrito,
+            metodoPago: selectMetodoPago.value,
+            montoRecibido: Number(inputMontoRecibido.value),
+            venta_id: ventaActivaId
+          })
+        });
 
-      if (!res.ok) {
-        mostrarMensaje(data.mensaje || 'Error al procesar el pago.', 'error');
-        return;
-      }
+        const data = await res.json();
 
-      // Venta exitosa: limpiar carrito y cerrar modal
-      carrito = [];
-      recalcular();
-      cerrarModal();
-      mostrarMensaje(`¡Cobro exitoso! Folio: ${data.folio} | Cambio a devolver: $${data.cambio}`, 'success');
-      
+        if (!res.ok) {
+            mostrarMensaje(data.mensaje || 'Error al procesar el pago.', 'error');
+            return;
+        }
+        // Inyección HU-29: Mostrar Ticket
+        generarTicket(
+            data.folio || document.getElementById('lblFolio').textContent, 
+            carrito, 
+            selectMetodoPago.value, 
+            Number(inputMontoRecibido.value), 
+            data.cambio || (Number(inputMontoRecibido.value) - totalActual)
+        );
+
+        // Venta exitosa: limpiar carrito y resetear variables
+        carrito = [];
+        ventaActivaId = null; // Liberamos el ID para el cliente que sigue (HU-25)
+        document.getElementById('lblFolio').textContent = "Generando..."; // Reset visual
+        recalcular();
+        cerrarModal();
+        mostrarMensaje(`¡Cobro exitoso! Cambio a devolver: $${data.cambio || 0}`, 'success');
+        
     } catch (err) {
-      mostrarMensaje('Error de red al intentar cobrar.', 'error');
+        // --- 3. CORRECCIÓN DOOMSAYER: Console log para no enmascarar errores futuros ---
+        console.error("Fallo detectado en el frontend al cobrar:", err);
+        mostrarMensaje('Error de red al intentar cobrar.', 'error');
     } finally {
-      btnConfirmarPago.disabled = false;
-      btnConfirmarPago.textContent = 'Confirmar Transacción';
+        btnConfirmarPago.disabled = false;
+        btnConfirmarPago.textContent = 'Confirmar Transacción';
     }
+});
+    
+// --- INYECCIÓN HU-29: LÓGICA DEL TICKET DE VENTA ---
+
+  /**
+   * Construye y despliega el ticket de venta con los datos de la transacción.
+   */
+  window.generarTicket = function(folio, items, metodo, recibido, cambio) {
+      // 1. Cabecera
+      document.getElementById('tkFolio').textContent = folio;
+      document.getElementById('tkCajero').textContent = document.getElementById('lblCajero').textContent.replace('Cajero: ', '');
+      document.getElementById('tkFecha').textContent = new Date().toLocaleString();
+      
+      // 2. Artículos
+      const tbody = document.getElementById('tkArticulos');
+      tbody.innerHTML = items.map(item => `
+          <tr>
+              <td>${item.cantidad}</td>
+              <td>${item.productoNombre}</td>
+              <!-- 4. CORRECCIÓN DOOMSAYER: Fallback de seguridad para evitar TypeError -->
+              <td style="text-align: right;">$${(item.totalLinea || 0).toFixed(2)}</td>
+          </tr>
+      `).join('');
+
+      // 3. Totales
+      document.getElementById('tkSubtotal').textContent = document.getElementById('totSubtotal').textContent;
+      document.getElementById('tkIva').textContent = document.getElementById('totIva').textContent;
+      document.getElementById('tkTotal').textContent = document.getElementById('totTotal').textContent;
+
+      // 4. Pagos
+      document.getElementById('tkMetodo').textContent = metodo.toUpperCase();
+      document.getElementById('tkRecibido').textContent = `$${recibido.toFixed(2)}`;
+      document.getElementById('tkCambio').textContent = `$${cambio.toFixed(2)}`;
+
+      // 5. Encender el Modal
+      document.getElementById('modalTicket').style.display = 'flex';
+  };
+
+  // HU-29: Botón Imprimir Ticket
+  document.getElementById('btnImprimirTicket')?.addEventListener('click', () => {
+      window.print();
+  });
+
+  // HU-29: Botón Cerrar Venta
+  document.getElementById('btnCerrarTicket')?.addEventListener('click', () => {
+      document.getElementById('modalTicket').style.display = 'none';
+      document.getElementById('inputBuscarProducto').focus(); // Listo para el cliente que sigue
   });
 
 });
