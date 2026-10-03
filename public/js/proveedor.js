@@ -1,9 +1,10 @@
 /**
  * @file proveedor.js
- * @description Lógica del cliente para el consumo de la API de Proveedores
+ * @description Lógica del cliente para el consumo de la API de Proveedores.
  *              Alta/edición dinámica de múltiples teléfonos y correos por distribuidor.
- * @author Alfonso Mendoza Vasquez ( / Programador XP)
+ * @author Alfonso Mendoza Vasquez (Programador XP)
  * @author Citlaly Morales Viveros (Cliente / Programadora XP)
+ * @author Stephanie Elizdeth Hernández Prieto (Tracker / Integración de Roles HU-03)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -20,15 +21,64 @@ document.addEventListener('DOMContentLoaded', () => {
     const seccionActivos = document.getElementById('seccionActivos');
     const seccionInactivos = document.getElementById('seccionInactivos');
 
-    // contenedores y botones de los medios de contacto dinámicos
+    // Contenedores y botones de los medios de contacto dinámicos
     const telefonosContainer = document.getElementById('telefonosContainer');
     const correosContainer = document.getElementById('correosContainer');
     const btnAgregarTelefono = document.getElementById('btnAgregarTelefono');
     const btnAgregarCorreo = document.getElementById('btnAgregarCorreo');
 
     const userRole = localStorage.getItem('userRole');
-    if (userRole === 'administrador' || userRole === 'almacenista') {
-        document.getElementById('menuReportes')?.removeAttribute('hidden');
+    const token = localStorage.getItem('token');
+
+    // Control de sesión
+    if (!token || !userRole) {
+        window.location.href = '/login';
+        return;
+    }
+
+    if (userRole === 'cajero') {
+        alert('Acceso no autorizado para tu rol.');
+        window.location.href = '/pos';
+        return;
+    }
+
+    // ==========================================================================
+    // CONFIGURACIÓN HOMOLOGADA DEL MENÚ POR ROL (HU-03)
+    // ==========================================================================
+    configurarMenuPorRol(userRole);
+
+    document.getElementById('btnLogout')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.clear();
+        window.location.href = '/login';
+    });
+
+    function configurarMenuPorRol(rol) {
+        const menuPersonal = document.getElementById('menuPersonal');
+        const menuInventario = document.getElementById('menuInventario');
+        const menuRecepcion = document.getElementById('menuRecepcion');
+        const menuProveedores = document.getElementById('menuProveedores');
+        const menuPos = document.getElementById('menuPos');
+        const menuReportes = document.getElementById('menuReportes');
+        const menuReporteVentas = document.getElementById('menuReporteVentas');
+
+        if (rol === 'administrador') {
+            menuPersonal?.removeAttribute('hidden');
+            menuInventario?.removeAttribute('hidden');
+            menuRecepcion?.removeAttribute('hidden');
+            menuProveedores?.removeAttribute('hidden');
+            menuPos?.removeAttribute('hidden');
+            menuReportes?.removeAttribute('hidden');
+            menuReporteVentas?.removeAttribute('hidden');
+        } else if (rol === 'almacenista') {
+            if (menuPersonal) menuPersonal.hidden = true;
+            menuInventario?.removeAttribute('hidden');
+            menuRecepcion?.removeAttribute('hidden');
+            menuProveedores?.removeAttribute('hidden');
+            menuReportes?.removeAttribute('hidden');
+            if (menuReporteVentas) menuReporteVentas.hidden = true;
+            if (menuPos) menuPos.hidden = true;
+        }
     }
 
     /**
@@ -49,8 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     /**
-     * Proveedores de la última consulta, indexados por id. Permite abrir el modal de edición
-     * sin pasar todos los datos como texto en el atributo onclick del botón.
+     * Proveedores de la última consulta, indexados por id.
      * @type {Object<number, Object>}
      */
     let proveedoresCache = {};
@@ -62,12 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarProveedores();
 
     /**
-     * Cambia de vista segun el estado del checkbox "Ver inactivos": con el check desmarcado se
-     * muestra unicamente la tabla de activos y con el check marcado unicamente la de inactivos
-     * (la otra desaparece). Mantiene sincronizados los checkbox de ambas vistas.
-     *
-     * @param {boolean} verInactivos true para mostrar la tabla de inactivos, false para la de activos.
-     * @returns {void}
+     * Alterna la vista entre activos e inactivos.
+     * @param {boolean} verInactivos
      */
     function alternarTablaInactivos(verInactivos) {
         if (chkMostrarInactivos) chkMostrarInactivos.checked = verInactivos;
@@ -76,10 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (seccionInactivos) seccionInactivos.style.display = verInactivos ? '' : 'none';
     }
 
-    // Sincroniza la vista inicial (el navegador puede conservar el checkbox marcado al recargar)
     alternarTablaInactivos(chkMostrarInactivos?.checked ?? false);
 
-    // Evento para cambiar de tabla/vista por medio del checkbox de inactivos (en cualquiera de las dos vistas)
     chkMostrarInactivos?.addEventListener('change', (e) => alternarTablaInactivos(e.target.checked));
     chkMostrarInactivosAlt?.addEventListener('change', (e) => alternarTablaInactivos(e.target.checked));
 
@@ -88,30 +131,21 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCerrar.addEventListener('click', cerrarModal);
     btnCancelar.addEventListener('click', cerrarModal);
 
-    // botones para añadir dinámicamente más líneas de contacto
     btnAgregarTelefono.addEventListener('click', () => agregarFilaTelefono());
     btnAgregarCorreo.addEventListener('click', () => agregarFilaCorreo());
 
     // Buscador en vivo
     const inputBuscarInactivos = document.getElementById('buscarProveedorInactivo');
     document.getElementById('buscarProveedor').addEventListener('input', function(e) {
-        // Se refleja el texto en el buscador de la vista de inactivos para que ambos coincidan
         if (inputBuscarInactivos) inputBuscarInactivos.value = e.target.value;
         filtrarFilasProveedores(e.target.value);
     });
 
-    // Buscador de la vista de inactivos (misma logica que el buscador de la vista de activos)
     inputBuscarInactivos?.addEventListener('input', function(e) {
         document.getElementById('buscarProveedor').value = e.target.value;
         filtrarFilasProveedores(e.target.value);
     });
 
-    /**
-     * Filtra las filas de ambas tablas (activos e inactivos) segun el texto buscado.
-     *
-     * @param {string} texto - Texto a buscar dentro de cada fila.
-     * @returns {void}
-     */
     function filtrarFilasProveedores(texto) {
         const termino = texto.toLowerCase();
         const filas = [
@@ -133,7 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const proveedorData = {
             nombre: document.getElementById('nombre').value.trim(),
             direccion: document.getElementById('direccion').value.trim(),
-            // se envían todas las líneas capturadas
             telefonos: recolectarTelefonos(),
             correos: recolectarCorreos()
         };
@@ -144,7 +177,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const response = await fetch(url, {
                 method: method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-user-role': userRole
+                },
                 body: JSON.stringify(proveedorData)
             });
 
@@ -162,10 +198,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Función para obtener y pintar la tabla
     async function cargarProveedores() {
         try {
-            const response = await fetch('/api/suppliers');
+            const response = await fetch('/api/suppliers', {
+                headers: { 'x-user-role': userRole }
+            });
             const result = await response.json();
 
             if (result.success) {
@@ -185,9 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         tr.innerHTML = `
                             <td><strong>${prov.nombre}</strong></td>
                             <td>${prov.direccion || '<span class="text-muted">N/A</span>'}</td>
-                            <td>
-                                ${renderContactos(prov)}
-                            </td>
+                            <td>${renderContactos(prov)}</td>
                             <td><span class="badge badge--success">Activo</span></td>
                             <td class="actions-cell">
                                 <button type="button" onclick="editarProveedor(${prov.id})" class="btn-icon-edit btn-editar" title="Editar">Editar</button>
@@ -200,9 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         tr.innerHTML = `
                             <td style="opacity: 0.6;"><strong>${prov.nombre}</strong></td>
                             <td style="opacity: 0.6;">${prov.direccion || '<span class="text-muted">N/A</span>'}</td>
-                            <td style="opacity: 0.6;">
-                                ${renderContactos(prov)}
-                            </td>
+                            <td style="opacity: 0.6;">${renderContactos(prov)}</td>
                             <td><span class="badge badge--danger">Inactivo</span></td>
                             <td class="actions-cell">
                                 <button type="button" onclick="reactivarProveedor(${prov.id})" class="btn-icon-delete btn-estado" title="Reactivar" style="background-color: #E6F0EF; color: var(--color-primary);">Reactivar</button>
@@ -223,7 +256,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.reactivarProveedor = async (id) => {
         if (!confirm('¿Deseas reactivar a este distribuidor?')) return;
         try {
-            const response = await fetch(`/api/suppliers/${id}/reactivate`, { method: 'PUT' });
+            const response = await fetch(`/api/suppliers/${id}/reactivate`, { 
+                method: 'PUT',
+                headers: { 'x-user-role': userRole }
+            });
             const result = await response.json();
             if (result.success) {
                 cargarProveedores();
@@ -234,14 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Funciones globales expuestas para los botones de la tabla
-    /**
-     * Abre el modal de edición con los datos del distribuidor, incluyendo todos sus
-     * teléfonos y correos. Los datos se toman de la caché de la última consulta.
-     *
-     * @param {number} id - Identificador del distribuidor a editar.
-     * @returns {void}
-     */
     window.editarProveedor = (id) => {
         const prov = proveedoresCache[id];
         if (!prov) return;
@@ -253,12 +281,14 @@ document.addEventListener('DOMContentLoaded', () => {
         abrirModal('Editar Distribuidor');
     };
 
-    // Aplicar baja lógica
     window.bajaLogicaProveedor = async (id) => {
         if (!confirm('¿Estás seguro de dar de baja a este distribuidor? Pasará a estado inactivo.')) return;
         
         try {
-            const response = await fetch(`/api/suppliers/${id}`, { method: 'DELETE' });
+            const response = await fetch(`/api/suppliers/${id}`, { 
+                method: 'DELETE',
+                headers: { 'x-user-role': userRole }
+            });
             const result = await response.json();
             
             if (result.success) {
@@ -270,7 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Utilidades de UI
     function abrirModal(titulo = 'Registro de Distribuidor') {
         document.getElementById('formTitle').textContent = titulo;
         modal.style.display = 'flex';
@@ -296,14 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!enModal) setTimeout(() => alertBox.hidden = true, 4000);
     }
 
-    // Múltiples vías de contacto por distribuidor
-
-    /**
-     * Escapa los caracteres especiales de HTML para insertar texto de usuario de forma segura con innerHTML.
-     *
-     * @param {*} texto - Valor a escapar.
-     * @returns {string} Texto seguro para incrustar en HTML.
-     */
     function escaparHtml(texto) {
         return String(texto ?? '')
             .replace(/&/g, '&amp;')
@@ -313,36 +334,16 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/'/g, '&#39;');
     }
 
-    /**
-     * Obtiene los teléfonos de un distribuidor. Si la API no trae la lista, usa la columna
-     * telefono (contacto principal) como único elemento.
-     *
-     * @param {Object} prov - Distribuidor devuelto por la API.
-     * @returns {Array<{telefono: string, tipo: string}>} Lista de teléfonos.
-     */
     function obtenerTelefonos(prov) {
         if (Array.isArray(prov.telefonos) && prov.telefonos.length > 0) return prov.telefonos;
         return prov.telefono ? [{ telefono: prov.telefono, tipo: 'oficina' }] : [];
     }
 
-    /**
-     * Obtiene los correos de un distribuidor. Si la API no trae la lista, usa la columna
-     * email (contacto principal) como único elemento.
-     *
-     * @param {Object} prov - Distribuidor devuelto por la API.
-     * @returns {string[]} Lista de correos.
-     */
     function obtenerCorreos(prov) {
         if (Array.isArray(prov.correos) && prov.correos.length > 0) return prov.correos;
         return prov.email ? [prov.email] : [];
     }
 
-    /**
-     * Genera el HTML de la celda "Contacto" (ficha del distribuidor) con todos sus teléfonos y correos.
-     *
-     * @param {Object} prov - Distribuidor devuelto por la API.
-     * @returns {string} Fragmento HTML con una línea por cada medio de contacto.
-     */
     function renderContactos(prov) {
         const telefonos = obtenerTelefonos(prov);
         const correos = obtenerCorreos(prov);
@@ -356,13 +357,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return htmlTelefonos + htmlCorreos;
     }
 
-    /**
-     * Añade una línea de teléfono (número + tipo + botón eliminar) al formulario.
-     *
-     * @param {string} [numero=''] - Número con el que se precarga la línea.
-     * @param {string} [tipo='oficina'] - Tipo de teléfono (oficina, celular, whatsapp u otro).
-     * @returns {void}
-     */
     function agregarFilaTelefono(numero = '', tipo = 'oficina') {
         if (telefonosContainer.children.length >= MAX_CONTACTOS) return;
 
@@ -380,7 +374,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const input = fila.querySelector('.input-telefono');
         input.value = numero;
-        // Solo se permiten dígitos, igual que en el campo original
         input.addEventListener('input', () => { input.value = input.value.replace(/[^0-9]/g, ''); });
         fila.querySelector('.select-tipo-telefono').value = tipo;
         fila.querySelector('button').addEventListener('click', () => quitarFila(fila, telefonosContainer));
@@ -389,12 +382,6 @@ document.addEventListener('DOMContentLoaded', () => {
         actualizarControlesContacto();
     }
 
-    /**
-     * Añade una línea de correo (correo + botón eliminar) al formulario.
-     *
-     * @param {string} [correo=''] - Correo con el que se precarga la línea.
-     * @returns {void}
-     */
     function agregarFilaCorreo(correo = '') {
         if (correosContainer.children.length >= MAX_CONTACTOS) return;
 
@@ -412,14 +399,6 @@ document.addEventListener('DOMContentLoaded', () => {
         actualizarControlesContacto();
     }
 
-    /**
-     * Elimina una línea de contacto. Si es la única que queda, solo la limpia para que
-     * el formulario siempre conserve al menos una línea visible.
-     *
-     * @param {HTMLElement} fila - Línea a eliminar.
-     * @param {HTMLElement} contenedor - Contenedor (teléfonos o correos) al que pertenece la línea.
-     * @returns {void}
-     */
     function quitarFila(fila, contenedor) {
         if (contenedor.children.length <= 1) {
             fila.querySelectorAll('input').forEach(input => { input.value = ''; });
@@ -429,12 +408,6 @@ document.addEventListener('DOMContentLoaded', () => {
         actualizarControlesContacto();
     }
 
-    /**
-     * Sincroniza el estado de los controles de contacto: solo el primer correo es obligatorio
-     * y los botones de "agregar" se deshabilitan al llegar al máximo permitido.
-     *
-     * @returns {void}
-     */
     function actualizarControlesContacto() {
         correosContainer.querySelectorAll('.input-correo').forEach((input, indice) => {
             input.required = indice === 0;
@@ -443,14 +416,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btnAgregarCorreo.disabled = correosContainer.children.length >= MAX_CONTACTOS;
     }
 
-    /**
-     * Reconstruye las líneas de contacto del formulario a partir de las listas indicadas.
-     * Si una lista viene vacía, deja una línea en blanco.
-     *
-     * @param {Array<{telefono: string, tipo: string}>} [telefonos=[]] - Teléfonos a mostrar.
-     * @param {string[]} [correos=[]] - Correos a mostrar.
-     * @returns {void}
-     */
     function poblarContactos(telefonos = [], correos = []) {
         telefonosContainer.innerHTML = '';
         correosContainer.innerHTML = '';
@@ -464,20 +429,10 @@ document.addEventListener('DOMContentLoaded', () => {
         actualizarControlesContacto();
     }
 
-    /**
-     * Deja las líneas de contacto en su estado inicial: una línea vacía de teléfono y una de correo.
-     *
-     * @returns {void}
-     */
     function reiniciarContactos() {
         poblarContactos();
     }
 
-    /**
-     * Lee los teléfonos capturados en el formulario, omitiendo las líneas vacías.
-     *
-     * @returns {Array<{telefono: string, tipo: string}>} Teléfonos con su tipo, en el orden capturado.
-     */
     function recolectarTelefonos() {
         return Array.from(telefonosContainer.querySelectorAll('.form-dynamic-row'))
             .map(fila => ({
@@ -487,11 +442,6 @@ document.addEventListener('DOMContentLoaded', () => {
             .filter(t => t.telefono !== '');
     }
 
-    /**
-     * Lee los correos capturados en el formulario, omitiendo las líneas vacías.
-     *
-     * @returns {string[]} Correos en el orden capturado.
-     */
     function recolectarCorreos() {
         return Array.from(correosContainer.querySelectorAll('.input-correo'))
             .map(input => input.value.trim())

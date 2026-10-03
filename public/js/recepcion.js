@@ -469,4 +469,36 @@ document.addEventListener('DOMContentLoaded', () => {
     alerta.className = `alert alert--${tipo}`;
     alerta.hidden = false;
   }
+
+  /**
+ * Asigna el avatar, nombre y rol del usuario activo en el sidebar.
+ */
+function cargarPerfilUsuario() {
+  const rol = localStorage.getItem('userRole') || 'cajero';
+  const nombre = localStorage.getItem('userName') || 'Usuario';
+
+  const avatarImg = document.getElementById('userAvatarImg');
+  const displayName = document.getElementById('userDisplayName');
+  const displayRole = document.getElementById('userDisplayRole');
+
+  // Mapeo directo de imagen según el rol autenticado
+  const mapaAvatares = {
+    administrador: '/img/avatars/admin.png',
+    almacenista: '/img/avatars/almacen.png',
+    cajero: '/img/avatars/cajero.png'
+  };
+
+  if (avatarImg) {
+    avatarImg.src = mapaAvatares[rol] || '/img/avatars/cajero.png';
+  }
+  if (displayName) {
+    displayName.textContent = nombre;
+  }
+  if (displayRole) {
+    displayRole.textContent = rol;
+  }
+}
+
+// Invocación dentro del DOMContentLoaded:
+cargarPerfilUsuario();
 });

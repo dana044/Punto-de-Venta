@@ -1,8 +1,8 @@
 /**
  * @file reportes-ventas.js
  * @description Controlador del lado del cliente para el Reporte Mensual de Ventas (HU-40).
- * Integra consulta global de productos vendidos, ranking descendente, métricas monetarias
- * y exportación/impresión física (window.print).
+ * Integra consulta global de productos vendidos, ranking descendente, métricas monetarias,
+ * exportación a CSV/Excel y reporte impreso en PDF (window.print).
  * @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
  */
 
@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputAnio = document.getElementById('inputAnio');
   const btnGenerar = document.getElementById('btnGenerar');
   const btnImprimir = document.getElementById('btnImprimirReporte');
+  const btnDescargarCSV = document.getElementById('btnDescargarCSV');
   const tablaBody = document.getElementById('tablaVentasBody');
   const ventasCount = document.getElementById('ventasCount');
   const alerta = document.getElementById('alertaVentas');
@@ -51,9 +52,37 @@ document.addEventListener('DOMContentLoaded', () => {
   let ultimoReporte = null;
 
   formFiltro?.addEventListener('submit', generarReporteVentas);
+  
   btnImprimir?.addEventListener('click', () => {
     prepararImpresion();
     window.print();
+  });
+
+  // HU-40: Descarga en formato CSV / Excel
+  btnDescargarCSV?.addEventListener('click', () => {
+    if (!ultimoReporte || !ultimoReporte.ranking.length) return;
+
+    const encabezados = ['Ranking', 'Codigo de Barras', 'Producto', 'Categoria', 'Unidades Vendidas', 'Total Facturado ($)'];
+    const filas = ultimoReporte.ranking.map((p, i) => [
+      i + 1,
+      `"${p.codigo_barras}"`,
+      `"${p.nombre}"`,
+      `"${p.categoria || 'Sin categoria'}"`,
+      p.total_unidades_vendidas,
+      Number(p.total_recaudado).toFixed(2)
+    ]);
+
+    const contenidoCSV = [encabezados.join(','), ...filas.map(f => f.join(','))].join('\r\n');
+    const blob = new Blob(['\ufeff' + contenidoCSV], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Reporte_Ventas_${ultimoReporte.mesNombre}_${ultimoReporte.anio}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   });
 
   function configurarMenuPorRol(rol) {
@@ -128,7 +157,8 @@ document.addEventListener('DOMContentLoaded', () => {
       ventasCount.textContent = '0 ventas registradas';
       metricasVenta.style.display = 'none';
       contenedorGrafica.style.display = 'none';
-      btnImprimir.hidden = true;
+      if (btnImprimir) btnImprimir.hidden = true;
+      if (btnDescargarCSV) btnDescargarCSV.hidden = true;
       if (chartVentas) chartVentas.destroy();
 
       tablaBody.innerHTML = `
@@ -141,7 +171,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Cálculos de métricas consolidadas
     let totalIngresos = 0;
     let totalPiezas = 0;
 
@@ -156,9 +185,9 @@ document.addEventListener('DOMContentLoaded', () => {
     metricasVenta.style.display = 'grid';
 
     ventasCount.textContent = `${productos.length} producto(s) vendidos en el mes`;
-    btnImprimir.hidden = false;
+    if (btnImprimir) btnImprimir.hidden = false;
+    if (btnDescargarCSV) btnDescargarCSV.hidden = false;
 
-    // Pintar todas las filas
     productos.forEach((prod, index) => {
       const fila = document.createElement('tr');
       const aporte = totalIngresos > 0 ? ((Number(prod.total_recaudado) / totalIngresos) * 100).toFixed(1) : 0;
@@ -183,7 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
     contenedorGrafica.style.display = 'block';
     if (chartVentas) chartVentas.destroy();
 
-    // Graficar el top 8 para mantener legibilidad visual
     const topGraficar = productos.slice(0, 8);
     const ctx = document.getElementById('graficaVentas')?.getContext('2d');
 
@@ -235,4 +263,36 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
+
+  /**
+ * Asigna el avatar, nombre y rol del usuario activo en el sidebar.
+ */
+function cargarPerfilUsuario() {
+  const rol = localStorage.getItem('userRole') || 'cajero';
+  const nombre = localStorage.getItem('userName') || 'Usuario';
+
+  const avatarImg = document.getElementById('userAvatarImg');
+  const displayName = document.getElementById('userDisplayName');
+  const displayRole = document.getElementById('userDisplayRole');
+
+  // Mapeo directo de imagen según el rol autenticado
+  const mapaAvatares = {
+    administrador: '/img/avatars/admin.png',
+    almacenista: '/img/avatars/almacen.png',
+    cajero: '/img/avatars/cajero.png'
+  };
+
+  if (avatarImg) {
+    avatarImg.src = mapaAvatares[rol] || '/img/avatars/cajero.png';
+  }
+  if (displayName) {
+    displayName.textContent = nombre;
+  }
+  if (displayRole) {
+    displayRole.textContent = rol;
+  }
+}
+
+// Invocación dentro del DOMContentLoaded:
+cargarPerfilUsuario();
 });

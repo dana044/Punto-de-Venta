@@ -25,7 +25,6 @@
       gap: 1.25rem;
       margin-bottom: 1.5rem;
     }
-
     .summary-card {
       background: #FFFFFF;
       border: 1px solid var(--border-color);
@@ -33,7 +32,6 @@
       padding: 1.25rem;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
-
     .summary-card__title {
       font-size: 0.85rem;
       color: var(--text-muted);
@@ -41,13 +39,11 @@
       letter-spacing: 0.05em;
       margin-bottom: 0.5rem;
     }
-
     .summary-card__value {
       font-size: 1.75rem;
       font-weight: 700;
       color: var(--color-primary);
     }
-
     .badge-rank {
       display: inline-block;
       min-width: 28px;
@@ -59,12 +55,10 @@
       background: #E6F0EF;
       color: var(--color-primary);
     }
-
     .badge-rank--gold {
       background: #FEF3C7;
       color: #B45309;
     }
-
     @media print {
       body {
         background: #FFFFFF !important;
@@ -109,9 +103,18 @@
 
 <body>
   <div class="app-container">
-    <!-- Sidebar con control estricto HU-03 -->
     <aside class="sidebar">
       <div class="sidebar__brand">La Number One</div>
+
+      <!-- Perfil del usuario activo con Avatar dinámico -->
+      <div class="sidebar__user-profile">
+        <img id="userAvatarImg" src="/img/avatars/admin.png" alt="Avatar" class="sidebar__avatar" />
+        <div class="sidebar__user-info">
+          <span class="sidebar__user-name" id="userDisplayName">Usuario</span>
+          <span class="sidebar__user-role" id="userDisplayRole">Turno activo</span>
+        </div>
+      </div>
+
       <ul class="sidebar__nav" id="sidebarNav">
         <li id="menuPersonal" hidden>
           <a href="/empleados" class="sidebar__link">Administrar Personal</a>
@@ -208,6 +211,7 @@
 
               <button type="submit" class="btn btn--primary" id="btnGenerar">Generar Informe</button>
               <button type="button" class="btn btn--secondary" id="btnImprimirReporte" hidden>Imprimir Reporte</button>
+              <button type="button" class="btn btn--secondary" id="btnDescargarCSV" hidden>Exportar a Excel (CSV)</button>
             </form>
           </div>
 
@@ -249,6 +253,7 @@
 
   <script src="/js/chart.umd.min.js"></script>
   <script src="/js/reportes-ventas.js"></script>
+  <script src="/js/perfil.js"></script>
   <script src="/js/inactividad.js"></script>
 </body>
 
