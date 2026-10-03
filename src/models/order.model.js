@@ -86,7 +86,7 @@ const getPedidosPendientes = async () => {
       prov.nombre AS proveedorNombre
     FROM pedidos p
     JOIN proveedores prov ON p.proveedor_id = prov.id
-    WHERE p.estado IN ('pendiente', 'incompleto')
+    WHERE p.estado IN ('pendiente', 'incompleto', 'en_transito', 'cancelado')
     ORDER BY p.fecha DESC
   `;
   const [pedidos] = await db.execute(queryPedidos);
@@ -267,9 +267,29 @@ const registrarRecepcionMercancia = async (folio, itemsRecibidos) => {
   }
 };
 
+/**
+ * HU-33: Actualiza manualmente el estado general de un pedido.
+ * Permite al administrador registrar transiciones de ciclo de vida ('en tránsito', 'cancelado', etc.).
+ *
+ * @async
+ * @function updateEstadoPedido
+ * @param {string} folio - Folio único del pedido a actualizar.
+ * @param {string} nuevoEstado - El nuevo estado que se le asignará al pedido.
+ * @returns {Promise<boolean>} True si el pedido se actualizó correctamente, false si no se encontró.
+ */
+const updateEstadoPedido = async (folio, nuevoEstado) => {
+  const [result] = await db.execute(
+    'UPDATE pedidos SET estado = ? WHERE folio = ?',
+    [nuevoEstado, folio]
+  );
+  
+  return result.affectedRows > 0;
+};
+
 module.exports = {
   crearPedido,
   getPedidosPendientes,
   getPedidoByFolio,
-  registrarRecepcionMercancia
+  registrarRecepcionMercancia,
+  updateEstadoPedido
 };

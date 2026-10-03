@@ -43,4 +43,11 @@ router.post(
   receivingController.confirmarRecepcion
 );
 
+// HU-33: Actualizar manualmente el estado de un pedido (ej. 'en tránsito', 'cancelado')
+router.put(
+  '/pedidos/:folio/estado',
+  permitirRoles('administrador', 'almacenista'),
+  receivingController.actualizarEstadoPedido
+);
+
 module.exports = router;
