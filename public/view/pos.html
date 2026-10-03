@@ -47,6 +47,117 @@
       text-align: center;
     }
 
+    /* Catálogo de productos: categorías por defecto y resultados de búsqueda en vivo */
+    .catalogo-panel {
+      margin-bottom: 1.5rem;
+    }
+    .catalogo-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .catalogo-titulo {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .catalogo-scroll {
+      max-height: 280px;
+      overflow-y: auto;
+      padding: 0.75rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+    }
+    .catalogo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0.75rem;
+    }
+    .catalogo-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+      min-height: 90px;
+      padding: 0.75rem;
+      text-align: center;
+      background: #FFFFFF;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-family: inherit;
+      color: var(--text-main);
+      transition: all 0.2s;
+    }
+    .catalogo-card:hover:not(:disabled) {
+      border-color: var(--color-primary);
+      background-color: rgba(5, 86, 81, 0.05);
+    }
+    .catalogo-card:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .catalogo-card__icono { font-size: 1.6rem; }
+    .catalogo-card__nombre { font-size: 0.85rem; font-weight: 600; }
+    .catalogo-card__detalle { font-size: 0.75rem; color: var(--text-muted); }
+    .catalogo-vacio {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--text-muted);
+      padding: 1rem;
+    }
+
+    /* Modal de terminal bancaria (tarjeta) */
+    .terminal-icono { font-size: 3rem; margin-bottom: 0.5rem; }
+    .spinner {
+      width: 38px;
+      height: 38px;
+      margin: 0.75rem auto 1rem auto;
+      border: 4px solid var(--border-color);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: giro-spinner 0.9s linear infinite;
+    }
+    @keyframes giro-spinner {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Modal de transferencia (SPEI) */
+    .spei-banco {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .spei-banco__logo {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      background: rgba(5, 86, 81, 0.08);
+      border-radius: 50%;
+    }
+    .spei-dato {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px dashed var(--border-color);
+      font-size: 0.9rem;
+    }
+    .spei-dato__valor { font-weight: 600; text-align: right; }
+    .spei-clabe {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 1.15rem;
+      letter-spacing: 1px;
+    }
+
     /* Estilos exclusivos para imprimir el ticket (HU-29) */
     @media print {
       body * { visibility: hidden; } /* Ocultar todo el sistema */
@@ -144,6 +255,17 @@
         <button class="btn btn--primary" id="btnAgregar">+ Agregar a la venta</button>
       </div>
 
+      <!-- Catálogo: categorías por defecto, productos de la categoría o resultados de la búsqueda en vivo -->
+      <div class="catalogo-panel">
+        <div class="catalogo-header">
+          <button type="button" class="btn-link-add" id="btnVolverCategorias" hidden>&larr; Categorías</button>
+          <span class="catalogo-titulo" id="catalogoTitulo">Categorías</span>
+        </div>
+        <div class="catalogo-scroll" id="catalogoContenedor">
+          <div class="catalogo-grid" id="catalogoGrid"></div>
+        </div>
+      </div>
+
       <table class="data-table">
         <thead>
           <tr>
@@ -210,6 +332,59 @@
     </div>
   </div>
   
+  <!-- Modal Terminal Bancaria: la pantalla solo confirma lo que ocurrió en la terminal física -->
+  <div class="modal-overlay modal--hidden" id="modalTarjeta">
+    <div class="modal-card" style="max-width: 440px; padding: 0;">
+      <div class="modal-header" style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+        <h2 style="margin: 0; font-size: 1.25rem;">Cobro con Tarjeta</h2>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem; text-align: center;">
+        <div class="terminal-icono">💳</div>
+        <div class="spinner"></div>
+        <p style="margin: 0 0 0.25rem 0; font-weight: 700;">Esperando cobro en terminal bancaria...</p>
+        <p class="text-muted" style="margin: 0 0 1.25rem 0;">Total a cobrar en la terminal: <strong id="tarjetaMonto">$0.00</strong></p>
+        <div class="form-group" style="text-align: left; margin-bottom: 0;">
+          <label class="form-label" for="inputNumAutorizacion">No. de Autorización (opcional)</label>
+          <input type="text" id="inputNumAutorizacion" class="form-input" maxlength="6" inputmode="numeric" placeholder="Ej. 123456" autocomplete="off" />
+          <small class="text-muted">Código de 6 dígitos que imprime el voucher del banco.</small>
+          <small id="errNumAutorizacion" style="color: var(--color-danger);" hidden>Debe contener exactamente 6 dígitos.</small>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 1rem;">
+        <button class="btn btn--danger" id="btnRechazarTarjeta">Rechazar / Cancelar</button>
+        <button class="btn btn--primary" id="btnAprobarTarjeta">Aprobar Pago</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Transferencia (SPEI): el cajero verifica el depósito en su banca y confirma manualmente -->
+  <div class="modal-overlay modal--hidden" id="modalTransferencia">
+    <div class="modal-card" style="max-width: 480px; padding: 0;">
+      <div class="modal-header" style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+        <h2 style="margin: 0; font-size: 1.25rem;">Transferencia (SPEI)</h2>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <div class="spei-banco">
+          <div class="spei-banco__logo">🏦</div>
+          <div>
+            <strong id="speiBanco">Banco</strong><br />
+            <small class="text-muted">Cuenta receptora del negocio</small>
+          </div>
+        </div>
+        <div class="spei-dato"><span>Titular</span><span class="spei-dato__valor" id="speiTitular">---</span></div>
+        <div class="spei-dato"><span>CLABE interbancaria</span><span class="spei-dato__valor spei-clabe" id="speiClabe">---</span></div>
+        <div class="spei-dato"><span>Referencia</span><span class="spei-dato__valor" id="speiReferencia">---</span></div>
+        <div class="spei-dato" style="border-bottom: none;"><span>Monto a recibir</span><span class="spei-dato__valor" id="speiMonto" style="font-size: 1.3rem; color: var(--color-primary);">$0.00</span></div>
+        <button class="btn btn--primary" id="btnConfirmarFondos" style="width: 100%; margin-top: 1rem; font-size: 1.1rem; padding: 1rem;">
+          Confirmar recepción de fondos
+        </button>
+      </div>
+      <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
+        <button class="btn btn--danger" id="btnCancelarTransferencia">Cancelar</button>
+      </div>
+    </div>
+  </div>
+  
   <!-- HU-29: Modal del Comprobante / Ticket de Venta -->
   <div id="modalTicket" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;">
     <div style="background: #fff; width: 320px; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000;">
@@ -226,6 +401,8 @@
         <div style="display: flex; justify-content: space-between;"><span>Folio:</span> <strong id="tkFolio">---</strong></div>
         <div style="display: flex; justify-content: space-between;"><span>Cajero:</span> <span id="tkCajero">---</span></div>
         <div style="display: flex; justify-content: space-between;"><span>Fecha:</span> <span id="tkFecha">---</span></div>
+        <div style="display: flex; justify-content: space-between;"><span>Cliente:</span> <span>PÚBLICO EN GENERAL</span></div>
+        <div style="display: flex; justify-content: space-between;"><span>RFC Cliente:</span> <span>XAXX010101000</span></div>
       </div>
 
       <!-- Detalle de Artículos -->
@@ -256,6 +433,15 @@
         <div style="display: flex; justify-content: space-between;"><span>Método de Pago:</span> <span id="tkMetodo">---</span></div>
         <div style="display: flex; justify-content: space-between;"><span>Recibido:</span> <span id="tkRecibido">$0.00</span></div>
         <div style="display: flex; justify-content: space-between;"><span>Cambio:</span> <span id="tkCambio">$0.00</span></div>
+        <div id="tkAutorizacionFila" style="display: none; justify-content: space-between;"><span>No. Autorización:</span> <span id="tkAutorizacion">---</span></div>
+      </div>
+
+      <!-- Auto-facturación: el cliente factura por su cuenta en la página web con este folio y su RFC -->
+      <div style="border: 1px dashed #000; padding: 8px; margin-bottom: 15px; text-align: center;">
+        <p style="margin: 2px 0; font-weight: bold;">¿REQUIERE FACTURA?</p>
+        <p style="margin: 2px 0;">Folio de Facturación:</p>
+        <p style="margin: 4px 0; font-size: 15px; font-weight: bold; letter-spacing: 1px;" id="tkFolioFacturacion">---</p>
+        <p style="margin: 2px 0;">Ingrese a facturacion.puntodeventa-uv.mx con este folio y su RFC.</p>
       </div>
 
       <!-- Pie del Ticket -->

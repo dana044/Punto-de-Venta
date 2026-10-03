@@ -67,6 +67,58 @@ class SaleModel {
         const [rows] = await db.execute(query, [Number(anio), Number(mes)]);
         return rows;
     }
+
+    /**
+     * Catálogo del POS: lista las categorías que tienen productos activos.
+     * @async
+     * @static
+     * @returns {Promise<Array<Object>>} Categorías con el total de productos de cada una.
+     */
+    static async getCategoriasCatalogo() {
+        const query = `
+            SELECT categoria, COUNT(*) AS total_productos
+            FROM productos
+            WHERE activo = 1
+            GROUP BY categoria
+            ORDER BY categoria ASC;
+        `;
+        const [rows] = await db.query(query);
+        return rows;
+    }
+
+    /**
+     * Catálogo del POS: lista productos activos filtrando por categoría y/o por texto (nombre o código de barras).
+     * @async
+     * @static
+     * @param {string} [categoria] - Categoría exacta a mostrar (opcional).
+     * @param {string} [termino] - Texto a buscar en el nombre o código de barras (opcional).
+     * @returns {Promise<Array<Object>>} Máximo 60 productos ordenados por nombre.
+     */
+    static async getProductosCatalogo(categoria, termino) {
+        let query = `
+            SELECT id, nombre, codigo_barras, categoria, precio, stock_mostrador
+            FROM productos
+            WHERE activo = 1
+        `;
+        const params = [];
+
+        if (categoria) {
+            query += ' AND categoria = ?';
+            params.push(categoria);
+        }
+
+        if (termino) {
+            // Se escapan los comodines para que el texto del cajero se busque literal
+            const textoSeguro = termino.replace(/[\\%_]/g, '\\$&');
+            query += ' AND (nombre LIKE ? OR codigo_barras LIKE ?)';
+            params.push(`%${textoSeguro}%`, `%${textoSeguro}%`);
+        }
+
+        query += ' ORDER BY nombre ASC LIMIT 60';
+
+        const [rows] = await db.query(query, params);
+        return rows;
+    }
 }
 
 module.exports = SaleModel;

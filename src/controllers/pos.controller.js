@@ -56,13 +56,13 @@ const calcularTotales = async (req, res) => {
  */
 const procesarCobro = async (req, res) => {
   try {
-    const { items, metodoPago, montoRecibido } = req.body;
+    const { items, metodoPago, montoRecibido, numAutorizacion } = req.body;
     
     // Si tu middleware de Auth ya pasa el usuario en req.user.id, úsalo.
     // De lo contrario, usaremos el ID 2 (Cajero 01) como fallback seguro para pruebas.
     const usuarioId = req.user?.id || 2; 
 
-    const resultado = await salesService.registrarVenta(items, usuarioId, metodoPago, montoRecibido);
+    const resultado = await salesService.registrarVenta(items, usuarioId, metodoPago, montoRecibido, numAutorizacion);
 
     if (!resultado.ok) {
       return res.status(400).json({ mensaje: resultado.mensaje });
@@ -104,9 +104,48 @@ const obtenerReporteVentaMensual = async (req, res) => {
   }
 };
 
+/**
+ * Catálogo del POS: devuelve las categorías con productos activos para la cuadrícula inicial.
+ * @async
+ * @function listarCategoriasCatalogo
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+const listarCategoriasCatalogo = async (req, res) => {
+  try {
+    const categorias = await SaleModel.getCategoriasCatalogo();
+    return res.status(200).json({ categorias });
+  } catch (error) {
+    console.error('[Error Log - ERROR CATALOGO POS CATEGORIAS]:', error);
+    return res.status(500).json({ mensaje: 'Error interno al consultar las categorías.' });
+  }
+};
+
+/**
+ * Catálogo del POS: devuelve productos filtrados por categoría (?categoria=) o por texto (?q=).
+ * @async
+ * @function listarProductosCatalogo
+ * @param {import('express').Request} req - Petición con query params opcionales categoria y q.
+ * @param {import('express').Response} res
+ */
+const listarProductosCatalogo = async (req, res) => {
+  try {
+    const categoria = (req.query.categoria || '').trim();
+    const termino = (req.query.q || '').trim();
+
+    const productos = await SaleModel.getProductosCatalogo(categoria, termino);
+    return res.status(200).json({ productos });
+  } catch (error) {
+    console.error('[Error Log - ERROR CATALOGO POS PRODUCTOS]:', error);
+    return res.status(500).json({ mensaje: 'Error interno al consultar los productos.' });
+  }
+};
+
 module.exports = {
   abrirVenta,
   calcularTotales,
   procesarCobro,
-  obtenerReporteVentaMensual
+  obtenerReporteVentaMensual,
+  listarCategoriasCatalogo,
+  listarProductosCatalogo
 };

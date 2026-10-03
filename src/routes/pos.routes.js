@@ -62,4 +62,28 @@ router.get(
   posController.obtenerReporteVentaMensual
 );
 
+/**
+ * Catálogo del POS: categorías disponibles para la cuadrícula inicial.
+ * Restringida a cajero y administrador.
+ * @name get/catalogo/categorias
+ * @route {GET} /api/pos/catalogo/categorias
+ */
+router.get(
+  '/catalogo/categorias',
+  permitirRoles('cajero', 'administrador'),
+  posController.listarCategoriasCatalogo
+);
+
+/**
+ * Catálogo del POS: productos por categoría o por texto de búsqueda en vivo.
+ * Restringida a cajero y administrador.
+ * @name get/catalogo/productos
+ * @route {GET} /api/pos/catalogo/productos
+ */
+router.get(
+  '/catalogo/productos',
+  permitirRoles('cajero', 'administrador'),
+  posController.listarProductosCatalogo
+);
+
 module.exports = router;
