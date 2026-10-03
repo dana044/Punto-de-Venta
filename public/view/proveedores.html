@@ -19,26 +19,38 @@
 
 <body>
   <div class="app-container">
-    <!-- Barra lateral -->
     <aside class="sidebar">
       <div class="sidebar__brand">La Number One</div>
+
+      <!-- Perfil con Avatar -->
+      <div class="sidebar__user-profile">
+        <img id="userAvatarImg" src="/img/avatars/admin.png" alt="Avatar" class="sidebar__avatar" />
+        <div class="sidebar__user-info">
+          <span class="sidebar__user-name" id="userDisplayName">Usuario</span>
+          <span class="sidebar__user-role" id="userDisplayRole">Turno activo</span>
+        </div>
+      </div>
+
       <ul class="sidebar__nav" id="sidebarNav">
-        <li id="menuPersonal">
+        <li id="menuPersonal" hidden>
           <a href="/empleados" class="sidebar__link">Administrar Personal</a>
         </li>
-        <li id="menuInventario">
+        <li id="menuInventario" hidden>
           <a href="/inventario" class="sidebar__link">Inventario</a>
         </li>
         <li id="menuReportes" hidden>
           <a href="/reportes-inventario" class="sidebar__link">Reportes de Inventario</a>
         </li>
-        <li id="menuRecepcion">
+        <li id="menuReporteVentas" hidden>
+          <a href="/reportes-ventas" class="sidebar__link">Reporte de Ventas</a>
+        </li>
+        <li id="menuRecepcion" hidden>
           <a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a>
         </li>
-        <li id="menuProveedores">
+        <li id="menuProveedores" hidden>
           <a href="/proveedores" class="sidebar__link sidebar__link--active">Proveedores</a>
         </li>
-        <li id="menuPos">
+        <li id="menuPos" hidden>
           <a href="/pos" class="sidebar__link">Punto de Venta</a>
         </li>
         <li>
@@ -66,7 +78,6 @@
               <h2>Proveedores activos</h2>
               <span class="table-card__count" id="proveedoresCount">&nbsp;</span>
             </div>
-            <!-- Checkbox para cambiar a la tabla de proveedores inactivos (igual que en inventario) -->
             <div style="display: flex; gap: 1rem; align-items: center;">
               <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
                 <input type="checkbox" id="chkMostrarInactivos"> Ver inactivos
@@ -87,15 +98,12 @@
                 <th>Acciones</th>
               </tr>
             </thead>
-            <tbody id="tablaProveedoresBody">
-              <!-- Carga dinámicamente desde proveedor.js -->
-            </tbody>
+            <tbody id="tablaProveedoresBody"></tbody>
           </table>
         </div>
       </section>
 
       <!-- Tabla de proveedores INACTIVOS -->
-      <!-- Oculta por defecto; reemplaza a la tabla de activos al marcar el checkbox "Ver inactivos" (ver proveedor.js) -->
       <section class="table-section" id="seccionInactivos" style="margin-top: 2rem; display: none;">
         <div class="table-card">
           <div class="table-card__toolbar">
@@ -103,7 +111,6 @@
               <h2 style="color: #6b7280;">Distribuidores Inactivos (Baja Lógica)</h2>
               <span class="table-card__count" id="inactivosCount">&nbsp;</span>
             </div>
-            <!-- Checkbox (marcado) para regresar a la tabla de activos y buscador de la vista de inactivos -->
             <div style="display: flex; gap: 1rem; align-items: center;">
               <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
                 <input type="checkbox" id="chkMostrarInactivosAlt" checked> Ver inactivos
@@ -123,17 +130,14 @@
                 <th>Acciones</th>
               </tr>
             </thead>
-            <tbody id="tablaInactivosBody">
-              <!-- Carga dinámicamente desde proveedor.js -->
-            </tbody>
+            <tbody id="tablaInactivosBody"></tbody>
           </table>
         </div>
       </section>
 
-      <!-- Overlay/Modal Ficha de Proveedor (Aislado del resto de la interfaz) -->
+      <!-- Modal Distribuidor -->
       <div id="modalOverlay" class="modal-overlay" style="display:none;">
         <div class="modal-card stepped-card">
-
           <header class="stepped-card__header">
             <div>
               <strong id="formTitle">Registro de Distribuidor</strong>
@@ -146,7 +150,6 @@
 
           <form id="proveedorForm">
             <input type="hidden" id="proveedorId" />
-
             <section class="stepped-card__section">
               <p><span class="step-badge">1</span><strong>Datos Fiscales y de Entrega</strong></p>
               <div class="form-group" style="margin-top: 1rem;">
@@ -161,7 +164,6 @@
 
             <section class="stepped-card__section">
               <p><span class="step-badge">2</span><strong>Medios de Contacto</strong></p>
-              <!-- las líneas se generan dinámicamente desde proveedor.js; la primera de cada lista es el contacto principal -->
               <div style="margin-top: 1rem;">
                 <label class="form-label">Teléfonos</label>
                 <div id="telefonosContainer"></div>
@@ -181,10 +183,11 @@
           </form>
         </div>
       </div>
-
     </main>
   </div>
 
   <script src="/js/proveedor.js"></script>
+  <script src="/js/perfil.js"></script>
+  <script src="/js/inactividad.js"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
   min-height: 100vh;
 }
 
-/* Sidebar lateral común a las 4 pantallas */
+/* Sidebar lateral común a todas las pantallas */
 .sidebar {
   width: 260px;
   background-color: var(--bg-sidebar);
@@ -48,7 +48,8 @@
   padding: 2rem;
   overflow-y: auto;
 }
-/* ENCABEZADO DE PÁGINA . Reutilizable en cualquier vista dentro de .main-content */
+
+/* ENCABEZADO DE PÁGINA: Reutilizable en cualquier vista dentro de .main-content */
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -66,4 +67,49 @@
 .page-header p {
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+/* ==========================================================================
+   PERFIL Y AVATAR DE USUARIO EN SIDEBAR (DEFINICIÓN ÚNICA)
+   ========================================================================== */
+.sidebar__user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  margin: 0.75rem 1rem 0.5rem 1rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+}
+
+.sidebar__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #1E293B;
+  border: 2px solid var(--color-primary);
+  flex-shrink: 0;
+}
+
+.sidebar__user-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar__user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-white);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.sidebar__user-role {
+  font-size: 0.75rem;
+  color: #94A3B8;
+  text-transform: capitalize;
 }

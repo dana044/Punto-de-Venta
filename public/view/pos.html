@@ -1,6 +1,5 @@
 <!--
-  
-  Integra HU 25, HU26, HU49 y HU30: Búsqueda, cálculo automático, registro de venta con folio, fecha y empleado. y modal de liquidación.
+  Punto de Venta UV - Calculadora de Venta
 -->
 <!DOCTYPE html>
 <html lang="es">
@@ -22,19 +21,16 @@
       margin-bottom: 1rem;
       font-weight: 600;
     }
-
     .alert--error {
       background-color: #FEE2E2;
       color: var(--color-danger);
       border: 1px solid var(--color-danger);
     }
-
     .alert--success {
       background-color: #E6F0EF;
       color: var(--color-primary);
       border: 1px solid var(--color-primary);
     }
-
     .carrito-toolbar {
       display: flex;
       gap: 0.75rem;
@@ -42,7 +38,6 @@
       margin-bottom: 1.5rem;
       flex-wrap: wrap;
     }
-
     .carrito-toolbar .form-group {
       margin-bottom: 0;
       min-width: 160px;
@@ -51,6 +46,17 @@
     .btn-icon-delete-cell {
       text-align: center;
     }
+
+    /* Estilos exclusivos para imprimir el ticket (HU-29) */
+    @media print {
+      body * { visibility: hidden; } /* Ocultar todo el sistema */
+      #modalTicket, #modalTicket * { visibility: visible; } /* Mostrar solo el ticket */
+      #modalTicket { 
+        position: absolute; left: 0; top: 0; width: 100%; 
+        background: white; box-shadow: none; display: block !important;
+      }
+      .no-print { display: none !important; } /* Ocultar botones de imprimir/cerrar */
+    }
   </style>
 </head>
 
@@ -58,6 +64,16 @@
   <div class="app-container">
     <aside class="sidebar">
       <div class="sidebar__brand">La Number One</div>
+
+      <!-- Tarjeta de Perfil -->
+      <div class="sidebar__user-profile">
+        <img id="userAvatarImg" src="/img/avatars/cajero.png" alt="Avatar" class="sidebar__avatar" />
+        <div class="sidebar__user-info">
+          <span class="sidebar__user-name" id="userDisplayName">Usuario</span>
+          <span class="sidebar__user-role" id="userDisplayRole">Turno activo</span>
+        </div>
+      </div>
+
       <ul class="sidebar__nav" id="sidebarNav">
         <li id="menuPersonal" hidden>
           <a href="/empleados" class="sidebar__link">Administrar Personal</a>
@@ -67,6 +83,9 @@
         </li>
         <li id="menuReportes" hidden>
           <a href="/reportes-inventario" class="sidebar__link">Reportes de Inventario</a>
+        </li>
+        <li id="menuReporteVentas" hidden>
+          <a href="/reportes-ventas" class="sidebar__link">Reporte de Ventas</a>
         </li>
         <li id="menuRecepcion" hidden>
           <a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a>
@@ -84,12 +103,10 @@
     </aside>
 
     <main class="main-content">
-      <!-- Barra de Estado de Venta Activa (HU-25) -->
       <div class="pos-header-status"
         style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #e5e7eb;">
         <div>
-          <span style="font-size: 0.85rem; color: #6b7280; text-transform: uppercase; font-weight: 600;">Folio de
-            Venta</span>
+          <span style="font-size: 0.85rem; color: #6b7280; text-transform: uppercase; font-weight: 600;">Folio de Venta</span>
           <h2 id="lblFolio" style="margin: 0; color: #111827; font-size: 1.4rem;">Generando...</h2>
         </div>
         <div style="text-align: right;">
@@ -97,35 +114,33 @@
           <small id="lblFecha" style="color: #6b7280;">--/--/----</small>
         </div>
       </div>
+
       <h1>Punto de venta</h1>
-      <p class="text-muted" style="margin-bottom: 1.5rem;">Agrega productos escaneando o buscando por nombre
-        . Los totales se recalculan automáticamente.</p>
+      <p class="text-muted" style="margin-bottom: 1.5rem;">Agrega productos escaneando o buscando por nombre. Los totales se recalculan automáticamente.</p>
 
       <h2>Venta en Curso</h2>
       <div id="alertMessage" class="alert alert--error" hidden></div>
 
-     <div class="carrito-toolbar">
+      <div class="carrito-toolbar">
         <div class="form-group" style="flex-grow: 1; min-width: 200px;">
           <label class="form-label">Buscar / Escanear Código</label>
-          <input type="text" id="inputBuscarProducto" class="form-input"
-            placeholder="Escanea código o escribe nombre..." autocomplete="off" autofocus />
+          <input type="text" id="inputBuscarProducto" class="form-input" placeholder="Escanea código o escribe nombre..." autocomplete="off" autofocus />
         </div>
         <div class="form-group">
           <label class="form-label">Cantidad</label>
           <input type="number" id="inputCantidad" class="form-input" min="1" value="1" style="width: 100px;" />
         </div>
-          <div class="form-group">
+        <div class="form-group">
           <label class="form-label" title="Si el producto no tiene descuento, deja el valor en 0">Descuento</label>
-          <select id="selectDescuentoTipo" class="form-select" style="width: 130px;" title="Elige si el descuento es dinero directo o porcentaje">
+          <select id="selectDescuentoTipo" class="form-select" style="width: 130px;">
             <option value="monto">$ Monto</option>
             <option value="porcentaje">% Porcentaje</option>
           </select>
         </div>
         <div class="form-group">
           <label class="form-label">Valor</label>
-          <input type="number" id="inputDescuentoValor" class="form-input" min="0" value="0" placeholder="Ej. 0" style="width: 100px;" title="Escribe 0 si no aplicarás descuento" />
+          <input type="number" id="inputDescuentoValor" class="form-input" min="0" value="0" style="width: 100px;" />
         </div>
-        
         <button class="btn btn--primary" id="btnAgregar">+ Agregar a la venta</button>
       </div>
 
@@ -151,32 +166,26 @@
         <div class="totales-venta__fila"><span>Subtotal</span><span id="totSubtotal">$0.00</span></div>
         <div class="totales-venta__fila"><span>Descuentos</span><span id="totDescuentos">-$0.00</span></div>
         <div class="totales-venta__fila"><span>IVA (16%)</span><span id="totIva">$0.00</span></div>
-        <div class="totales-venta__fila totales-venta__fila--total"><span>Total</span><span id="totTotal">$0.00</span>
-        </div>
-
-        <button class="btn btn--primary" id="btnAbrirCobro"
-          style="width: 100%; margin-top: 1rem; font-size: 1.1rem; padding: 1rem;" disabled>
+        <div class="totales-venta__fila totales-venta__fila--total"><span>Total</span><span id="totTotal">$0.00</span></div>
+        <button class="btn btn--primary" id="btnAbrirCobro" style="width: 100%; margin-top: 1rem; font-size: 1.1rem; padding: 1rem;" disabled>
           Cobrar
         </button>
       </div>
     </main>
   </div>
 
+  <!-- Modal Cobro -->
   <div class="modal-overlay modal--hidden" id="modalCobro">
     <div class="modal-card" style="max-width: 500px; padding: 0;">
-      <div class="modal-header"
-        style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+      <div class="modal-header" style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
         <h2 style="margin: 0; font-size: 1.25rem;">Liquidación de Venta</h2>
-        <button class="modal-close" id="btnCerrarCobro"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+        <button class="modal-close" id="btnCerrarCobro" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
       </div>
       <div class="modal-body" style="padding: 1.5rem;">
-
         <div class="totales-venta__fila totales-venta__fila--total" style="font-size: 1.5rem; margin-bottom: 1.5rem;">
           <span>Total a Cobrar</span>
           <span id="modalTotalCobrar">$0.00</span>
         </div>
-
         <div class="form-group">
           <label class="form-label">Método de pago</label>
           <select id="selectMetodoPago" class="form-select">
@@ -185,28 +194,87 @@
             <option value="transferencia">Transferencia Digital</option>
           </select>
         </div>
-
         <div id="divMontoRecibido" class="form-group">
           <label class="form-label">Monto Recibido ($)</label>
-          <input type="number" id="inputMontoRecibido" class="form-input" min="0" step="0.01"
-            placeholder="Ej. 500.00" />
+          <input type="number" id="inputMontoRecibido" class="form-input" min="0" step="0.01" placeholder="Ej. 500.00" />
         </div>
-
         <div class="totales-venta__fila" style="font-size: 1.2rem; color: var(--color-success); margin-top: 1.5rem;">
           <span>Cambio a Devolver</span>
           <span id="modalCambio">$0.00</span>
         </div>
-
       </div>
-      <div class="modal-footer"
-        style="padding: 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 1rem;">
+      <div class="modal-footer" style="padding: 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 1rem;">
         <button class="btn btn--secondary" id="btnCancelarCobro">Cancelar</button>
         <button class="btn btn--primary" id="btnConfirmarPago">Confirmar Transacción</button>
       </div>
     </div>
   </div>
+  
+  <!-- HU-29: Modal del Comprobante / Ticket de Venta -->
+  <div id="modalTicket" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;">
+    <div style="background: #fff; width: 320px; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000;">
+      
+      <!-- Cabecera del Ticket -->
+      <div style="text-align: center; margin-bottom: 15px;">
+        <h3 style="margin: 0; font-size: 16px;">PUNTO DE VENTA UV</h3>
+        <p style="margin: 2px 0;">Sucursal Centro · Ruiz Cortines 125</p>
+        <p style="margin: 2px 0;">RFC: PUV260901ABC · Rég. General</p>
+      </div>
+
+      <!-- Datos de la Transacción -->
+      <div style="margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between;"><span>Folio:</span> <strong id="tkFolio">---</strong></div>
+        <div style="display: flex; justify-content: space-between;"><span>Cajero:</span> <span id="tkCajero">---</span></div>
+        <div style="display: flex; justify-content: space-between;"><span>Fecha:</span> <span id="tkFecha">---</span></div>
+      </div>
+
+      <!-- Detalle de Artículos -->
+      <table style="width: 100%; text-align: left; margin-bottom: 10px; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 1px dashed #000;">
+            <th>CANT</th>
+            <th>DESCRIPCIÓN</th>
+            <th style="text-align: right;">IMPORTE</th>
+          </tr>
+        </thead>
+        <tbody id="tkArticulos">
+          <!-- Los artículos se inyectarán aquí con JS -->
+        </tbody>
+      </table>
+
+      <!-- Totales -->
+      <div style="border-top: 1px dashed #000; padding-top: 10px; margin-bottom: 15px;">
+        <div style="display: flex; justify-content: space-between;"><span>Subtotal:</span> <span id="tkSubtotal">$0.00</span></div>
+        <div style="display: flex; justify-content: space-between;"><span>IVA (16%):</span> <span id="tkIva">$0.00</span></div>
+        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-top: 5px;">
+          <span>TOTAL:</span> <span id="tkTotal">$0.00</span>
+        </div>
+      </div>
+
+      <!-- Método de Pago -->
+      <div style="border-top: 1px dashed #000; padding-top: 10px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between;"><span>Método de Pago:</span> <span id="tkMetodo">---</span></div>
+        <div style="display: flex; justify-content: space-between;"><span>Recibido:</span> <span id="tkRecibido">$0.00</span></div>
+        <div style="display: flex; justify-content: space-between;"><span>Cambio:</span> <span id="tkCambio">$0.00</span></div>
+      </div>
+
+      <!-- Pie del Ticket -->
+      <div style="text-align: center;">
+        <p style="margin: 2px 0; font-weight: bold;">¡GRACIAS POR SU COMPRA!</p>
+        <p style="margin: 2px 0;">Conserve su ticket para aclaraciones.</p>
+      </div>
+
+      <!-- Botones de Acción (No se imprimen) -->
+      <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;" class="no-print">
+        <button id="btnImprimirTicket" style="background: #046b4e; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; width: 100%;">Imprimir Ticket</button>
+        <button id="btnCerrarTicket" style="background: #e5e7eb; color: #374151; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; width: 100%;">Cerrar Venta</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/js/pos.js"></script>
+  <script src="/js/perfil.js"></script>
+  <script src="/js/inactividad.js"></script>
 </body>
 
 </html>

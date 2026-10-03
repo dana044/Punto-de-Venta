@@ -1,6 +1,5 @@
 <!--
   Punto de Venta UV — Registrar y Administrar Empleados
-  @author Citlaly Morales Viveros (Cliente / Programadora XP)
 -->
 <!DOCTYPE html>
 <html lang="es">
@@ -19,9 +18,18 @@
 
 <body>
   <div class="app-container">
-    <!-- Barra lateral -->
     <aside class="sidebar">
       <div class="sidebar__brand">La Number One</div>
+
+      <!-- Tarjeta de Perfil -->
+      <div class="sidebar__user-profile">
+        <img id="userAvatarImg" src="/img/avatars/admin.png" alt="Avatar" class="sidebar__avatar" />
+        <div class="sidebar__user-info">
+          <span class="sidebar__user-name" id="userDisplayName">Usuario</span>
+          <span class="sidebar__user-role" id="userDisplayRole">Turno activo</span>
+        </div>
+      </div>
+
       <ul class="sidebar__nav" id="sidebarNav">
         <li id="menuPersonal" hidden>
           <a href="/empleados" class="sidebar__link sidebar__link--active">Administrar Personal</a>
@@ -31,6 +39,9 @@
         </li>
         <li id="menuReportes" hidden>
           <a href="/reportes-inventario" class="sidebar__link">Reportes de Inventario</a>
+        </li>
+        <li id="menuReporteVentas" hidden>
+          <a href="/reportes-ventas" class="sidebar__link">Reporte de Ventas</a>
         </li>
         <li id="menuRecepcion" hidden>
           <a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a>
@@ -46,6 +57,7 @@
         </li>
       </ul>
     </aside>
+
     <main class="main-content">
       <div class="page-header">
         <div>
@@ -57,7 +69,6 @@
 
       <div id="alertMessage" class="alert" hidden></div>
 
-      <!-- Tabla de empleados registrados -->
       <section class="table-section">
         <div class="table-card">
           <div class="table-card__toolbar">
@@ -65,7 +76,6 @@
               <h2>Personal registrado</h2>
               <span class="table-card__count" id="empleadosCount">&nbsp;</span>
             </div>
-            <!-- Checkbox para alternar entre empleados activos e inclusion de inactivos (igual que en inventario) -->
             <div style="display: flex; gap: 1rem; align-items: center;">
               <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
                 <input type="checkbox" id="chkMostrarInactivos"> Ver inactivos
@@ -86,17 +96,14 @@
                 <th>Acciones</th>
               </tr>
             </thead>
-            <tbody id="tablaEmpleadosBody">
-              <!-- Carga dinámicamente desde empleado.js -->
-            </tbody>
+            <tbody id="tablaEmpleadosBody"></tbody>
           </table>
         </div>
       </section>
 
-      <!-- Overlay/Modal Ficha de Empleado -->
+      <!-- Modal Ficha de Empleado -->
       <div id="modalOverlay" class="modal-overlay" style="display:none;">
         <div class="modal-card stepped-card">
-
           <header class="stepped-card__header">
             <div>
               <strong id="formTitle">Ficha de Empleado</strong>
@@ -114,8 +121,7 @@
               <p><span class="step-badge">1</span><strong>Datos Personales</strong></p>
               <div class="form-group" style="margin-top: 1rem;">
                 <label class="form-label" for="nombreCompleto">Nombre completo</label>
-                <input type="text" id="nombreCompleto" class="form-input" placeholder="Mariana Solís Hernández"
-                  required />
+                <input type="text" id="nombreCompleto" class="form-input" placeholder="Mariana Solís Hernández" required />
               </div>
             </section>
 
@@ -140,20 +146,16 @@
                 Esta contraseña la define el administrador.
               </p>
 
-              <!-- Se unifica el ID username para el inicio de sesión -->
               <div class="form-group">
                 <label class="form-label" for="correo">Correo Electrónico</label>
                 <input type="email" id="correo" class="form-input" placeholder="abc@uv.com" required />
               </div>
 
-              <!-- Advertencias previas al guardado -->
               <div id="preAlertMessage" class="alert alert--warning" hidden style="margin-top: 0.75rem;"></div>
 
-              <!-- Contraseña Actual (solo visible al editar) -->
               <div class="form-group" id="groupOldPassword" style="display: none;">
                 <label class="form-label" for="oldPassword">Contraseña actual del usuario</label>
-                <input type="password" id="oldPassword" class="form-input"
-                  placeholder="Ingresa la contraseña actual para cambiarla" />
+                <input type="password" id="oldPassword" class="form-input" placeholder="Ingresa la contraseña actual para cambiarla" />
               </div>
 
               <div class="field-row">
@@ -175,11 +177,11 @@
           </form>
         </div>
       </div>
-
     </main>
   </div>
 
   <script src="/js/empleado.js"></script>
+  <script src="/js/perfil.js"></script>
   <script src="/js/inactividad.js"></script>
 </body>
 
