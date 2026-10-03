@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCerrar = document.getElementById('btnCerrarModal');
     const btnCancelar = document.getElementById('cancelarBtn');
 
-    // Referencias a los checkbox de inactivos (uno por cada vista) y a las secciones de cada tabla
+    // Referencias a los checkbox de inactivos y a las secciones de cada tabla
     const chkMostrarInactivos = document.getElementById('chkMostrarInactivos');
     const chkMostrarInactivosAlt = document.getElementById('chkMostrarInactivosAlt');
     const seccionActivos = document.getElementById('seccionActivos');
@@ -82,13 +82,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Máximo de teléfonos y de correos por distribuidor (coincide con el límite del backend).
+     * Máximo de teléfonos y de correos por distribuidor.
      * @constant {number}
      */
     const MAX_CONTACTOS = 10;
 
     /**
-     * Etiquetas visibles de cada tipo de teléfono, indexadas por el valor que guarda la base de datos.
+     * Etiquetas visibles de cada tipo de teléfono.
      * @constant {Object<string, string>}
      */
     const ETIQUETAS_TELEFONO = {
@@ -104,16 +104,9 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     let proveedoresCache = {};
 
-    // Inicializa el formulario con una fila vacía de teléfono y otra de correo
     reiniciarContactos();
-    
-    // Cargar la lista al iniciar
     cargarProveedores();
 
-    /**
-     * Alterna la vista entre activos e inactivos.
-     * @param {boolean} verInactivos
-     */
     function alternarTablaInactivos(verInactivos) {
         if (chkMostrarInactivos) chkMostrarInactivos.checked = verInactivos;
         if (chkMostrarInactivosAlt) chkMostrarInactivosAlt.checked = verInactivos;
@@ -126,7 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
     chkMostrarInactivos?.addEventListener('change', (e) => alternarTablaInactivos(e.target.checked));
     chkMostrarInactivosAlt?.addEventListener('change', (e) => alternarTablaInactivos(e.target.checked));
 
-    // Eventos del Modal
     btnNuevo.addEventListener('click', () => abrirModal());
     btnCerrar.addEventListener('click', cerrarModal);
     btnCancelar.addEventListener('click', cerrarModal);
@@ -134,7 +126,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnAgregarTelefono.addEventListener('click', () => agregarFilaTelefono());
     btnAgregarCorreo.addEventListener('click', () => agregarFilaCorreo());
 
-    // Buscador en vivo
     const inputBuscarInactivos = document.getElementById('buscarProveedorInactivo');
     document.getElementById('buscarProveedor').addEventListener('input', function(e) {
         if (inputBuscarInactivos) inputBuscarInactivos.value = e.target.value;
@@ -159,7 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Guardar o Editar Proveedor
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
