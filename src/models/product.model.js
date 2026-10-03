@@ -74,7 +74,7 @@ const createProduct = async (productData) => {
       [
         nombre,
         codigo_barras,
-        categoria || 'Sin categoría',
+        categoria || 'Otros', // categoria es ENUM: 'Otros' es el valor por defecto válido
         presentacion || 'N/A',
         unidad_medida || 'Pieza',
         precio
@@ -100,7 +100,7 @@ const createProduct = async (productData) => {
       id: nuevoProductoId,
       nombre,
       codigo_barras,
-      categoria: categoria || 'Sin categoría',
+      categoria: categoria || 'Otros',
       presentacion: presentacion || 'N/A',
       unidad_medida: unidad_medida || 'Pieza',
       precio,
@@ -144,7 +144,7 @@ const updateProduct = async (id, productData) => {
       [
         nombre || '', 
         codigo_barras || '', 
-        categoria || 'Sin categoría', 
+        categoria || 'Otros', // categoria es ENUM: 'Otros' es el valor por defecto válido
         presentacion || 'N/A',
         unidad_medida || 'Pieza', 
         Number(precio) || 0, 

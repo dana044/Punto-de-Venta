@@ -1,11 +1,22 @@
 /**
  * @file validate.middleware.js
  * @description Interceptores para la validacion de integridad de datos de entrada.
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
+
+/**
+ * Categorías permitidas para un producto. Debe coincidir con el ENUM de productos.categoria
+ * en schema.sql y con las opciones del <select> de inventario.html.
+ * @constant {string[]}
+ */
+const CATEGORIAS_VALIDAS = ['Papelería', 'Bebidas', 'Comida', 'Tecnología', 'Limpieza', 'Herramientas', 'Hogar', 'Cuidado personal', 'Mascotas', 'Otros'];
 
 /**
  * Valida que la peticion contenga los atributos del producto, al menos un distribuidor vinculado y
  * que la fecha de caducidad tenga un formato válido
+ *
+ * Nota: la validación de fecha de caducidad se retiró porque el registro de un producto ya no la
+ * recibe (la caducidad se captura por lote). Ahora también exige una categoría de la lista permitida.
  *
  * @function validateProduct
  * @param {import('express').Request} req - Objeto de peticion de Express.
@@ -14,11 +25,18 @@
  * @returns {Object|void} Retorna respuesta con estado HTTP 400 en caso de fallo, o continua con next().
  */
 const validateProduct = (req, res, next) => {
-  const { nombre, codigo_barras, presentacion, unidad_medida, precio, proveedoresIds, fecha_caducidad } = req.body;
+  const { nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, proveedoresIds } = req.body;
 
   if (!nombre || !codigo_barras || !presentacion || !unidad_medida || precio === undefined || precio === null) {
     return res.status(400).json({
       mensaje: 'Falta informacion basica. Debes completar nombre, codigo de barras, presentacion, unidad de medida y precio.'
+    });
+  }
+
+  // La categoría es un ENUM: solo se aceptan los valores de la lista cerrada
+  if (!CATEGORIAS_VALIDAS.includes(categoria)) {
+    return res.status(400).json({
+      mensaje: `La categoria debe ser una de: ${CATEGORIAS_VALIDAS.join(', ')}.`
     });
   }
 
@@ -27,13 +45,6 @@ const validateProduct = (req, res, next) => {
       mensaje: 'Debes asociar al menos un distribuidor o proveedor al producto.'
     });
   }
-
-  if (fecha_caducidad !== undefined && fecha_caducidad !== null && fecha_caducidad !== '') {
-  const fechaValida = !isNaN(Date.parse(fecha_caducidad));
-  if (!fechaValida) {
-    return res.status(400).json({ mensaje: 'La fecha de caducidad no es válida.' });
-  }
-}
 
   next();
 };
@@ -149,6 +160,16 @@ const validateEmployee = (req, res, next) => {
   next();
 };
 
+/**
+ * Valida el cuerpo de la peticion para registrar un ajuste manual de inventario
+ * (cantidad numerica no negativa, tipo de ajuste permitido y motivo obligatorio).
+ *
+ * @function validateAjuste
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ * @returns {Object|void} Retorna respuesta con estado HTTP 400 en caso de fallo, o continua con next().
+ */
 const validateAjuste = (req, res, next) => {
   const { cantidad, tipoAjuste, motivo } = req.body;
   // Se agregaron los tipos de transferencia a los tipos validos

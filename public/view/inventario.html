@@ -16,6 +16,24 @@
   <link rel="stylesheet" href="/css/05-modals.css" />
   <link rel="stylesheet" href="/css/06-tables.css" />
   <link rel="stylesheet" href="/css/09-alerts.css" />
+  <style>
+    /* Contenedor con scroll del catálogo: limita la altura de la tabla para que el encabezado,
+       las alertas y la barra de búsqueda sigan visibles. Ajusta max-height si quieres más o menos filas. */
+    .table-scroll {
+      max-height: 60vh;
+      overflow-y: auto;
+      overflow-x: auto;
+    }
+
+    /* Encabezado de la tabla fijo: se queda arriba mientras se hace scroll en las filas */
+    .table-scroll .data-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #F9FAFB;
+      box-shadow: 0 1px 0 #E5E7EB;
+    }
+  </style>
 </head>
 
 <body>
@@ -86,6 +104,8 @@
             </div>
           </div>
 
+          <!-- Scroll box: la tabla se desplaza dentro de este contenedor (ver .table-scroll en <style>) -->
+          <div class="table-scroll">
           <table class="data-table">
             <thead>
               <tr>
@@ -104,6 +124,7 @@
               <!-- Renderizado dinámicamente desde inventario.js -->
             </tbody>
           </table>
+          </div>
         </div>
       </section>
 
@@ -140,7 +161,20 @@
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="categoria">Categoría</label>
-                  <input type="text" id="categoria" class="form-input" placeholder="Ej. Papelería" required />
+                  <!-- Lista cerrada: debe coincidir con el ENUM de schema.sql y con CATEGORIAS_VALIDAS de validate.middleware.js -->
+                  <select id="categoria" class="form-select" required>
+                    <option value="">Selecciona una categoría...</option>
+                    <option value="Papelería">Papelería</option>
+                    <option value="Bebidas">Bebidas</option>
+                    <option value="Comida">Comida</option>
+                    <option value="Tecnología">Tecnología</option>
+                    <option value="Limpieza">Limpieza</option>
+                    <option value="Herramientas">Herramientas</option>
+                    <option value="Hogar">Hogar</option>
+                    <option value="Cuidado personal">Cuidado personal</option>
+                    <option value="Mascotas">Mascotas</option>
+                    <option value="Otros">Otros</option>
+                  </select>
                 </div>
               </div>
 
