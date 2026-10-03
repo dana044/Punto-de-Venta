@@ -91,12 +91,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================================================
-  // HU-32: LISTADO Y CONFIRMACIÓN DE RECEPCIÓN
+  // HU-32: LISTADO Y CONFIRMACIÓN DE RECEPCIÓN + HU-33: CAMBIO DE ESTADO MANUAL DE PEDIDOS
   // ==========================================================================
   async function cargarPedidosPendientes() {
     try {
       const res = await fetch(API_PEDIDOS, {
-        headers: { 'x-user-role': userRole }
+        headers: { 'x-user-role': userRole, Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
 
@@ -109,15 +109,41 @@ document.addEventListener('DOMContentLoaded', () => {
       data.pedidos.forEach((pedido) => {
         const card = document.createElement('div');
         card.className = 'pedido-card';
+        // HU-33: Select de cambio de estado (Solo Admins) 
+        const selectEstadoHtml = userRole === 'administrador' ? `
+          <select class="form-input select-cambiar-estado" data-folio="${pedido.folio}" style="margin-top: 5px; font-size: 0.75rem; padding: 0.2rem;">
+              <option value="">Cambiar estado...</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="en_transito">En Tránsito</option>
+              <option value="cancelado">Cancelado</option>
+          </select>
+        ` : '';
+        let badgeColorClass = '';
+        let estadoLegible = pedido.estado.toUpperCase();
+
+        if (pedido.estado === 'pendiente') {
+            badgeColorClass = 'badge--secondary'; // Gris
+        } else if (pedido.estado === 'en_transito') {
+            badgeColorClass = 'badge--success';   // Verde
+            estadoLegible = 'EN TRÁNSITO';        // Ajuste de texto sin el guion bajo
+        } else if (pedido.estado === 'incompleto') {
+            badgeColorClass = 'badge--warning';   // Naranja/Amarillo
+        } else if (pedido.estado === 'cancelado') {
+            badgeColorClass = 'badge--danger';    // Rojo
+        }
         card.innerHTML = `
           <div class="pedido-card__header">
             <div>
               <div class="pedido-card__folio">${pedido.folio}</div>
               <div class="text-muted" style="font-size: 0.85rem;">${pedido.proveedorNombre} · ${pedido.items.length} producto(s)</div>
             </div>
-            <span class="badge ${pedido.estado === 'incompleto' ? 'badge--warning' : 'badge--success'}">
-              ${pedido.estado === 'incompleto' ? 'Incompleto' : 'Pendiente'}
-            </span>
+            <div style="display: flex; flex-direction: column; align-items: flex-end;">
+              <!-- Aplicamos nuestras nuevas variables dinámicas -->
+              <span class="badge ${badgeColorClass}">
+                ${estadoLegible}
+              </span>
+              ${selectEstadoHtml}
+            </div>
           </div>
           <button class="btn btn--primary btn-abrir-recepcion" data-folio="${pedido.folio}">
             Registrar Recepción
@@ -126,11 +152,55 @@ document.addEventListener('DOMContentLoaded', () => {
         pedidosContainer.appendChild(card);
       });
 
+      // Eventos originales (HU-32)
       document.querySelectorAll('.btn-abrir-recepcion').forEach((btn) => {
         btn.addEventListener('click', () => abrirModalRecepcion(btn.dataset.folio));
       });
+
+      // Eventos nuevos (HU-33)
+      document.querySelectorAll('.select-cambiar-estado').forEach((select) => {
+        select.addEventListener('change', async (e) => {
+          const nuevoEstado = e.target.value;
+          const folio = e.target.dataset.folio;
+          
+          if (!nuevoEstado) return;
+
+          if (confirm(`¿Confirmas el cambio del pedido ${folio} al estado '${nuevoEstado}'?`)) {
+              await actualizarEstadoPedido(folio, nuevoEstado);
+          } else {
+              e.target.value = ''; // Reset visual si el usuario cancela
+          }
+        });
+      });
+
     } catch (err) {
       pedidosContainer.innerHTML = '<span class="text-muted">Error de conexión al obtener los pedidos.</span>';
+    }
+  }
+
+  // --- HU-33: Petición HTTP al Backend ---
+  async function actualizarEstadoPedido(folio, estado) {
+    try {
+      const res = await fetch(`${API_PEDIDOS}/${folio}/estado`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': userRole,
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ estado })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        mostrarAlerta(data.mensaje, 'success');
+        cargarPedidosPendientes(); // Recarga la lista entera para actualizar las etiquetas (badges)
+      } else {
+        mostrarAlerta(data.mensaje || 'Error al actualizar el estado.', 'error');
+      }
+    } catch (err) {
+      mostrarAlerta('Error de red al actualizar el estado.', 'error');
     }
   }
 

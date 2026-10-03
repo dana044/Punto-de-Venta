@@ -6,6 +6,15 @@
 const API_BUSCAR_PRODUCTO = '/api/inventory/productos/buscar-pos';
 const API_CALCULAR = '/api/pos/calcular';
 const API_COBRAR = '/api/pos/cobrar';
+const API_CATALOGO_CATEGORIAS = '/api/pos/catalogo/categorias';
+const API_CATALOGO_PRODUCTOS = '/api/pos/catalogo/productos';
+
+// Datos ficticios de la cuenta receptora para pagos por transferencia (SPEI)
+const DATOS_TRANSFERENCIA = {
+  banco: 'Banco del Golfo (simulación)',
+  titular: 'Punto de Venta UV S.A. de C.V.',
+  clabe: '999180001234567899'
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   const userRole = localStorage.getItem('userRole');
@@ -196,6 +205,7 @@ async function inicializarVenta() {
 
       // Limpiamos los inputs
       inputBuscarProducto.value = '';
+      sincronizarCatalogoTrasAgregar(); // Si había una búsqueda activa, el catálogo regresa a categorías
       inputCantidad.value = 1;
       inputDescuentoValor.value = 0;
       inputBuscarProducto.focus();
@@ -324,7 +334,24 @@ async function inicializarVenta() {
     btnConfirmarPago.disabled = cambio < 0;
   }
 
-  btnConfirmarPago.addEventListener('click', async () => {
+  btnConfirmarPago.addEventListener('click', () => {
+    // Tarjeta y transferencia se confirman primero en su propio modal; el efectivo se cobra directo
+    if (selectMetodoPago.value === 'tarjeta') {
+      abrirModalTarjeta();
+      return;
+    }
+    if (selectMetodoPago.value === 'transferencia') {
+      abrirModalTransferencia();
+      return;
+    }
+    ejecutarCobro();
+  });
+
+  /**
+   * Registra la venta en el servidor y muestra el ticket.
+   * @param {string} [numAutorizacion] - No. de Autorización del voucher (solo tarjeta, opcional).
+   */
+  async function ejecutarCobro(numAutorizacion = '') {
     btnConfirmarPago.disabled = true;
     btnConfirmarPago.textContent = 'Procesando...';
 
@@ -343,7 +370,8 @@ async function inicializarVenta() {
             items: carrito,
             metodoPago: selectMetodoPago.value,
             montoRecibido: Number(inputMontoRecibido.value),
-            venta_id: ventaActivaId
+            venta_id: ventaActivaId,
+            numAutorizacion: numAutorizacion || null
           })
         });
 
@@ -359,7 +387,9 @@ async function inicializarVenta() {
             carrito, 
             selectMetodoPago.value, 
             Number(inputMontoRecibido.value), 
-            data.cambio || (Number(inputMontoRecibido.value) - totalActual)
+            data.cambio || (Number(inputMontoRecibido.value) - totalActual),
+            data.folioFacturacion,
+            numAutorizacion
         );
 
         // Venta exitosa: limpiar carrito y resetear variables
@@ -378,14 +408,14 @@ async function inicializarVenta() {
         btnConfirmarPago.disabled = false;
         btnConfirmarPago.textContent = 'Confirmar Transacción';
     }
-});
+}
     
 // --- INYECCIÓN HU-29: LÓGICA DEL TICKET DE VENTA ---
 
   /**
    * Construye y despliega el ticket de venta con los datos de la transacción.
    */
-  window.generarTicket = function(folio, items, metodo, recibido, cambio) {
+  window.generarTicket = function(folio, items, metodo, recibido, cambio, folioFacturacion, numAutorizacion) {
       // 1. Cabecera
       document.getElementById('tkFolio').textContent = folio;
       document.getElementById('tkCajero').textContent = document.getElementById('lblCajero').textContent.replace('Cajero: ', '');
@@ -412,6 +442,14 @@ async function inicializarVenta() {
       document.getElementById('tkRecibido').textContent = `$${recibido.toFixed(2)}`;
       document.getElementById('tkCambio').textContent = `$${cambio.toFixed(2)}`;
 
+      // 4.1 No. de Autorización (solo si el cajero lo capturó en un pago con tarjeta)
+      const filaAutorizacion = document.getElementById('tkAutorizacionFila');
+      filaAutorizacion.style.display = numAutorizacion ? 'flex' : 'none';
+      document.getElementById('tkAutorizacion').textContent = numAutorizacion || '---';
+
+      // 4.2 Folio de auto-facturación impreso al pie del ticket
+      document.getElementById('tkFolioFacturacion').textContent = folioFacturacion || '---';
+
       // 5. Encender el Modal
       document.getElementById('modalTicket').style.display = 'flex';
   };
@@ -426,5 +464,277 @@ async function inicializarVenta() {
       document.getElementById('modalTicket').style.display = 'none';
       document.getElementById('inputBuscarProducto').focus(); // Listo para el cliente que sigue
   });
+
+  // --- COBRO CON TARJETA (TERMINAL BANCARIA) ---
+
+  const modalTarjeta = document.getElementById('modalTarjeta');
+  const tarjetaMonto = document.getElementById('tarjetaMonto');
+  const inputNumAutorizacion = document.getElementById('inputNumAutorizacion');
+  const errNumAutorizacion = document.getElementById('errNumAutorizacion');
+  const btnAprobarTarjeta = document.getElementById('btnAprobarTarjeta');
+  const btnRechazarTarjeta = document.getElementById('btnRechazarTarjeta');
+
+  /**
+   * Abre el modal "puente": el cobro real ocurre en la terminal física y aquí solo se confirma el resultado.
+   */
+  function abrirModalTarjeta() {
+    tarjetaMonto.textContent = `$${totalActual.toFixed(2)}`;
+    inputNumAutorizacion.value = '';
+    errNumAutorizacion.hidden = true;
+    btnAprobarTarjeta.disabled = false;
+    modalTarjeta.classList.remove('modal--hidden');
+    inputNumAutorizacion.focus();
+  }
+
+  // El No. de Autorización solo admite dígitos (máximo 6)
+  inputNumAutorizacion.addEventListener('input', () => {
+    inputNumAutorizacion.value = inputNumAutorizacion.value.replace(/\D/g, '');
+    errNumAutorizacion.hidden = true;
+  });
+
+  inputNumAutorizacion.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      btnAprobarTarjeta.click();
+    }
+  });
+
+  btnAprobarTarjeta.addEventListener('click', () => {
+    const numAutorizacion = inputNumAutorizacion.value.trim();
+
+    // El campo es opcional, pero si se captura debe ser el código de 6 dígitos del voucher
+    if (numAutorizacion && !/^\d{6}$/.test(numAutorizacion)) {
+      errNumAutorizacion.hidden = false;
+      inputNumAutorizacion.focus();
+      return;
+    }
+
+    btnAprobarTarjeta.disabled = true; // Evita registrar la venta dos veces con doble clic
+    modalTarjeta.classList.add('modal--hidden');
+    ejecutarCobro(numAutorizacion);
+  });
+
+  btnRechazarTarjeta.addEventListener('click', () => {
+    modalTarjeta.classList.add('modal--hidden');
+    cerrarModal(); // La venta sigue en el carrito para elegir otro método de pago
+    mostrarMensaje('Pago con tarjeta rechazado o cancelado en la terminal. La venta no fue registrada.', 'error');
+  });
+
+  // --- COBRO POR TRANSFERENCIA (SPEI) ---
+
+  const modalTransferencia = document.getElementById('modalTransferencia');
+  const btnConfirmarFondos = document.getElementById('btnConfirmarFondos');
+  const btnCancelarTransferencia = document.getElementById('btnCancelarTransferencia');
+
+  /**
+   * Muestra los datos de la cuenta receptora para que el cliente haga la transferencia.
+   */
+  function abrirModalTransferencia() {
+    document.getElementById('speiBanco').textContent = DATOS_TRANSFERENCIA.banco;
+    document.getElementById('speiTitular').textContent = DATOS_TRANSFERENCIA.titular;
+    document.getElementById('speiClabe').textContent = DATOS_TRANSFERENCIA.clabe.replace(/^(\d{3})(\d{3})(\d{11})(\d)$/, '$1 $2 $3 $4');
+    document.getElementById('speiReferencia').textContent = document.getElementById('lblFolio').textContent;
+    document.getElementById('speiMonto').textContent = `$${totalActual.toFixed(2)}`;
+    btnConfirmarFondos.disabled = false;
+    modalTransferencia.classList.remove('modal--hidden');
+  }
+
+  // El sistema no puede validar el SPEI al instante: el cajero revisa su banca y confirma manualmente
+  btnConfirmarFondos.addEventListener('click', () => {
+    btnConfirmarFondos.disabled = true; // Evita registrar la venta dos veces con doble clic
+    modalTransferencia.classList.add('modal--hidden');
+    ejecutarCobro();
+  });
+
+  btnCancelarTransferencia.addEventListener('click', () => {
+    modalTransferencia.classList.add('modal--hidden');
+  });
+
+  // --- CATÁLOGO DE PRODUCTOS Y BÚSQUEDA EN VIVO ---
+
+  const catalogoGrid = document.getElementById('catalogoGrid');
+  const catalogoTitulo = document.getElementById('catalogoTitulo');
+  const btnVolverCategorias = document.getElementById('btnVolverCategorias');
+
+  const ICONOS_CATEGORIA = {
+    'Papelería': '✏️',
+    'Bebidas': '🥤',
+    'Comida': '🍪',
+    'Tecnología': '💻',
+    'Limpieza': '🧴',
+    'Herramientas': '🔧',
+    'Hogar': '🏠',
+    'Cuidado personal': '🧼',
+    'Mascotas': '🐾',
+    'Otros': '📦'
+  };
+
+  let vistaCatalogo = 'categorias'; // 'categorias' | 'productos' | 'busqueda'
+  let temporizadorBusqueda = null;
+  let consultaVigente = 0; // Descarta respuestas viejas si el cajero sigue escribiendo
+
+  /**
+   * Consulta un endpoint del catálogo y devuelve el JSON, o null si falla.
+   */
+  async function consultarCatalogo(url) {
+    try {
+      const res = await fetch(url, { headers: { 'x-user-role': userRole } });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (err) {
+      console.error('Fallo al consultar el catálogo:', err);
+      return null;
+    }
+  }
+
+  function crearTarjeta(icono, nombre, detalle, alClic, deshabilitada = false) {
+    const tarjeta = document.createElement('button');
+    tarjeta.type = 'button';
+    tarjeta.className = 'catalogo-card';
+    tarjeta.disabled = deshabilitada;
+
+    const elIcono = document.createElement('span');
+    elIcono.className = 'catalogo-card__icono';
+    elIcono.textContent = icono;
+
+    const elNombre = document.createElement('span');
+    elNombre.className = 'catalogo-card__nombre';
+    elNombre.textContent = nombre;
+
+    const elDetalle = document.createElement('span');
+    elDetalle.className = 'catalogo-card__detalle';
+    elDetalle.textContent = detalle;
+
+    tarjeta.append(elIcono, elNombre, elDetalle);
+    tarjeta.addEventListener('click', alClic);
+    return tarjeta;
+  }
+
+  function pintarMensajeCatalogo(texto) {
+    catalogoGrid.innerHTML = '';
+    const vacio = document.createElement('div');
+    vacio.className = 'catalogo-vacio';
+    vacio.textContent = texto;
+    catalogoGrid.appendChild(vacio);
+  }
+
+  function pintarProductosCatalogo(productos) {
+    catalogoGrid.innerHTML = '';
+    if (productos.length === 0) {
+      pintarMensajeCatalogo('No se encontraron productos.');
+      return;
+    }
+    productos.forEach(producto => {
+      const agotado = producto.stock_mostrador <= 0;
+      const detalle = `$${Number(producto.precio).toFixed(2)} · ${agotado ? 'Agotado' : `Disp: ${producto.stock_mostrador}`}`;
+      // Reutiliza el flujo de agregar por código de barras (toma cantidad y descuento de la barra superior)
+      catalogoGrid.appendChild(
+        crearTarjeta('🛒', producto.nombre, detalle, () => buscarYAgregarProducto(producto.codigo_barras), agotado)
+      );
+    });
+  }
+
+  /**
+   * Estado por defecto: tarjetas con las categorías principales.
+   */
+  async function volverACategorias() {
+    const consulta = ++consultaVigente;
+    vistaCatalogo = 'categorias';
+    catalogoTitulo.textContent = 'Categorías';
+    btnVolverCategorias.hidden = true;
+
+    const data = await consultarCatalogo(API_CATALOGO_CATEGORIAS);
+    if (consulta !== consultaVigente) return;
+
+    if (!data) {
+      pintarMensajeCatalogo('No se pudo cargar el catálogo.');
+      return;
+    }
+    if (data.categorias.length === 0) {
+      pintarMensajeCatalogo('No hay productos registrados.');
+      return;
+    }
+
+    catalogoGrid.innerHTML = '';
+    data.categorias.forEach(cat => {
+      catalogoGrid.appendChild(
+        crearTarjeta(
+          ICONOS_CATEGORIA[cat.categoria] || '📦',
+          cat.categoria,
+          `${cat.total_productos} producto(s)`,
+          () => cargarProductosDeCategoria(cat.categoria)
+        )
+      );
+    });
+  }
+
+  /**
+   * Al hacer clic en una categoría el panel se limpia y carga sus productos.
+   */
+  async function cargarProductosDeCategoria(categoria) {
+    const consulta = ++consultaVigente;
+    vistaCatalogo = 'productos';
+    catalogoTitulo.textContent = categoria;
+    btnVolverCategorias.hidden = false;
+    pintarMensajeCatalogo('Cargando...');
+
+    const data = await consultarCatalogo(`${API_CATALOGO_PRODUCTOS}?categoria=${encodeURIComponent(categoria)}`);
+    if (consulta !== consultaVigente) return;
+
+    if (!data) {
+      pintarMensajeCatalogo('No se pudieron cargar los productos.');
+      return;
+    }
+    pintarProductosCatalogo(data.productos);
+  }
+
+  /**
+   * Búsqueda reactiva: muestra solo las tarjetas que coinciden con lo que se va escribiendo.
+   */
+  async function buscarEnVivo(termino) {
+    const consulta = ++consultaVigente;
+    vistaCatalogo = 'busqueda';
+    catalogoTitulo.textContent = `Resultados para "${termino}"`;
+    btnVolverCategorias.hidden = false;
+
+    const data = await consultarCatalogo(`${API_CATALOGO_PRODUCTOS}?q=${encodeURIComponent(termino)}`);
+    if (consulta !== consultaVigente) return;
+
+    if (!data) {
+      pintarMensajeCatalogo('No se pudo realizar la búsqueda.');
+      return;
+    }
+    pintarProductosCatalogo(data.productos);
+  }
+
+  /**
+   * Se llama al agregar un producto: cancela búsquedas pendientes y, si había una activa, regresa a categorías.
+   */
+  function sincronizarCatalogoTrasAgregar() {
+    clearTimeout(temporizadorBusqueda);
+    consultaVigente++;
+    if (vistaCatalogo === 'busqueda') volverACategorias();
+  }
+
+  // Listener de la barra de búsqueda: se activa cada vez que el texto cambia (con una pausa corta para no saturar al servidor)
+  inputBuscarProducto.addEventListener('input', () => {
+    clearTimeout(temporizadorBusqueda);
+    const termino = inputBuscarProducto.value.trim();
+
+    if (!termino) {
+      volverACategorias();
+      return;
+    }
+    temporizadorBusqueda = setTimeout(() => buscarEnVivo(termino), 250);
+  });
+
+  btnVolverCategorias.addEventListener('click', () => {
+    inputBuscarProducto.value = '';
+    volverACategorias();
+    inputBuscarProducto.focus();
+  });
+
+  // Estado inicial del catálogo
+  volverACategorias();
 
 });

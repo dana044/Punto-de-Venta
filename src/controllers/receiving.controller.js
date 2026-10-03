@@ -119,10 +119,45 @@ const getProductosPorProveedor = async (req, res) => {
   }
 };
 
+/**
+ * Actualiza manualmente el estado general de un pedido (HU-33).
+ * Permite gestionar transiciones como 'en tránsito' o 'cancelado'.
+ * 
+ * @async
+ * @function actualizarEstadoPedido
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+const actualizarEstadoPedido = async (req, res) => {
+  try {
+    const { folio } = req.params;
+    const { estado } = req.body;
+
+    // Validación Doomsayer: Evitar estados vacíos
+    if (!estado || typeof estado !== 'string') {
+      return res.status(400).json({ mensaje: 'El nuevo estado es requerido y debe ser texto válido.' });
+    }
+
+    const actualizado = await orderModel.updateEstadoPedido(folio, estado);
+
+    if (!actualizado) {
+      return res.status(404).json({ mensaje: `No se encontró el pedido con folio ${folio}.` });
+    }
+
+    return res.status(200).json({ 
+      mensaje: `El estado del pedido ${folio} se actualizó correctamente a '${estado}'.` 
+    });
+  } catch (error) {
+    console.error(`Error al actualizar el estado del pedido ${req.params.folio}:`, error);
+    return res.status(500).json({ mensaje: 'Error interno al actualizar el estado del pedido en la base de datos.' });
+  }
+};
+
 module.exports = {
   crearPedido,
   getPedidosPendientes,
   getDetallePedido,
   confirmarRecepcion,
-  getProductosPorProveedor
+  getProductosPorProveedor,
+  actualizarEstadoPedido
 };

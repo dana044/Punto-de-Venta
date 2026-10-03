@@ -3,10 +3,21 @@
  * @description Calcular y liquidar ventas conectando a MySQL.
  */
 
+const crypto = require('crypto');
 const { findById } = require('../models/product.model.js');
 const db = require('../config/db'); // Se agregó importación DB
 
 const IVA_RATE = 0.16;
+
+/**
+ * Genera el folio único de auto-facturación que se imprime al pie del ticket.
+ * Formato: XXXX-XXXX-AAAA (8 caracteres hexadecimales aleatorios + año en curso).
+ * @returns {string} Folio de facturación, ej. "7A9B-3C1E-2026".
+ */
+const generarFolioFacturacion = () => {
+  const aleatorio = crypto.randomBytes(4).toString('hex').toUpperCase();
+  return `${aleatorio.slice(0, 4)}-${aleatorio.slice(4)}-${new Date().getFullYear()}`;
+};
 
 const buscarProducto = async (productoId) => {
   return await findById(productoId);
@@ -86,7 +97,7 @@ const calcularVenta = async (items) => {
  * Registra formalmente la venta (HU-30).
  * Genera el cargo, el detalle transaccional y descuenta el stock en una sola operación atómica.
  */
-const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido) => {
+const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido, numAutorizacion) => {
   // 1. Recalcular y validar todo el carrito y el stock
   const calculo = await calcularVenta(items);
   if (!calculo.ok) return calculo;
@@ -98,14 +109,23 @@ const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido) => {
     return { ok: false, mensaje: 'El monto recibido es menor al total a cobrar.' };
   }
 
+  // 2.1 Validar el No. de Autorización opcional del voucher (solo aplica a pagos con tarjeta)
+  const autorizacion = metodoPago === 'tarjeta' && numAutorizacion ? String(numAutorizacion).trim() : null;
+  if (autorizacion && !/^\d{6}$/.test(autorizacion)) {
+    return { ok: false, mensaje: 'El No. de Autorización debe contener exactamente 6 dígitos.' };
+  }
+
+  // 2.2 Folio de auto-facturación: la venta se procesa como "Público en General" y el cliente factura después
+  const folioFacturacion = generarFolioFacturacion();
+
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
 
     // 3. Insertar la cabecera de la venta
     const [ventaResult] = await connection.execute(
-      'INSERT INTO ventas (usuario_id, subtotal, descuentos, iva, total, metodo_pago) VALUES (?, ?, ?, ?, ?, ?)',
-      [usuarioId, ventaData.subtotal, ventaData.descuentos, ventaData.iva, ventaData.total, metodoPago]
+      'INSERT INTO ventas (usuario_id, subtotal, descuentos, iva, total, metodo_pago, num_autorizacion, folio_facturacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [usuarioId, ventaData.subtotal, ventaData.descuentos, ventaData.iva, ventaData.total, metodoPago, autorizacion, folioFacturacion]
     );
     const ventaId = ventaResult.insertId;
 
@@ -145,6 +165,7 @@ const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido) => {
       resultado: {
          mensaje: 'Venta procesada con éxito.',
          folio: `VTA-2026-${ventaId.toString().padStart(5, '0')}`,
+         folioFacturacion,
          total: ventaData.total,
          cambio: metodoPago === 'efectivo' ? Number((montoRecibido - ventaData.total).toFixed(2)) : 0
       }
