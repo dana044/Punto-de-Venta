@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS productos (
   id              INT AUTO_INCREMENT PRIMARY KEY,
   nombre          VARCHAR(150) NOT NULL,
   codigo_barras   VARCHAR(50) NOT NULL UNIQUE,
-  categoria       VARCHAR(100),
+  -- Categoría restringida a una lista cerrada (ENUM). Para agregar una categoría nueva hay que
+  categoria       ENUM('Papelería', 'Bebidas', 'Comida', 'Tecnología', 'Limpieza', 'Herramientas', 'Hogar', 'Cuidado personal', 'Mascotas', 'Otros') NOT NULL DEFAULT 'Otros',
   presentacion    VARCHAR(50),
   unidad_medida   VARCHAR(50),
   precio          DECIMAL(10,2) NOT NULL,
