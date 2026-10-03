@@ -87,6 +87,7 @@
       </div>
 
       <div id="panelAlertasStock"></div>
+      <div id="panelAlertasCaducidad"></div>
 
       <!-- Tabla de productos en inventario -->
       <section class="table-section">
@@ -108,6 +109,10 @@
                 <option value="almacen">Solo alerta en almacén</option>
                 <option value="mostrador">Solo alerta en mostrador</option>
               </select>
+              <!-- Filtro de productos vencidos o próximos a vencer (mismo umbral del banner) -->
+              <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                <input type="checkbox" id="chkCaducidad"> Ver próximos a caducar
+              </label>
               <div class="table-search">
                 <input type="text" id="buscarProducto" placeholder="Buscar por nombre, código o categoría..." />
               </div>
@@ -253,21 +258,13 @@
 
           <!-- Pestaña: Lotes -->
           <div id="tab-lotes" class="tab-content">
-            <form id="formNuevoLote" style="padding: 1.5rem; background: #FAFAFA; border-bottom: 1px solid #E5E7EB;">
-              <p style="font-size: 0.9rem; margin-bottom: 0.3rem;"><strong>+ Ingresar nueva mercancía</strong></p>
-              <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.8rem;">Al agregar o eliminar lotes, el stock de almacén se ajusta automáticamente.</p>
-              <div class="field-row" style="align-items: flex-end;">
-                <div class="form-group">
-                  <label class="form-label" for="loteCantidad">Cantidad</label>
-                  <input type="number" id="loteCantidad" class="form-input" min="1" placeholder="Ej. 50" required />
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="loteCaducidad">Caducidad (Opcional)</label>
-                  <input type="date" id="loteCaducidad" class="form-input" />
-                </div>
-                <button type="submit" class="btn btn--primary" id="btnGuardarLote">Agregar Lote</button>
-              </div>
-            </form>
+            <!-- Lotes Pendientes de Registro -->
+            <div id="seccionLotesPendientes" style="padding: 1.5rem; background: #FAFAFA; border-bottom: 1px solid #E5E7EB;">
+              <p style="font-size: 0.9rem; margin-bottom: 0.3rem;"><strong>+ Lotes Pendientes de Registro</strong></p>
+              <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.8rem;">Asigna la fecha de caducidad a la mercancía recién recibida para moverla al almacén.</p>
+              
+              <div id="contenedorLotesPendientes"></div>
+            </div>
 
             <div style="padding: 1.5rem; max-height: 300px; overflow-y: auto;">
               <table class="data-table" style="width: 100%;">

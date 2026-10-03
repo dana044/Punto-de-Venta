@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS lotes_producto (
   producto_id     INT NOT NULL,
   cantidad        INT NOT NULL DEFAULT 0,
   fecha_caducidad DATE NULL,
+  estado          ENUM('pendiente', 'registrado') NOT NULL DEFAULT 'registrado',
   recibido_en     DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE
 );
@@ -90,15 +91,15 @@ CREATE TABLE IF NOT EXISTS lotes_producto (
 -- Triggers: mantienen productos.stock_almacen = SUM(lotes_producto.cantidad)
 -- sin importar qué módulo (inventario, recepción, etc.) toque los lotes.
 CREATE TRIGGER trg_lotes_ai AFTER INSERT ON lotes_producto FOR EACH ROW
-  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id)
+  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id AND estado = 'registrado')
   WHERE id = NEW.producto_id;
 
 CREATE TRIGGER trg_lotes_au AFTER UPDATE ON lotes_producto FOR EACH ROW
-  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id)
+  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id AND estado = 'registrado')
   WHERE id IN (NEW.producto_id, OLD.producto_id);
 
 CREATE TRIGGER trg_lotes_ad AFTER DELETE ON lotes_producto FOR EACH ROW
-  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id)
+  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id AND estado = 'registrado')
   WHERE id = OLD.producto_id;
 
 -- Relación muchos-a-muchos: producto <-> proveedores
@@ -178,7 +179,7 @@ CREATE TABLE IF NOT EXISTS venta_detalle (
 CREATE TABLE IF NOT EXISTS movimientos_inventario (
   id INT AUTO_INCREMENT PRIMARY KEY,
   producto_id INT NOT NULL,
-  tipo VARCHAR(50) NOT NULL, -- Ej: 'transferencia', 'merma', 'daño', 'conteo_mostrador', 'lote_nuevo', 'lote_editado'
+  tipo VARCHAR(50) NOT NULL,
   cantidad INT NOT NULL,
   ubicacion ENUM('almacen', 'mostrador') NOT NULL,
   motivo VARCHAR(255) NOT NULL,
@@ -264,10 +265,16 @@ INSERT INTO productos (id, nombre, codigo_barras, categoria, presentacion, unida
   (20,'Cinta adhesiva','7501234500207','Papelería','Rollo','Pieza',12.00,41,26,'2026-10-01 19:09:05',1);
 
 -- Lotes de producto (existencias de almacén y caducidades)
-INSERT INTO lotes_producto (id, producto_id, cantidad, fecha_caducidad, recibido_en) VALUES
-  (1,1,149,NULL,'2026-10-01 11:22:34'),
-  (2,6,14,NULL,'2026-10-01 11:22:34'),
-  (4,6,50,'2035-10-15','2026-10-01 11:37:03');
+INSERT INTO lotes_producto (id, producto_id, cantidad, fecha_caducidad, estado, recibido_en) VALUES
+  (2,6,14,NULL, 'registrado', '2026-10-01 11:22:34'),
+  (5, 14, 30, '2026-10-06', 'registrado', '2026-10-02 09:15:00'),
+  (6, 15, 25, '2026-10-09', 'registrado', '2026-10-02 10:30:00'),
+  (7, 13, 40, '2027-01-15', 'registrado', '2026-10-03 08:00:00'),
+  (8, 16, 50, '2026-12-20', 'registrado', '2026-10-03 08:15:00'),
+  (9, 14, 60, '2026-11-15', 'registrado', '2026-10-03 08:30:00'),
+  (10, 15, 35, '2027-03-10', 'registrado', '2026-10-03 09:00:00'),
+  (11, 1, 80, '2027-06-30', 'registrado', '2026-10-03 09:15:00'), 
+  (12, 16, 100, '2027-05-20', 'registrado', '2026-10-03 09:45:00');
 
 -- Recalcula el stock de almacén de todos los productos (útil también para migrar una BD existente)
 UPDATE productos p SET p.stock_almacen = (SELECT COALESCE(SUM(l.cantidad), 0) FROM lotes_producto l WHERE l.producto_id = p.id);

@@ -292,6 +292,31 @@ const crearLote = async (req, res) => {
 };
 
 /**
+ * Confirma un lote que estaba en estado pendiente, asignándole su caducidad definitiva 
+ * y sumando sus existencias al almacén.
+ *
+ * @async
+ * @function confirmarLotePendiente
+ * @param {Object} req - Petición HTTP con id (producto) e idLote en req.params y caducidad en req.body.
+ * @param {Object} res - Respuesta HTTP: 200 con el nuevo stock, 400, 404 o 500.
+ * @returns {Promise<Object>} Respuesta JSON con el resultado.
+ */
+const confirmarLotePendiente = async (req, res) => {
+  const { id, idLote } = req.params;
+  const { fecha_caducidad } = req.body;
+
+  try {
+    const { confirmarLoteBD } = require('../models/product.model.js');
+    const nuevoTotal = await confirmarLoteBD(idLote, id, fecha_caducidad, 1); // asumiendo usuarioId = 1
+    
+    return res.status(200).json({ mensaje: 'Lote registrado y movido al almacén.', stock_almacen: nuevoTotal });
+  } catch (error) {
+    console.error('Error al confirmar lote:', error);
+    return res.status(500).json({ mensaje: 'Error interno al registrar el lote.' });
+  }
+};
+
+/**
  * Elimina un lote del almacén; el stock de almacén se reduce automáticamente.
  *
  * @async
@@ -405,6 +430,7 @@ module.exports = {
   actualizarProducto,
   obtenerLotes,
   crearLote,
+  confirmarLotePendiente,
   borrarLote,
   registrarAjuste,
   reporteStockBajo

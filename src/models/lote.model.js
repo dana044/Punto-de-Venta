@@ -6,6 +6,7 @@
 
 const db = require('../config/db.js');
 
+
 /**
  * Registra un nuevo lote para un producto específico.
  * @async
@@ -14,12 +15,13 @@ const db = require('../config/db.js');
  * @param {number} data.productoId - ID del producto al que pertenece el lote.
  * @param {number} data.cantidad - Unidades físicas que ingresan en este lote.
  * @param {string} [data.fechaCaducidad] - Fecha de expiración (YYYY-MM-DD).
+ * @param {string} [data.estado] - Estado del lote ('pendiente' o 'registrado').
  * @returns {Promise<number>} ID del lote recién insertado.
  */
-const crearLote = async ({ productoId, cantidad, fechaCaducidad }) => {
+const crearLote = async ({ productoId, cantidad, fechaCaducidad, estado = 'registrado' }) => {
   const [result] = await db.execute(
-    `INSERT INTO lotes_producto (producto_id, cantidad, fecha_caducidad) VALUES (?, ?, ?)`,
-    [productoId, cantidad, fechaCaducidad || null]
+    `INSERT INTO lotes_producto (producto_id, cantidad, fecha_caducidad, estado) VALUES (?, ?, ?, ?)`,
+    [productoId, cantidad, fechaCaducidad || null, estado]
   );
   return result.insertId;
 };

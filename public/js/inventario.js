@@ -89,6 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let idsStockBajo = new Set();
   let idsAlertaAlmacen = new Set();
   let idsAlertaMostrador = new Set();
+  const chkCaducidad = document.getElementById('chkCaducidad');
+  let idsCaducidad = new Set();
 
   let productosCache = [];
 
@@ -215,7 +217,9 @@ document.addEventListener('DOMContentLoaded', () => {
         url += url.includes('?') ? `&${queryInactivos}` : `?${queryInactivos}`;
       }
 
-      const res = await fetch(url, { headers: { 'x-user-role': userRole } });
+      url += url.includes('?') ? `&_t=${Date.now()}` : `?_t=${Date.now()}`;
+      
+      const res = await fetch(url, { headers: { 'x-user-role': userRole }, cache: 'no-store' });
       const data = await res.json();
 
       if (res.ok && Array.isArray(data.productos)) {
@@ -224,9 +228,16 @@ document.addEventListener('DOMContentLoaded', () => {
           ? data.productos.filter(esProductoInactivo)
           : data.productos;
         if (chkStockBajo?.checked) await cargarIdsStockBajo();
-        renderizarTabla(chkStockBajo?.checked ? filtrarYOrdenarStockBajo(productosCache) : productosCache);
-        // Refresca el banner de alertas.js (mismos umbrales que usa el backend)
+        if (chkCaducidad?.checked) await cargarIdsCaducidad();
+
+        let listaAMostrar = productosCache;
+        if (chkStockBajo?.checked) listaAMostrar = filtrarYOrdenarStockBajo(productosCache);
+        else if (chkCaducidad?.checked) listaAMostrar = filtrarYOrdenarCaducidad(productosCache);
+
+        renderizarTabla(listaAMostrar);
+        // Refresca los banners de alertas.js (mismos umbrales que usa el backend)
         if (typeof window.cargarAlertas === 'function') window.cargarAlertas();
+        if (typeof window.cargarAlertasCaducidad === 'function') window.cargarAlertasCaducidad();
       } else {
         tablaBody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color: red; text-align:center;">Error: ${data.mensaje || 'Datos no validos'}</td></tr>`;
       }
@@ -257,6 +268,38 @@ document.addEventListener('DOMContentLoaded', () => {
       idsAlertaAlmacen = new Set();
       idsAlertaMostrador = new Set();
     }
+  }
+
+  /**
+   * Consulta las alertas de caducidad del backend (/api/alerts/caducidad) y guarda
+   * los ids de los productos afectados, con el mismo umbral que usa el banner.
+   *
+   * @async
+   * @function cargarIdsCaducidad
+   * @returns {Promise<void>}
+   */
+  async function cargarIdsCaducidad() {
+    try {
+      const res = await fetch('/api/alerts/caducidad', { headers: { 'x-user-role': userRole } });
+      const data = await res.json();
+      const alertas = res.ok && Array.isArray(data.alertas) ? data.alertas : [];
+      idsCaducidad = new Set(alertas.map((a) => a.productoId));
+    } catch (error) {
+      idsCaducidad = new Set();
+    }
+  }
+
+  /**
+   * Deja solo los productos en alerta de caducidad y los ordena del que
+   * caduca más pronto (o ya caducó) al que caduca más lejano.
+   *
+   * @param {Array<Object>} lista - Productos a filtrar.
+   * @returns {Array<Object>} Productos en alerta de caducidad ya ordenados.
+   */
+  function filtrarYOrdenarCaducidad(lista) {
+    return lista
+      .filter((p) => idsCaducidad.has(p.id))
+      .sort((a, b) => new Date(a.proxima_caducidad) - new Date(b.proxima_caducidad));
   }
 
   /**
@@ -319,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tablaBody.innerHTML = '';
     const textoEstado = chkMostrarInactivos?.checked
       ? 'inactivos'
-      : 'activos' + (chkStockBajo?.checked ? ' con stock bajo' : '');
+      : 'activos' + (chkStockBajo?.checked ? ' con stock bajo' : chkCaducidad?.checked ? ' próximos a caducar' : '');
     productosCount.textContent = `${lista.length} producto(s) ${textoEstado}`;
 
     if (lista.length === 0) {
@@ -381,24 +424,38 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarProductos(e.target.value.trim());
   });
 
-  // "Ver inactivos": muestra solo los inactivos; desactiva "Ver stock bajo" (mutuamente excluyentes)
   chkMostrarInactivos?.addEventListener('change', () => {
-    if (chkMostrarInactivos.checked && chkStockBajo) {
-      chkStockBajo.checked = false;
-      ordenStockBajo.style.display = 'none';
+    if (chkMostrarInactivos.checked) {
+      if (chkStockBajo) {
+        chkStockBajo.checked = false;
+        ordenStockBajo.style.display = 'none';
+      }
+      if (chkCaducidad) chkCaducidad.checked = false;
     }
     cargarProductos(buscarInput.value.trim());
   });
 
-  // "Ver stock bajo": muestra el selector de orden, recarga la tabla filtrada
-  // y desactiva "Ver inactivos" (mutuamente excluyentes)
   chkStockBajo?.addEventListener('change', () => {
-    if (chkStockBajo.checked && chkMostrarInactivos) chkMostrarInactivos.checked = false;
+    if (chkStockBajo.checked) {
+      if (chkMostrarInactivos) chkMostrarInactivos.checked = false;
+      if (chkCaducidad) chkCaducidad.checked = false;
+    }
     ordenStockBajo.style.display = chkStockBajo.checked ? 'block' : 'none';
     cargarProductos(buscarInput.value.trim());
   });
 
   ordenStockBajo?.addEventListener('change', () => {
+    cargarProductos(buscarInput.value.trim());
+  });
+
+  chkCaducidad?.addEventListener('change', () => {
+    if (chkCaducidad.checked) {
+      if (chkMostrarInactivos) chkMostrarInactivos.checked = false;
+      if (chkStockBajo) {
+        chkStockBajo.checked = false;
+        ordenStockBajo.style.display = 'none';
+      }
+    }
     cargarProductos(buscarInput.value.trim());
   });
 
@@ -592,9 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalStock = document.getElementById('modalStockOverlay');
   const alertStock = document.getElementById('modalAlertStock');
   const stockProductoId = document.getElementById('stockProductoId');
-  const formNuevoLote = document.getElementById('formNuevoLote');
   const tablaLotesBody = document.getElementById('tablaLotesBody');
-  const btnGuardarLote = document.getElementById('btnGuardarLote');
   const formAjuste = document.getElementById('formAjuste');
   const btnGuardarAjuste = document.getElementById('btnGuardarAjuste');
   const inputCantidadAjuste = document.getElementById('cantidadAjuste');
@@ -647,14 +702,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const toggleModalStock = (mostrar) => {
     modalStock.style.display = mostrar ? 'flex' : 'none';
     if (!mostrar) {
-      formNuevoLote.reset();
       formAjuste.reset();
       alertStock.hidden = true;
       document.getElementById('grupoCaducidadAjuste').style.display = 'none';
       inputCantidadAjuste.min = 1;
     } else {
       const hoy = fechaLocalHoy();
-      document.getElementById('loteCaducidad').setAttribute('min', hoy);
       document.getElementById('caducidadAjuste').setAttribute('min', hoy);
     }
   };
@@ -694,6 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /**
    * Consulta los lotes de almacén de un producto y los dibuja en la tabla del modal.
+   * Filtra los lotes pendientes para mostrarlos en la sección de registro y los registrados en la tabla.
    *
    * @async
    * @function cargarLotesDeProducto
@@ -702,36 +756,68 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   async function cargarLotesDeProducto(productoId) {
     tablaLotesBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando lotes...</td></tr>';
+    const contenedorPendientes = document.getElementById('contenedorLotesPendientes');
+    if(contenedorPendientes) contenedorPendientes.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Cargando mercancía pendiente...</p>';
+
     try {
-      const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes`, {
-        headers: { 'x-user-role': userRole }
+      const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes?_t=${Date.now()}`, {
+        headers: { 'x-user-role': userRole },
+        cache: 'no-store'
       });
       const data = await res.json();
 
       if (res.ok) {
         tablaLotesBody.innerHTML = '';
-        if (data.lotes.length === 0) {
+        if(contenedorPendientes) contenedorPendientes.innerHTML = '';
+        
+        // Separar lotes según su estado en la base de datos
+        const lotesRegistrados = data.lotes.filter(l => l.estado !== 'pendiente');
+        const lotesPendientes = data.lotes.filter(l => l.estado === 'pendiente');
+
+        // Renderizar Lotes Registrados (Almacén)
+        if (lotesRegistrados.length === 0) {
           tablaLotesBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #6B7280;">No hay lotes en almacén para este producto.</td></tr>';
-          return;
+        } else {
+          lotesRegistrados.forEach((lote) => {
+            const caducidadFormateada = lote.fecha_caducidad ? String(lote.fecha_caducidad).substring(0, 10) : '';
+            const textoCaducidad = caducidadFormateada || 'Sin caducidad';
+            const fechaRegistro = new Date(lote.recibido_en).toLocaleDateString();
+
+            tablaLotesBody.innerHTML += `
+              <tr>
+                <td><span class="badge" style="background:#E5E7EB; color:#374151;">L-${lote.id}</span></td>
+                <td><strong>${lote.cantidad}</strong></td>
+                <td>${calcularBadgeCaducidad(lote.fecha_caducidad)} <br><small class="text-muted">${textoCaducidad}</small></td>
+                <td>${fechaRegistro}</td>
+                <td>
+                  <button class="btn-eliminar-lote" data-id="${lote.id}" style="background-color: #FEE2E2; color: #991B1B; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Eliminar</button>
+                </td>
+              </tr>
+            `;
+          });
         }
 
-        data.lotes.forEach((lote) => {
-          const caducidadFormateada = lote.fecha_caducidad ? String(lote.fecha_caducidad).substring(0, 10) : '';
-          const textoCaducidad = caducidadFormateada || 'Sin caducidad';
-          const fechaRegistro = new Date(lote.recibido_en).toLocaleDateString();
-
-          tablaLotesBody.innerHTML += `
-            <tr>
-              <td><span class="badge" style="background:#E5E7EB; color:#374151;">L-${lote.id}</span></td>
-              <td><strong>${lote.cantidad}</strong></td>
-              <td>${calcularBadgeCaducidad(lote.fecha_caducidad)} <br><small class="text-muted">${textoCaducidad}</small></td>
-              <td>${fechaRegistro}</td>
-              <td>
-                <button class="btn-eliminar-lote" data-id="${lote.id}" style="background-color: #FEE2E2; color: #991B1B; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Eliminar</button>
-              </td>
-            </tr>
-          `;
-        });
+        // Renderizar Lotes Pendientes (Cuarentena)
+        if (lotesPendientes.length === 0) {
+          contenedorPendientes.innerHTML = '<p class="text-muted" style="font-size:0.85rem; text-align:center; padding: 1rem 0;">No hay mercancía pendiente de registro.</p>';
+        } else {
+          const hoy = fechaLocalHoy();
+          lotesPendientes.forEach((lote) => {
+            contenedorPendientes.innerHTML += `
+              <div class="field-row lote-pendiente-item" style="align-items: flex-end; margin-bottom: 1rem; padding: 1rem; background: #fff; border: 1px solid #E5E7EB; border-radius: 6px;">
+                <div class="form-group" style="width: 30%;">
+                  <label class="form-label">Cantidad Recibida</label>
+                  <input type="number" class="form-input" value="${lote.cantidad}" readonly style="background-color: #F3F4F6;" />
+                </div>
+                <div class="form-group" style="width: 40%;">
+                  <label class="form-label">Caducidad (Opcional)</label>
+                  <input type="date" class="form-input caducidad-pendiente" min="${hoy}" />
+                </div>
+                <button type="button" class="btn btn--primary btn-registrar-pendiente" data-idlote="${lote.id}" style="width: 30%;">Registrar Lote</button>
+              </div>
+            `;
+          });
+        }
       } else {
         tablaLotesBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: red;">Error al cargar lotes.</td></tr>`;
       }
@@ -757,43 +843,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Interceptar el envío del formulario para crear un nuevo lote
-  formNuevoLote?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const productoId = stockProductoId.value;
+  // Interceptar el clic para registrar un lote pendiente específico
+  document.getElementById('contenedorLotesPendientes')?.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('btn-registrar-pendiente')) {
+      const btn = e.target;
+      const contenedor = btn.closest('.lote-pendiente-item');
+      const fechaCaducidad = contenedor.querySelector('.caducidad-pendiente').value;
+      const idLote = btn.dataset.idlote;
+      const productoId = stockProductoId.value;
 
-    const payload = {
-      cantidad: Number(document.getElementById('loteCantidad').value),
-      fecha_caducidad: document.getElementById('loteCaducidad').value || null
-    };
+      btn.disabled = true;
+      btn.textContent = 'Guardando...';
+      alertStock.hidden = true;
 
-    btnGuardarLote.disabled = true;
-    btnGuardarLote.textContent = 'Guardando...';
-    alertStock.hidden = true;
+      try {
+        const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes/${idLote}/confirmar`, {
+          method: 'PUT', // PUT para actualizar el estado del lote
+          headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
+          body: JSON.stringify({ fecha_caducidad: fechaCaducidad })
+        });
+        const data = await res.json();
 
-    try {
-      const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        mostrarAlertaStock('Lote agregado exitosamente al almacén.', 'success');
-        formNuevoLote.reset();
-        await refrescarStock(productoId);
-      } else {
-        mostrarAlertaStock(data.mensaje || 'Error al procesar el lote.', 'error');
+        if (res.ok) {
+          mostrarAlertaStock('Lote registrado exitosamente al almacén.', 'success');
+          await refrescarStock(productoId);
+        } else {
+          mostrarAlertaStock(data.mensaje || 'Error al procesar el lote.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Registrar Lote';
+        }
+      } catch (error) {
+        mostrarAlertaStock('Error de comunicación con el servidor.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Registrar Lote';
       }
-    } catch (error) {
-      mostrarAlertaStock('Error de comunicación con el servidor.', 'error');
-    } finally {
-      btnGuardarLote.disabled = false;
-      btnGuardarLote.textContent = 'Agregar Lote';
     }
   });
-
+  
   // Interceptar el clic para eliminar un lote específico
   tablaLotesBody?.addEventListener('click', async (e) => {
     const btnEliminar = e.target.closest('.btn-eliminar-lote');

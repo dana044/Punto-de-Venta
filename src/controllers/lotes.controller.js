@@ -20,8 +20,8 @@ const registrarLote = async (req, res) => {
       return res.status(400).json({ mensaje: 'La cantidad debe ser positiva.' });
     }
     
-    await loteModel.crearLote({ productoId: id, cantidad, fechaCaducidad });
-    return res.status(201).json({ mensaje: 'Lote registrado exitosamente en el almacén.' });
+    await loteModel.crearLote({ productoId: id, cantidad, fechaCaducidad, estado: 'pendiente' });
+    return res.status(201).json({ mensaje: 'Lote recibido y en pendiente de registro.' });
   } catch (error) {
     return res.status(500).json({ mensaje: 'Error al registrar el lote.', error });
   }

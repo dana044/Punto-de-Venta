@@ -232,10 +232,9 @@ const registrarRecepcionMercancia = async (folio, itemsRecibidos) => {
       );
       
       // Por último, añade las piezas nuevas a la tabla de lotes (existencia física en almacén).
-      // Esto evita que se dupliquen las sumas en entregas parciales.
       if (piezasNuevas > 0) {
         await connection.execute(
-          'INSERT INTO lotes_producto (producto_id, cantidad, fecha_caducidad, recibido_en) VALUES (?, ?, NULL, NOW())',
+          "INSERT INTO lotes_producto (producto_id, cantidad, fecha_caducidad, estado, recibido_en) VALUES (?, ?, NULL, 'pendiente', NOW())",
           [Number(item.productoId), piezasNuevas]
         );
       }

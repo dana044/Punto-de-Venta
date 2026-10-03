@@ -79,6 +79,19 @@ router.put(
 );
 
 /**
+ * Ruta para confirmar un lote pendiente de registro, asignando su caducidad definitiva
+ * y sumando sus existencias al almacén general.
+ * Restringida a los roles 'administrador' y 'almacenista'.
+ * @name put/productos/:id/lotes/:idLote/confirmar
+ * @route {PUT} /api/inventory/productos/:id/lotes/:idLote/confirmar
+ */
+router.put(
+  '/productos/:id/lotes/:idLote/confirmar',
+  permitirRoles('administrador', 'almacenista'),
+  inventoryController.confirmarLotePendiente
+);
+
+/**
  * Ruta para registrar ajustes manuales (HU-17): mover a mostrador, regresar a almacén,
  * merma, daño y conteo de mostrador. Los datos se validan en el controlador.
  * Restringida a los roles 'administrador' y 'almacenista'.

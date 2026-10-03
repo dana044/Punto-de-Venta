@@ -11,13 +11,14 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   const panelAlertas = document.getElementById('panelAlertasStock');
+  const panelAlertasCaducidad = document.getElementById('panelAlertasCaducidad');
 
-  if (!panelAlertas) return; // Esta pantalla no tiene el panel, no hacemos nada.
+  if (!panelAlertas) return; 
 
   const userRole = localStorage.getItem('userRole');
 
-  // Se expone para que inventario.js pueda refrescar el banner tras cambiar el stock
   window.cargarAlertas = cargarAlertas;
+  window.cargarAlertasCaducidad = cargarAlertasCaducidad;
 
   cargarAlertas();
 
@@ -50,6 +51,38 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     } catch (err) {
       panelAlertas.innerHTML = '';
+    }
+  }
+
+  /**
+   * Consulta las alertas de caducidad activas (/api/alerts/caducidad) y las
+   * pinta en su propio banner, separado del de stock bajo.
+   *
+   * @async
+   * @function cargarAlertasCaducidad
+   * @returns {Promise<void>}
+   */
+  async function cargarAlertasCaducidad() {
+    if (!panelAlertasCaducidad) return; // Esta pantalla no tiene el panel, no hacemos nada.
+ 
+    try {
+      const res = await fetch('/api/alerts/caducidad', { headers: { 'x-user-role': userRole } });
+      const data = await res.json();
+ 
+      if (!res.ok || !data.alertas || data.alertas.length === 0) {
+        panelAlertasCaducidad.innerHTML = '';
+        return;
+      }
+ 
+      panelAlertasCaducidad.innerHTML = `
+        <div class="alertas-banner">
+          <div class="alertas-banner__header">
+            <span class="alertas-banner__titulo">⏳ ${data.alertas.length} producto(s) próximos a caducar o ya vencidos</span>
+          </div>
+        </div>
+      `;
+    } catch (err) {
+      panelAlertasCaducidad.innerHTML = '';
     }
   }
 });

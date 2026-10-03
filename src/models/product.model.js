@@ -315,13 +315,56 @@ const darDeBajaProducto = async (id, accion) => {
  */
 const getLotesByProducto = async (productoId) => {
   const [rows] = await db.execute(
-    `SELECT id, producto_id, cantidad, fecha_caducidad, recibido_en
+    `SELECT id, producto_id, cantidad, fecha_caducidad, estado, recibido_en
      FROM lotes_producto
      WHERE producto_id = ?
      ORDER BY fecha_caducidad IS NULL, fecha_caducidad ASC, id ASC`,
     [Number(productoId)]
   );
   return rows;
+};
+
+/**
+ * Confirma un lote en cuarentena, asignándole caducidad y sumándolo al inventario.
+ *
+ * @async
+ * @function confirmarLoteBD
+ * @param {number|string} loteId - Identificador del lote.
+ * @param {number|string} productoId - Producto dueño del lote.
+ * @param {string} fechaCaducidad - Fecha de expiración (YYYY-MM-DD).
+ * @param {number} [usuarioId=1] - Usuario que confirma el lote.
+ * @returns {Promise<number>} Nuevo total de almacén.
+ * @throws {Error} 'Lote no encontrado' o errores de base de datos.
+ */
+const confirmarLoteBD = async (loteId, productoId, fechaCaducidad, usuarioId = 1) => {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [lote] = await connection.execute(
+      'SELECT cantidad, estado FROM lotes_producto WHERE id = ? AND producto_id = ? FOR UPDATE',
+      [Number(loteId), Number(productoId)]
+    );
+    if (lote.length === 0) throw new Error('Lote no encontrado');
+    
+    await connection.execute(
+      `UPDATE lotes_producto SET fecha_caducidad = ?, estado = 'registrado' WHERE id = ?`,
+      [fechaCaducidad || null, Number(loteId)]
+    );
+
+    const nuevoTotal = await actualizarStockAlmacenPorLotes(connection, productoId);
+    
+    await registrarMovimiento(connection, productoId, 'lote_confirmado', lote[0].cantidad, 'almacen', 'Confirmación de lote en cuarentena', usuarioId);
+
+    await connection.commit();
+    
+    return nuevoTotal;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 };
 
 /**
@@ -337,7 +380,7 @@ const getLotesByProducto = async (productoId) => {
  */
 const actualizarStockAlmacenPorLotes = async (connection, productoId) => {
   const [rows] = await connection.execute(
-    'SELECT COALESCE(SUM(cantidad), 0) AS total FROM lotes_producto WHERE producto_id = ?',
+    "SELECT COALESCE(SUM(cantidad), 0) AS total FROM lotes_producto WHERE producto_id = ? AND estado = 'registrado'",
     [Number(productoId)]
   );
   const total = Number(rows[0].total);
@@ -641,5 +684,6 @@ module.exports = {
   getLowStock,
   getLotesByProducto,
   agregarLote,
-  eliminarLote
+  eliminarLote,
+  confirmarLoteBD
 };

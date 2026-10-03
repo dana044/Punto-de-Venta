@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const id = document.getElementById('proveedorId').value;
         const proveedorData = {
             nombre: document.getElementById('nombre').value.trim(),
@@ -160,6 +160,12 @@ document.addEventListener('DOMContentLoaded', () => {
             telefonos: recolectarTelefonos(),
             correos: recolectarCorreos()
         };
+
+        const errorValidacion = validarProveedorData(proveedorData);
+        if (errorValidacion) {
+            mostrarAlerta('error', errorValidacion, true);
+            return;
+        }
 
         try {
             const url = id ? `/api/suppliers/${id}` : '/api/suppliers';
@@ -436,5 +442,40 @@ document.addEventListener('DOMContentLoaded', () => {
         return Array.from(correosContainer.querySelectorAll('.input-correo'))
             .map(input => input.value.trim())
             .filter(correo => correo !== '');
+    }
+
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const TELEFONO_REGEX = /^\d{7,15}$/;
+
+    /**
+     * Valida los datos del formulario de proveedor antes de enviarlos al
+     * servidor, replicando las reglas del backend para poder mostrar el
+     * mensaje de error de inmediato, sin esperar la respuesta del servidor.
+     *
+     * @param {{nombre: string, telefonos: Array<{telefono: string}>, correos: string[]}} datos
+     * @returns {string|null} Mensaje de error, o null si los datos son válidos.
+     */
+    function validarProveedorData({ nombre, telefonos, correos }) {
+        if (!nombre || nombre.length < 3) {
+            return 'El nombre debe tener al menos 3 caracteres.';
+        }
+
+        if (!correos || correos.length === 0) {
+            return 'Debes capturar al menos un correo electrónico.';
+        }
+
+        for (const correo of correos) {
+            if (!EMAIL_REGEX.test(correo)) {
+                return `El correo "${correo}" no es válido.`;
+            }
+        }
+
+        for (const { telefono } of telefonos) {
+            if (!TELEFONO_REGEX.test(telefono)) {
+                return `El teléfono "${telefono}" no es válido. Usa solo dígitos (de 7 a 15).`;
+            }
+        }
+
+        return null;
     }
 });
