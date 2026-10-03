@@ -5,6 +5,7 @@
  * @author Alfonso Mendoza Vásquez (Apertura de caja HU-25)
  * @author Diego Rafael Jiménez Trujano (Cobro HU-30)
  * @author Stephanie Elizdeth Hernández Prieto (Reporte Mensual HU-40 y Control de Rol HU-03)
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 
 const express = require('express');
@@ -23,6 +24,18 @@ router.post(
   '/abrir',
   permitirRoles('cajero', 'administrador'),
   posController.abrirVenta
+);
+
+/**
+ * Ruta de solo lectura que devuelve el folio de la próxima venta (no crea la venta).
+ * Restringida a cajero y administrador.
+ * @name get/siguiente-folio
+ * @route {GET} /api/pos/siguiente-folio
+ */
+router.get(
+  '/siguiente-folio',
+  permitirRoles('cajero', 'administrador'),
+  posController.obtenerSiguienteFolio
 );
 
 /**

@@ -150,6 +150,8 @@ CREATE TABLE IF NOT EXISTS ventas (
   descuentos   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   iva          DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   total        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  num_autorizacion  VARCHAR(6)  NULL,
+  folio_facturacion VARCHAR(20) NULL UNIQUE,
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
 

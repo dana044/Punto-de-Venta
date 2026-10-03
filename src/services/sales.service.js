@@ -1,11 +1,13 @@
 /**
  * @file sales.service.js
  * @description Calcular y liquidar ventas conectando a MySQL.
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 
 const crypto = require('crypto');
 const { findById } = require('../models/product.model.js');
 const db = require('../config/db'); // Se agregó importación DB
+const SaleModel = require('../models/sale.model.js');
 
 const IVA_RATE = 0.16;
 
@@ -129,6 +131,10 @@ const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido, numAu
     );
     const ventaId = ventaResult.insertId;
 
+    // 3.1 Se guarda el folio definitivo (mismo formato que el folio mostrado en el POS)
+    const folio = SaleModel.formatearFolio(ventaId);
+    await connection.execute('UPDATE ventas SET folio = ? WHERE id = ?', [folio, ventaId]);
+
     // 4. Insertar el detalle por partida y descontar inventario de MOSTRADOR
     //    Se vuelve a leer el stock con FOR UPDATE dentro de la misma transacción
     //    para evitar que dos ventas simultáneas dejen el stock en negativo
@@ -164,7 +170,7 @@ const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido, numAu
       ok: true, 
       resultado: {
          mensaje: 'Venta procesada con éxito.',
-         folio: `VTA-2026-${ventaId.toString().padStart(5, '0')}`,
+         folio,
          folioFacturacion,
          total: ventaData.total,
          cambio: metodoPago === 'efectivo' ? Number((montoRecibido - ventaData.total).toFixed(2)) : 0

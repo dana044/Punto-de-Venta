@@ -1,11 +1,13 @@
 /**
  * @file pos.js
  * @description Controlador para el Punto de Venta (HU26, HU27, HU30, HU49).
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 
 const API_BUSCAR_PRODUCTO = '/api/inventory/productos/buscar-pos';
 const API_CALCULAR = '/api/pos/calcular';
 const API_COBRAR = '/api/pos/cobrar';
+const API_SIGUIENTE_FOLIO = '/api/pos/siguiente-folio';
 const API_CATALOGO_CATEGORIAS = '/api/pos/catalogo/categorias';
 const API_CATALOGO_PRODUCTOS = '/api/pos/catalogo/productos';
 
@@ -87,6 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
 /**
  * HU-25: Inicializa una nueva venta en el POS solicitando el folio consecutivo.
  * Solo se dispara cuando el carrito está vacío y se intenta agregar el primer producto.
+ * @deprecated Ya no se invoca: abrir la venta creaba un registro vacío en la base de datos.
+ *             El folio se muestra con mostrarFolioSiguiente() y la venta se registra al cobrar.
  */
 async function inicializarVenta() {
     try {
@@ -143,6 +147,67 @@ async function inicializarVenta() {
   // Se inicia la venta al cargar la interfaz
   //inicializarVenta();
 
+  /**
+   * Consulta y muestra el folio que tendrá la próxima venta, junto con la fecha actual.
+   * Es de solo lectura: NO crea ninguna venta; el registro se crea hasta que se cobra.
+   *
+   * @async
+   * @function mostrarFolioSiguiente
+   * @returns {Promise<void>}
+   */
+  async function mostrarFolioSiguiente() {
+    const elFolio = document.getElementById('lblFolio');
+    const elFecha = document.getElementById('lblFecha');
+
+    try {
+      const res = await fetch(API_SIGUIENTE_FOLIO, { headers: { 'x-user-role': userRole } });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        if (elFolio) elFolio.textContent = data.data.folio;
+        if (elFecha) {
+          const fecha = new Date(data.data.fecha);
+          elFecha.textContent = fecha.toLocaleDateString() + ' ' + fecha.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+      } else if (elFolio) {
+        elFolio.textContent = 'No disponible';
+      }
+    } catch (error) {
+      console.error('[Error Log - Fallo al consultar el siguiente folio]:', error);
+      if (elFolio) elFolio.textContent = 'No disponible';
+    }
+  }
+
+  // Muestra el folio de la próxima venta al entrar a la pestaña (sin crear la venta)
+  mostrarFolioSiguiente();
+
+  /**
+   * Muestra en la cabecera quién está usando el POS (ej. "Cajero Ana: Turno en curso").
+   * Toma el nombre del perfil de la barra lateral (#userDisplayName), que llena perfil.js,
+   * y se actualiza solo cuando ese nombre cambia. Si aún no hay nombre, deja el texto base.
+   *
+   * @function mostrarCajeroActivo
+   * @returns {void}
+   */
+  function mostrarCajeroActivo() {
+    const elCajero = document.getElementById('lblCajero');
+    const elNombre = document.getElementById('userDisplayName');
+    if (!elCajero || !elNombre) return;
+
+    const actualizar = () => {
+      const nombre = elNombre.textContent.trim();
+      elCajero.textContent = nombre && nombre !== 'Usuario'
+        ? `Cajero ${nombre}: Turno en curso`
+        : 'Cajero: Turno en curso';
+    };
+
+    actualizar();
+    // perfil.js se carga después de este archivo, así que se observa el nombre hasta que se llene
+    new MutationObserver(actualizar).observe(elNombre, { childList: true, characterData: true, subtree: true });
+  }
+
+  mostrarCajeroActivo();
+
   inputBuscarProducto.addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -165,13 +230,7 @@ async function inicializarVenta() {
     const descuentoValorIngresado = Math.max(0, Number(inputDescuentoValor.value) || 0);
     const descuentoTipoIngresado = selectDescuentoTipo.value;
 
-    if (!ventaActivaId) {
-      const ventaAbierta = await inicializarVenta();
-      if (!ventaAbierta) {
-          mostrarMensaje('No se pudo generar el folio de venta.', 'error');
-          return;
-      }
-    }
+    // La venta ya no se abre aquí: el folio mostrado es informativo y la venta se registra al cobrar
 
     try {
       const res = await fetch(`${API_BUSCAR_PRODUCTO}?q=${encodeURIComponent(query)}`, {
@@ -301,6 +360,7 @@ async function inicializarVenta() {
   // --- LÓGICA DEL MODAL DE COBRO (HU30) ---
 
   btnAbrirCobro.addEventListener('click', () => {
+    mostrarFolioSiguiente(); // Refresca el folio por si otro cajero cobró mientras tanto
     modalTotalCobrar.textContent = `$${totalActual.toFixed(2)}`;
     inputMontoRecibido.value = totalActual.toFixed(2); // Sugerir pago exacto
     calcularCambio();
@@ -396,6 +456,7 @@ async function inicializarVenta() {
         carrito = [];
         ventaActivaId = null; // Liberamos el ID para el cliente que sigue (HU-25)
         document.getElementById('lblFolio').textContent = "Generando..."; // Reset visual
+        mostrarFolioSiguiente(); // Muestra el folio de la siguiente venta
         recalcular();
         cerrarModal();
         mostrarMensaje(`¡Cobro exitoso! Cambio a devolver: $${data.cambio || 0}`, 'success');

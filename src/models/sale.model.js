@@ -3,6 +3,7 @@
  * @description Modelo de transacciones para el Punto de Venta (HU-25) y Reportes de Venta (HU-40).
  * @author Alfonso Mendoza Vásquez (Doomsayer)
  * @author Stephanie Elizdeth Hernández Prieto (HU-40: Reporte de Venta Mensual)
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 const db = require('../config/db');
 
@@ -34,6 +35,57 @@ class SaleModel {
         } catch (error) {
             await connection.rollback();
             throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Da formato al folio de una venta a partir de su id (VTA-AAAA-00001).
+     * Se usa tanto para el folio mostrado en pantalla como para el folio definitivo.
+     *
+     * @static
+     * @param {number|string} ventaId - Id de la venta.
+     * @returns {string} Folio con el formato VTA-AAAA-NNNNN.
+     */
+    static formatearFolio(ventaId) {
+        return `VTA-${new Date().getFullYear()}-${String(ventaId).padStart(5, '0')}`;
+    }
+
+    /**
+     * Calcula, en modo de solo lectura, el folio que tendrá la próxima venta.
+     * NO inserta nada en la base de datos: la venta se crea hasta que se cobra.
+     * Primero intenta leer el siguiente AUTO_INCREMENT de la tabla ventas; si el motor
+     * no lo permite, usa MAX(id) + 1 como respaldo.
+     *
+     * @async
+     * @static
+     * @returns {Promise<{folio: string, fecha: Date}>} Folio estimado y fecha actual.
+     */
+    static async getSiguienteFolio() {
+        const connection = await db.getConnection();
+        try {
+            let siguienteId = null;
+
+            try {
+                // Evita que MySQL 8 devuelva estadísticas en caché del AUTO_INCREMENT
+                await connection.query('SET SESSION information_schema_stats_expiry = 0');
+                const [filas] = await connection.query(
+                    `SELECT AUTO_INCREMENT AS siguiente
+                     FROM information_schema.TABLES
+                     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ventas'`
+                );
+                siguienteId = filas[0] ? Number(filas[0].siguiente) : null;
+            } catch (errorStats) {
+                siguienteId = null;
+            }
+
+            if (!siguienteId) {
+                const [filas] = await connection.query('SELECT COALESCE(MAX(id), 0) + 1 AS siguiente FROM ventas');
+                siguienteId = Number(filas[0].siguiente);
+            }
+
+            return { folio: SaleModel.formatearFolio(siguienteId), fecha: new Date() };
         } finally {
             connection.release();
         }

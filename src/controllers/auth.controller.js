@@ -42,7 +42,7 @@ const login = async (req, res) => {
       usuario: {
         id: user.id,
         /** Nombre completo, se usa por ejemplo en el encabezado de los reportes impresos. */
-        nombre: user.nombre_completo,
+        nombre: user.nombreCompleto,
         correo: user.correo,
         role: user.role
       }

@@ -5,6 +5,7 @@
  * @author Diego Rafael Jiménez Trujano (Integración asíncrona con MySQL)
  * @author Alfonso Mendoza Vásquez (Apertura de caja y Folios HU-25)
  * @author Stephanie Elizdeth Hernández Prieto (HU-40: Reporte Mensual de Ventas)
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 
 const salesService = require('../services/sales.service.js');
@@ -33,6 +34,25 @@ const abrirVenta = async (req, res) => {
         console.error('[Error Log - ERROR EN APERTURA DE VENTA]:', error);
         return res.status(500).json({ success: false, message: 'Error interno al generar el folio de venta.' });
     }
+};
+
+/**
+ * Devuelve el folio que tendrá la próxima venta sin crear ninguna venta en la base de datos.
+ * Es solo informativo: el folio definitivo se asigna al cobrar.
+ *
+ * @async
+ * @function obtenerSiguienteFolio
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+const obtenerSiguienteFolio = async (req, res) => {
+  try {
+    const data = await SaleModel.getSiguienteFolio();
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('[Error Log - ERROR AL CONSULTAR SIGUIENTE FOLIO]:', error);
+    return res.status(500).json({ success: false, message: 'Error interno al consultar el siguiente folio.' });
+  }
 };
 
 const calcularTotales = async (req, res) => {
@@ -143,6 +163,7 @@ const listarProductosCatalogo = async (req, res) => {
 
 module.exports = {
   abrirVenta,
+  obtenerSiguienteFolio,
   calcularTotales,
   procesarCobro,
   obtenerReporteVentaMensual,

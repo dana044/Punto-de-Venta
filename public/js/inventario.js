@@ -196,7 +196,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /**
    * Consulta el catálogo (general o filtrado por búsqueda), lo guarda en caché y lo renderiza.
-   * Respeta el checkbox "Ver inactivos".
+   * Respeta los filtros "Ver inactivos" (solo inactivos) y "Ver stock bajo" (solo stock bajo);
+   * ambos son mutuamente excluyentes.
    *
    * @async
    * @function cargarProductos
@@ -218,9 +219,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
 
       if (res.ok && Array.isArray(data.productos)) {
-        productosCache = data.productos;
+        // "Ver inactivos" muestra SOLO los inactivos (el backend devuelve activos + inactivos)
+        productosCache = chkMostrarInactivos?.checked
+          ? data.productos.filter(esProductoInactivo)
+          : data.productos;
         if (chkStockBajo?.checked) await cargarIdsStockBajo();
-        renderizarTabla(chkStockBajo?.checked ? filtrarYOrdenarStockBajo(data.productos) : data.productos);
+        renderizarTabla(chkStockBajo?.checked ? filtrarYOrdenarStockBajo(productosCache) : productosCache);
         // Refresca el banner de alertas.js (mismos umbrales que usa el backend)
         if (typeof window.cargarAlertas === 'function') window.cargarAlertas();
       } else {
@@ -253,6 +257,16 @@ document.addEventListener('DOMContentLoaded', () => {
       idsAlertaAlmacen = new Set();
       idsAlertaMostrador = new Set();
     }
+  }
+
+  /**
+   * Indica si un producto está inactivo (activo = 0 o false).
+   *
+   * @param {Object} p - Producto del catálogo.
+   * @returns {boolean} true si el producto está inactivo.
+   */
+  function esProductoInactivo(p) {
+    return Number(p.activo) === 0 || p.activo === false;
   }
 
   /**
@@ -303,8 +317,9 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function renderizarTabla(lista) {
     tablaBody.innerHTML = '';
-    const textoEstado = (chkMostrarInactivos?.checked ? 'incluyendo inactivos' : 'activos')
-      + (chkStockBajo?.checked ? ' con stock bajo' : '');
+    const textoEstado = chkMostrarInactivos?.checked
+      ? 'inactivos'
+      : 'activos' + (chkStockBajo?.checked ? ' con stock bajo' : '');
     productosCount.textContent = `${lista.length} producto(s) ${textoEstado}`;
 
     if (lista.length === 0) {
@@ -366,12 +381,19 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarProductos(e.target.value.trim());
   });
 
+  // "Ver inactivos": muestra solo los inactivos; desactiva "Ver stock bajo" (mutuamente excluyentes)
   chkMostrarInactivos?.addEventListener('change', () => {
+    if (chkMostrarInactivos.checked && chkStockBajo) {
+      chkStockBajo.checked = false;
+      ordenStockBajo.style.display = 'none';
+    }
     cargarProductos(buscarInput.value.trim());
   });
 
-  // "Ver stock bajo": muestra el selector de orden y recarga la tabla filtrada
+  // "Ver stock bajo": muestra el selector de orden, recarga la tabla filtrada
+  // y desactiva "Ver inactivos" (mutuamente excluyentes)
   chkStockBajo?.addEventListener('change', () => {
+    if (chkStockBajo.checked && chkMostrarInactivos) chkMostrarInactivos.checked = false;
     ordenStockBajo.style.display = chkStockBajo.checked ? 'block' : 'none';
     cargarProductos(buscarInput.value.trim());
   });
