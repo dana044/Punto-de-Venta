@@ -449,7 +449,7 @@ async function inicializarVenta() {
             Number(inputMontoRecibido.value), 
             data.cambio || (Number(inputMontoRecibido.value) - totalActual),
             data.folioFacturacion,
-            numAutorizacion
+            data.numAutorizacion // Generado automáticamente por el servidor (solo tarjeta)
         );
 
         // Venta exitosa: limpiar carrito y resetear variables

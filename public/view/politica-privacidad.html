@@ -1,0 +1,114 @@
+<!--
+  Punto de Venta UV - Aviso de Privacidad (proyecto académico)
+  Proyecto: La Number One
+  @author Citlaly Morales Viveros (Cliente / Programadora XP)
+-->
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Punto de Venta UV · Aviso de Privacidad</title>
+    <link rel="stylesheet" href="/css/01-variables.css" />
+    <link rel="stylesheet" href="/css/02-base.css" />
+    <link rel="stylesheet" href="/css/04-components.css" />
+    <link rel="stylesheet" href="/css/10-facturacion.css" />
+</head>
+
+<body class="fact-body">
+
+    <header class="fact-header">
+        <img src="/img/logo.png" alt="Logo de La Number One" />
+        <div>
+            <h1>La Number One</h1>
+            <p>Punto de Venta UV</p>
+        </div>
+    </header>
+
+    <main class="fact-main">
+        <h2 class="fact-titulo">Aviso de Privacidad</h2>
+        <p class="fact-subtitulo">Sistema: Punto de Venta UV · Última actualización: 3 de octubre de 2026</p>
+
+        <div class="fact-nota">
+            Este aviso corresponde a un <strong>proyecto académico</strong>. Los espacios entre corchetes son
+            marcadores que deben completarse con los datos reales del responsable. Este documento no afirma que
+            el sistema cumpla requisitos legales que todavía no hayan sido implementados o verificados.
+        </div>
+
+        <article class="fact-card fact-aviso">
+            <h2 style="margin-top: 0;">1. Responsable del tratamiento de los datos</h2>
+            <p>
+                El responsable del tratamiento de los datos personales recabados en el módulo de facturación del
+                sistema Punto de Venta UV es <span class="fact-marcador">[Nombre del responsable]</span>, con domicilio
+                en <span class="fact-marcador">[Domicilio del responsable]</span>.
+            </p>
+
+            <h2>2. Datos que se recopilan</h2>
+            <p>Al solicitar una factura se capturan los siguientes datos:</p>
+            <ul>
+                <li>Datos de la compra: folio de facturación, folio de venta y fecha de compra.</li>
+                <li>Datos fiscales: RFC, código postal, nombre o razón social, régimen fiscal y uso de CFDI.</li>
+                <li>Correo electrónico, únicamente si el usuario marca la opción de recibir la factura por correo.</li>
+            </ul>
+
+            <h2>3. Finalidad del uso de los datos</h2>
+            <p>
+                Los datos se utilizan para validar que la compra existe y puede facturarse, y para registrar la
+                solicitud
+                de facturación simulada asociada a esa venta. No se usan para fines publicitarios ni se venden a
+                terceros.
+            </p>
+
+            <h2>4. Uso de los datos fiscales</h2>
+            <p>
+                Los datos fiscales se guardan junto con la solicitud para identificar a quién corresponde la factura
+                simulada. En esta práctica <strong>no se envían al SAT</strong> ni se genera un CFDI con timbrado fiscal
+                real.
+            </p>
+
+            <h2>5. Uso del correo electrónico</h2>
+            <p>
+                El correo se solicita solo cuando el usuario elige recibir la factura por esa vía y se guarda con la
+                solicitud para ese fin. En la versión académica actual el sistema registra la preferencia, pero no
+                realiza un envío real de correos.
+            </p>
+
+            <h2>6. Protección y confidencialidad de la información</h2>
+            <p>
+                Los datos se almacenan en la base de datos del sistema y solo se consultan para el proceso de
+                facturación.
+                Al tratarse de un proyecto académico, las medidas de seguridad no han sido auditadas ni certificadas,
+                por lo que se recomienda no capturar datos reales sensibles fuera de un entorno de pruebas.
+            </p>
+
+            <h2>7. Tiempo y condiciones de conservación</h2>
+            <p>
+                Los datos se conservan mientras el proyecto académico esté en uso o hasta que el responsable los elimine
+                de la base de datos. <span class="fact-marcador">[Definir el periodo de conservación]</span>
+            </p>
+
+            <h2>8. Derechos del usuario sobre sus datos</h2>
+            <p>
+                El usuario puede solicitar acceso, rectificación, cancelación u oposición respecto de sus datos
+                personales, así como retirar el consentimiento otorgado, mediante el medio de contacto indicado abajo.
+            </p>
+
+            <h2>9. Medio de contacto para dudas sobre privacidad</h2>
+            <p>
+                Para cualquier duda relacionada con este aviso, escribe a
+                <span class="fact-marcador">[Correo de contacto]</span>.
+            </p>
+
+            <h2>10. Fecha de última actualización</h2>
+            <p>3 de octubre de 2026.</p>
+        </article>
+
+        <div class="fact-acciones">
+            <a class="btn btn--primary" href="/facturacion.lanumberone">Volver a facturación</a>
+        </div>
+    </main>
+
+</body>
+
+</html>

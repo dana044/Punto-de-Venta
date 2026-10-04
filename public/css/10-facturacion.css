@@ -1,0 +1,245 @@
+/* ==========================================================================
+   MÓDULO DE FACTURACIÓN SIMULADA Y AVISO DE PRIVACIDAD (páginas públicas)
+   Reutiliza las variables de 01-variables.css y los componentes de 04-components.css
+   ========================================================================== */
+/* Asegura que el atributo hidden oculte también a los elementos con display propio */
+.fact-body [hidden] {
+    display: none !important;
+}
+
+body.fact-body {
+    display: block;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.fact-header {
+    background: linear-gradient(180deg, var(--color-primary), var(--color-primary-hover));
+    color: var(--text-white);
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.fact-header img {
+    height: 44px;
+    border-radius: var(--radius-sm);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+}
+
+.fact-header h1 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.fact-header p {
+    margin: 0.1rem 0 0;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.fact-main {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+}
+
+.fact-titulo {
+    margin: 0 0 0.25rem;
+    font-size: 1.5rem;
+}
+
+.fact-subtitulo {
+    margin: 0 0 1.25rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.fact-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.fact-card h2 {
+    display: flex;
+    align-items: center;
+    margin: 0 0 1rem;
+    font-size: 1.1rem;
+}
+
+.fact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 1rem;
+}
+
+.fact-grid .fact-ancho {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+    .fact-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Paso 2 deshabilitado: se ve atenuado y no responde a clics */
+fieldset.fact-paso2 {
+    border: none;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+}
+
+fieldset.fact-paso2:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+fieldset.fact-paso2:disabled * {
+    pointer-events: none;
+}
+
+.form-input:disabled,
+.form-select:disabled {
+    background-color: #F1F5F9;
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.form-input[readonly] {
+    background-color: #F1F5F9;
+}
+
+.fact-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+    font-size: 0.875rem;
+}
+
+.fact-check input {
+    margin-top: 0.2rem;
+}
+
+.fact-check a {
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+.fact-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.fact-nota {
+    background: #FEF3C7;
+    border: 1px solid #FBBF24;
+    color: #92400E;
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    margin-bottom: 1.25rem;
+}
+
+/* Indicador de carga de la validación (3 a 5 segundos simulados) */
+.fact-cargando {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.fact-spinner {
+    width: 22px;
+    height: 22px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: fact-giro 0.9s linear infinite;
+}
+
+@keyframes fact-giro {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.fact-resumen {
+    margin-top: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    background: #E6F0EF;
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+}
+
+.fact-resumen span {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+}
+
+.fact-resumen strong {
+    font-size: 0.95rem;
+}
+
+@media (max-width: 640px) {
+    .fact-resumen {
+        grid-template-columns: 1fr;
+    }
+}
+
+.fact-referencia {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.fact-referencia strong {
+    letter-spacing: 1px;
+}
+
+/* Aviso de privacidad */
+.fact-aviso h2 {
+    margin: 1.5rem 0 0.4rem;
+    font-size: 1.05rem;
+    color: var(--color-primary);
+}
+
+.fact-aviso p,
+.fact-aviso li {
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+.fact-aviso ul {
+    padding-left: 1.25rem;
+}
+
+.fact-marcador {
+    background: #FEF3C7;
+    border-radius: 4px;
+    padding: 0 0.3rem;
+    font-weight: 600;
+}

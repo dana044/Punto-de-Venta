@@ -1,5 +1,6 @@
 -- ============================================================
 -- Esquema de base de datos (MySQL)
+-- @author Citlaly Morales Viveros (Cliente / Programadora XP)
 -- ============================================================
 DROP DATABASE IF EXISTS punto_de_venta;
 CREATE DATABASE IF NOT EXISTS punto_de_venta
@@ -83,7 +84,6 @@ CREATE TABLE IF NOT EXISTS lotes_producto (
   producto_id     INT NOT NULL,
   cantidad        INT NOT NULL DEFAULT 0,
   fecha_caducidad DATE NULL,
-  estado          ENUM('pendiente', 'registrado') NOT NULL DEFAULT 'registrado',
   recibido_en     DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE
 );
@@ -91,15 +91,15 @@ CREATE TABLE IF NOT EXISTS lotes_producto (
 -- Triggers: mantienen productos.stock_almacen = SUM(lotes_producto.cantidad)
 -- sin importar qué módulo (inventario, recepción, etc.) toque los lotes.
 CREATE TRIGGER trg_lotes_ai AFTER INSERT ON lotes_producto FOR EACH ROW
-  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id AND estado = 'registrado')
+  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id)
   WHERE id = NEW.producto_id;
 
 CREATE TRIGGER trg_lotes_au AFTER UPDATE ON lotes_producto FOR EACH ROW
-  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id AND estado = 'registrado')
+  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id)
   WHERE id IN (NEW.producto_id, OLD.producto_id);
 
 CREATE TRIGGER trg_lotes_ad AFTER DELETE ON lotes_producto FOR EACH ROW
-  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id AND estado = 'registrado')
+  UPDATE productos SET stock_almacen = (SELECT COALESCE(SUM(cantidad), 0) FROM lotes_producto WHERE producto_id = productos.id)
   WHERE id = OLD.producto_id;
 
 -- Relación muchos-a-muchos: producto <-> proveedores
@@ -151,8 +151,10 @@ CREATE TABLE IF NOT EXISTS ventas (
   descuentos   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   iva          DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   total        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  num_autorizacion  VARCHAR(6)  NULL,
+  num_autorizacion  VARCHAR(6)  NULL UNIQUE,
   folio_facturacion VARCHAR(20) NULL UNIQUE,
+  -- Estado del módulo de facturación simulada: 'sin_facturar' o 'solicitada' (una venta solo admite una solicitud)
+  estado_facturacion ENUM('sin_facturar', 'solicitada') NOT NULL DEFAULT 'sin_facturar',
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
 
@@ -173,13 +175,34 @@ CREATE TABLE IF NOT EXISTS venta_detalle (
 );
 
 -- ------------------------------------------------------------
+-- Facturas (facturación SIMULADA con fines académicos: sin timbrado ni UUID del SAT)
+-- ------------------------------------------------------------
+-- venta_id es UNIQUE: una venta solo puede tener una solicitud de facturación.
+CREATE TABLE IF NOT EXISTS facturas (
+  id                  INT AUTO_INCREMENT PRIMARY KEY,
+  venta_id            INT NOT NULL UNIQUE,
+  folio_factura       VARCHAR(30) NULL UNIQUE,
+  rfc                 VARCHAR(13) NOT NULL,
+  codigo_postal       CHAR(5) NOT NULL,
+  nombre_razon_social VARCHAR(150) NOT NULL,
+  regimen_fiscal      VARCHAR(3) NOT NULL,
+  uso_cfdi            VARCHAR(4) NOT NULL,
+  enviar_correo       TINYINT(1) NOT NULL DEFAULT 0,
+  correo              VARCHAR(120) NULL,
+  acepta_aviso_privacidad TINYINT(1) NOT NULL DEFAULT 0,
+  estado              ENUM('solicitada', 'emitida', 'cancelada') NOT NULL DEFAULT 'solicitada',
+  fecha_solicitud     DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (venta_id) REFERENCES ventas(id)
+);
+
+-- ------------------------------------------------------------
 -- Movimientos de Inventario (Kardex / Historial)
 -- ------------------------------------------------------------
 -- Tipos que registra el modulo de stock: 'mover_mostrador', 'regresar_almacen', 'merma', 'daño', 'conteo_mostrador', 'lote_agregado', 'lote_eliminado'
 CREATE TABLE IF NOT EXISTS movimientos_inventario (
   id INT AUTO_INCREMENT PRIMARY KEY,
   producto_id INT NOT NULL,
-  tipo VARCHAR(50) NOT NULL,
+  tipo VARCHAR(50) NOT NULL, -- Ej: 'transferencia', 'merma', 'daño', 'conteo_mostrador', 'lote_nuevo', 'lote_editado'
   cantidad INT NOT NULL,
   ubicacion ENUM('almacen', 'mostrador') NOT NULL,
   motivo VARCHAR(255) NOT NULL,
@@ -265,16 +288,10 @@ INSERT INTO productos (id, nombre, codigo_barras, categoria, presentacion, unida
   (20,'Cinta adhesiva','7501234500207','Papelería','Rollo','Pieza',12.00,41,26,'2026-10-01 19:09:05',1);
 
 -- Lotes de producto (existencias de almacén y caducidades)
-INSERT INTO lotes_producto (id, producto_id, cantidad, fecha_caducidad, estado, recibido_en) VALUES
-  (2,6,14,NULL, 'registrado', '2026-10-01 11:22:34'),
-  (5, 14, 30, '2026-10-06', 'registrado', '2026-10-02 09:15:00'),
-  (6, 15, 25, '2026-10-09', 'registrado', '2026-10-02 10:30:00'),
-  (7, 13, 40, '2027-01-15', 'registrado', '2026-10-03 08:00:00'),
-  (8, 16, 50, '2026-12-20', 'registrado', '2026-10-03 08:15:00'),
-  (9, 14, 60, '2026-11-15', 'registrado', '2026-10-03 08:30:00'),
-  (10, 15, 35, '2027-03-10', 'registrado', '2026-10-03 09:00:00'),
-  (11, 1, 80, '2027-06-30', 'registrado', '2026-10-03 09:15:00'), 
-  (12, 16, 100, '2027-05-20', 'registrado', '2026-10-03 09:45:00');
+INSERT INTO lotes_producto (id, producto_id, cantidad, fecha_caducidad, recibido_en) VALUES
+  (1,1,149,NULL,'2026-10-01 11:22:34'),
+  (2,6,14,NULL,'2026-10-01 11:22:34'),
+  (4,6,50,'2035-10-15','2026-10-01 11:37:03');
 
 -- Recalcula el stock de almacén de todos los productos (útil también para migrar una BD existente)
 UPDATE productos p SET p.stock_almacen = (SELECT COALESCE(SUM(l.cantidad), 0) FROM lotes_producto l WHERE l.producto_id = p.id);

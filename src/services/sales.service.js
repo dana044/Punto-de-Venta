@@ -21,6 +21,17 @@ const generarFolioFacturacion = () => {
   return `${aleatorio.slice(0, 4)}-${aleatorio.slice(4)}-${new Date().getFullYear()}`;
 };
 
+/**
+ * Genera un No. de Autorización de 6 dígitos (100000-999999) para los pagos con tarjeta.
+ * Usa crypto.randomInt (aleatorio criptográfico). La unicidad la garantiza el índice UNIQUE
+ * de ventas.num_autorizacion: si un número ya existe, la inserción se reintenta con otro.
+ * @returns {string} Número de 6 dígitos, ej. "483920".
+ */
+const generarNumAutorizacion = () => String(crypto.randomInt(100000, 1000000));
+
+/** Máximo de reintentos si el folio de facturación o el No. de Autorización chocan con uno ya existente. */
+const MAX_INTENTOS_UNICOS = 10;
+
 const buscarProducto = async (productoId) => {
   return await findById(productoId);
 };
@@ -112,23 +123,33 @@ const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido, numAu
   }
 
   // 2.1 Validar el No. de Autorización opcional del voucher (solo aplica a pagos con tarjeta)
-  const autorizacion = metodoPago === 'tarjeta' && numAutorizacion ? String(numAutorizacion).trim() : null;
-  if (autorizacion && !/^\d{6}$/.test(autorizacion)) {
-    return { ok: false, mensaje: 'El No. de Autorización debe contener exactamente 6 dígitos.' };
-  }
+  // Ahora el No. de Autorización ya no se captura: se genera automáticamente en pagos con tarjeta
+  // (el valor que llegue en numAutorizacion se ignora) y queda NULL en efectivo y transferencia.
+  let autorizacion = metodoPago === 'tarjeta' ? generarNumAutorizacion() : null;
 
   // 2.2 Folio de auto-facturación: la venta se procesa como "Público en General" y el cliente factura después
-  const folioFacturacion = generarFolioFacturacion();
+  let folioFacturacion = generarFolioFacturacion();
 
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
 
     // 3. Insertar la cabecera de la venta
-    const [ventaResult] = await connection.execute(
-      'INSERT INTO ventas (usuario_id, subtotal, descuentos, iva, total, metodo_pago, num_autorizacion, folio_facturacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [usuarioId, ventaData.subtotal, ventaData.descuentos, ventaData.iva, ventaData.total, metodoPago, autorizacion, folioFacturacion]
-    );
+    // Si el No. de Autorización o el folio de facturación ya existen (índices UNIQUE), se generan otros y se reintenta
+    let ventaResult;
+    for (let intento = 1; ; intento++) {
+      try {
+        [ventaResult] = await connection.execute(
+          'INSERT INTO ventas (usuario_id, subtotal, descuentos, iva, total, metodo_pago, num_autorizacion, folio_facturacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [usuarioId, ventaData.subtotal, ventaData.descuentos, ventaData.iva, ventaData.total, metodoPago, autorizacion, folioFacturacion]
+        );
+        break;
+      } catch (errorInsercion) {
+        if (errorInsercion.code !== 'ER_DUP_ENTRY' || intento >= MAX_INTENTOS_UNICOS) throw errorInsercion;
+        if (autorizacion) autorizacion = generarNumAutorizacion();
+        folioFacturacion = generarFolioFacturacion();
+      }
+    }
     const ventaId = ventaResult.insertId;
 
     // 3.1 Se guarda el folio definitivo (mismo formato que el folio mostrado en el POS)
@@ -172,6 +193,7 @@ const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido, numAu
          mensaje: 'Venta procesada con éxito.',
          folio,
          folioFacturacion,
+         numAutorizacion: autorizacion,
          total: ventaData.total,
          cambio: metodoPago === 'efectivo' ? Number((montoRecibido - ventaData.total).toFixed(2)) : 0
       }

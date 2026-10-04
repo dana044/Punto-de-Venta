@@ -31,6 +31,7 @@ const employeesRoutes = require('./routes/employees.routes.js');
 const suppliersRoutes = require('./routes/suppliers.routes.js');
 const lotesRoutes = require('./routes/lotes.routes.js');
 const alertsRoutes = require('./routes/alerts.routes.js');
+const invoiceRoutes = require('./routes/invoice.routes.js');
 
 /** Montaje de la ruta base para autenticación. */
 app.use('/api/auth', authRoutes);
@@ -48,6 +49,8 @@ app.use('/api/suppliers', suppliersRoutes);
 app.use('/api/inventory', lotesRoutes);
 /** Montaje de la ruta para alertas de poco inventario para almacén y para mostrador */
 app.use('/api/alerts', alertsRoutes);
+/** Montaje de la ruta base del módulo de facturación simulada (rutas públicas para el cliente). */
+app.use('/api/facturacion', invoiceRoutes);
 
 /**
  * Ruta raíz que redirige automáticamente a la pantalla de inicio de sesión.
@@ -118,6 +121,35 @@ app.get('/reportes-inventario', (req, res) => {
  */
 app.get('/reportes-ventas', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'view', 'reportes-ventas.html'));
+});
+
+/**
+ * Redirige la dirección con acento (/facturación.lanumberone) a la ruta oficial sin acento,
+ * porque los navegadores la envían codificada (%C3%B3) y Express no la reconoce como literal.
+ */
+app.use((req, res, next) => {
+  try {
+    if (decodeURIComponent(req.path).normalize('NFC') === '/facturación.lanumberone') {
+      return res.redirect(301, '/facturacion.lanumberone');
+    }
+  } catch (error) {
+    /** URL mal formada: se ignora y se continúa con el resto de las rutas. */
+  }
+  next();
+});
+
+/**
+ * Ruta pública del módulo de facturación simulada (la usa el cliente con el folio de su ticket).
+ */
+app.get('/facturacion.lanumberone', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'facturacion.html'));
+});
+
+/**
+ * Ruta pública del Aviso de Privacidad.
+ */
+app.get('/politica-privacidad', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'politica-privacidad.html'));
 });
 
 module.exports = app;
