@@ -196,9 +196,10 @@ async function inicializarVenta() {
 
     const actualizar = () => {
       const nombre = elNombre.textContent.trim();
+      const etiquetaRol = userRole === 'administrador' ? 'Administrador' : 'Cajero';
       elCajero.textContent = nombre && nombre !== 'Usuario'
-        ? `Cajero ${nombre}: Turno en curso`
-        : 'Cajero: Turno en curso';
+        ? `${etiquetaRol} ${nombre}: Turno en curso`
+        : `${etiquetaRol}: Turno en curso`;
     };
 
     actualizar();
@@ -243,8 +244,7 @@ async function inicializarVenta() {
         return;
       }
 
-      // --- SOLUCIÓN AL CARRITO FANTASMA ---
-      // Creamos una foto del carrito actual por si el backend rechaza la compra
+      // Creamos un respaldo del carrito si se rechaza la compra
       const backupCarrito = JSON.parse(JSON.stringify(carrito));
       const indiceExistente = carrito.findIndex(item => item.productoId === data.producto.id);
 
@@ -431,7 +431,9 @@ async function inicializarVenta() {
             metodoPago: selectMetodoPago.value,
             montoRecibido: Number(inputMontoRecibido.value),
             venta_id: ventaActivaId,
-            numAutorizacion: numAutorizacion || null
+            numAutorizacion: numAutorizacion || null,
+            // Id del usuario en sesión, para que la venta quederegistrada a nombre de quien está cobrando.
+            usuarioId: localStorage.getItem('userId')
           })
         });
 
