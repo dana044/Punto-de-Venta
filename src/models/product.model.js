@@ -13,6 +13,9 @@ const db = require('../config/db.js');
  * @typedef {Object} Distribuidor
  * @property {number} id - Identificador único del distribuidor.
  * @property {string} nombre - Razón social o denominación comercial.
+ * @property {string} area - Área de ubicación del producto.
+ * @property {string} pasillo - Pasillo de ubicación física.
+ * @property {string} seccion - Sección exacta en el pasillo.
  */
 
 /**
@@ -59,6 +62,9 @@ const createProduct = async (productData) => {
     presentacion,
     unidad_medida,
     precio,
+    area,
+    pasillo,
+    seccion,
     proveedoresIds
   } = productData;
 
@@ -67,17 +73,19 @@ const createProduct = async (productData) => {
   try {
     await connection.beginTransaction();
 
-    // El stock inicia en 0: las existencias se gestionan desde el modal de Stock (lotes y ajustes)
     const [result] = await connection.execute(
-      `INSERT INTO productos (nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen, stock_mostrador) 
-       VALUES (?, ?, ?, ?, ?, ?, 0, 0)`,
+      `INSERT INTO productos (nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, stock_almacen, stock_mostrador, area, pasillo, seccion) 
+       VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)`,
       [
         nombre,
         codigo_barras,
-        categoria || 'Otros', // categoria es ENUM: 'Otros' es el valor por defecto válido
+        categoria || 'Otros',
         presentacion || 'N/A',
         unidad_medida || 'Pieza',
-        precio
+        precio,
+        area || 'No asignada',
+        pasillo || 'No asignado',
+        seccion || 'No asignada'
       ]
     );
 
@@ -85,7 +93,7 @@ const createProduct = async (productData) => {
 
     if (Array.isArray(proveedoresIds) && proveedoresIds.length > 0) {
       const distribuidoresUnicos = [...new Set(proveedoresIds.map(Number))];
-      
+
       for (const provId of distribuidoresUnicos) {
         await connection.execute(
           `INSERT INTO producto_proveedor (producto_id, proveedor_id) VALUES (?, ?)`,
@@ -104,6 +112,9 @@ const createProduct = async (productData) => {
       presentacion: presentacion || 'N/A',
       unidad_medida: unidad_medida || 'Pieza',
       precio,
+      area: area || 'No asignada',
+      pasillo: pasillo || 'No asignado',
+      seccion: seccion || 'No asignada',
       stock_almacen: 0,
       stock_mostrador: 0,
       proveedoresIds: proveedoresIds ? proveedoresIds.map(Number) : []
@@ -131,7 +142,7 @@ const createProduct = async (productData) => {
 const updateProduct = async (id, productData) => {
   const {
     nombre, codigo_barras, categoria, presentacion, unidad_medida,
-    precio, proveedoresIds
+    precio, area, pasillo, seccion, proveedoresIds
   } = productData;
 
   const connection = await db.getConnection();
@@ -140,19 +151,22 @@ const updateProduct = async (id, productData) => {
 
     await connection.execute(
       `UPDATE productos SET nombre=?, codigo_barras=?, categoria=?, presentacion=?, 
-       unidad_medida=?, precio=? WHERE id=?`,
+       unidad_medida=?, precio=?, area=?, pasillo=?, seccion=? WHERE id=?`,
       [
-        nombre || '', 
-        codigo_barras || '', 
-        categoria || 'Otros', // categoria es ENUM: 'Otros' es el valor por defecto válido
+        nombre || '',
+        codigo_barras || '',
+        categoria || 'Otros',
         presentacion || 'N/A',
-        unidad_medida || 'Pieza', 
-        Number(precio) || 0, 
+        unidad_medida || 'Pieza',
+        Number(precio) || 0,
+        area || 'No asignada',
+        pasillo || 'No asignado',
+        seccion || 'No asignada',
         Number(id)
       ]
     );
 
-    // Resincroniza proveedores: borra los vínculos viejos e inserta los nuevos
+    // Resincroniza proveedores...
     await connection.execute('DELETE FROM producto_proveedor WHERE producto_id = ?', [id]);
 
     if (Array.isArray(proveedoresIds) && proveedoresIds.length > 0) {
@@ -205,6 +219,7 @@ const getProducts = async (mostrarInactivos = false) => {
       p.codigo_barras, 
       p.categoria, p.presentacion, 
       p.unidad_medida, p.precio, 
+      p.area, p.pasillo, p.seccion,
       p.stock_almacen, p.stock_mostrador, p.activo,
       l.proxima_caducidad,
       GROUP_CONCAT(DISTINCT prov.id SEPARATOR ',') AS proveedores_ids,
@@ -346,18 +361,18 @@ const confirmarLoteBD = async (loteId, productoId, fechaCaducidad, usuarioId = 1
       [Number(loteId), Number(productoId)]
     );
     if (lote.length === 0) throw new Error('Lote no encontrado');
-    
+
     await connection.execute(
       `UPDATE lotes_producto SET fecha_caducidad = ?, estado = 'registrado' WHERE id = ?`,
       [fechaCaducidad || null, Number(loteId)]
     );
 
     const nuevoTotal = await actualizarStockAlmacenPorLotes(connection, productoId);
-    
+
     await registrarMovimiento(connection, productoId, 'lote_confirmado', lote[0].cantidad, 'almacen', 'Confirmación de lote en cuarentena', usuarioId);
 
     await connection.commit();
-    
+
     return nuevoTotal;
   } catch (error) {
     await connection.rollback();
@@ -568,24 +583,24 @@ const ajustarStock = async (id, cantidad, tipoAjuste, motivo, usuario_id, caduci
  */
 async function restarDeLotes(connection, lotes, cantidadARestar) {
   let restante = Number(cantidadARestar);
-  
+
   for (const lote of lotes) {
     if (restante <= 0) break;
-    
+
     const loteCantidad = Number(lote.cantidad);
     const descontar = Math.min(loteCantidad, restante);
-    
+
     if (descontar === loteCantidad) {
-        // Si nos acabamos el lote completo, lo eliminamos de la base de datos para no dejar basura (0 piezas)
-        await connection.execute('DELETE FROM lotes_producto WHERE id = ?', [lote.id]);
+      // Si nos acabamos el lote completo, lo eliminamos de la base de datos para no dejar basura (0 piezas)
+      await connection.execute('DELETE FROM lotes_producto WHERE id = ?', [lote.id]);
     } else {
-        // Si aún le quedan piezas, solo actualizamos su cantidad
-        await connection.execute(
-          'UPDATE lotes_producto SET cantidad = cantidad - ? WHERE id = ?',
-          [descontar, lote.id]
-        );
+      // Si aún le quedan piezas, solo actualizamos su cantidad
+      await connection.execute(
+        'UPDATE lotes_producto SET cantidad = cantidad - ? WHERE id = ?',
+        [descontar, lote.id]
+      );
     }
-    
+
     restante -= descontar;
   }
 }
@@ -603,10 +618,10 @@ const findProductForPOS = async (termino) => {
       AND activo = 1 
     LIMIT 1
   `;
-  
+
   // Usamos el término exacto para el código de barras, y con comodines (%) para el nombre
   const [rows] = await db.query(query, [termino, `%${termino}%`]);
-  
+
   return rows.length > 0 ? rows[0] : null;
 };
 
@@ -632,7 +647,7 @@ const COLUMNAS_STOCK = { mostrador: 'stock_mostrador', almacen: 'stock_almacen' 
  */
 const getLowStock = async (limite, ubicacion = 'mostrador') => {
   let query = '';
-  
+
   if (ubicacion === 'mostrador') {
     query = `
       SELECT p.id, 

@@ -403,6 +403,9 @@ document.addEventListener('DOMContentLoaded', () => {
       </td>
       <td style="${opacidad}">${badgeHTML}</td>
       <td style="${opacidad}">$${Number(p.precio).toFixed(2)}</td>
+      <td style="${opacidad}">
+         <small>${p.area || 'N/A'} - ${p.pasillo || 'N/A'} - ${p.seccion || 'N/A'}</small>
+      </td>
       <!-- stock_total representa la sumatoria del almacén (lotes) -->
       <td style="${opacidad}"><strong>${p.stock_almacen !== undefined ? p.stock_almacen : 0}</strong></td>
       <td style="${opacidad}">${p.stock_mostrador !== undefined ? p.stock_mostrador : 0}</td>
@@ -471,7 +474,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('categoria').value = producto.categoria || '';
     document.getElementById('presentacion').value = producto.presentacion || '';
     document.getElementById('unidadMedida').value = producto.unidad_medida || '';
-    document.getElementById('precio').value = producto.precio;
+    document.getElementById('precio').value = producto.precio,
+    document.getElementById('area').value = producto.area || '',
+    document.getElementById('pasillo').value = producto.pasillo || '',
+    document.getElementById('seccion').value = producto.seccion || '';
     const idsSeleccionados = (producto.proveedores_ids || '')
       .toString()
       .split(',')
@@ -507,6 +513,9 @@ document.addEventListener('DOMContentLoaded', () => {
       presentacion: document.getElementById('presentacion').value.trim(),
       unidad_medida: document.getElementById('unidadMedida').value,
       precio: parseFloat(document.getElementById('precio').value),
+      area: document.getElementById('area').value.trim(),
+      pasillo: document.getElementById('pasillo').value.trim(),
+      seccion: document.getElementById('seccion').value.trim(),
       proveedoresIds: proveedoresSeleccionados
     };
 

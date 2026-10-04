@@ -77,10 +77,12 @@ const calcularTotales = async (req, res) => {
 const procesarCobro = async (req, res) => {
   try {
     const { items, metodoPago, montoRecibido, numAutorizacion } = req.body;
-    
-    // Si tu middleware de Auth ya pasa el usuario en req.user.id, úsalo.
-    // De lo contrario, usaremos el ID 2 (Cajero 01) como fallback seguro para pruebas.
-    const usuarioId = req.user?.id || 2; 
+
+    const usuarioId = Number(req.body.usuarioId);
+
+    if (!usuarioId) {
+      return res.status(400).json({ mensaje: 'Se requiere el usuario en sesión para cobrar. Vuelve a iniciar sesión.' });
+    }
 
     const resultado = await salesService.registrarVenta(items, usuarioId, metodoPago, montoRecibido, numAutorizacion);
 
