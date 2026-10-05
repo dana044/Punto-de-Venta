@@ -7,17 +7,14 @@
  */
 const db = require('../config/db');
 
-class SaleModel {
-    /**
-     * HU-25: Crea una nueva venta generando un folio único consecutivo.
-     */
+class SaleModel {    
     static async createSale(cajeroId) {
         const connection = await db.getConnection();
         try {
             await connection.beginTransaction();
 
             const [result] = await connection.execute(
-                'INSERT INTO ventas (usuario_id, subtotal, iva, total, fecha) VALUES (?, 0.00, 0.00, 0.00, NOW())',
+                'INSERT INTO ventas (usuario_id, fecha) VALUES (?, NOW())',
                 [cajeroId]
             );
 
@@ -55,8 +52,6 @@ class SaleModel {
     /**
      * Calcula, en modo de solo lectura, el folio que tendrá la próxima venta.
      * NO inserta nada en la base de datos: la venta se crea hasta que se cobra.
-     * Primero intenta leer el siguiente AUTO_INCREMENT de la tabla ventas; si el motor
-     * no lo permite, usa MAX(id) + 1 como respaldo.
      *
      * @async
      * @static
@@ -68,7 +63,7 @@ class SaleModel {
             let siguienteId = null;
 
             try {
-                // Evita que MySQL 8 devuelva estadísticas en caché del AUTO_INCREMENT
+                // Evita que MySQL devuelva estadísticas en caché del AUTO_INCREMENT
                 await connection.query('SET SESSION information_schema_stats_expiry = 0');
                 const [filas] = await connection.query(
                     `SELECT AUTO_INCREMENT AS siguiente
@@ -92,8 +87,7 @@ class SaleModel {
     }
 
     /**
-     * HU-40: Reporte general y ranking mensual de ventas.
-     * Devuelve todos los productos comercializados en el mes, ordenados descendentemente.
+     * Obtiene el ranking de productos más vendidos en un mes específico.
      * @async
      * @static
      * @param {number|string} anio
@@ -111,7 +105,7 @@ class SaleModel {
                 SUM(vd.total_linea) AS total_recaudado
             FROM venta_detalle vd
             INNER JOIN ventas v ON vd.venta_id = v.id
-            INNER JOIN productos p ON vd.producto_id = p.id
+            INNER JOIN v_productos p ON vd.producto_id = p.id
             WHERE YEAR(v.fecha) = ? AND MONTH(v.fecha) = ?
             GROUP BY p.id, p.nombre, p.codigo_barras, p.categoria
             ORDER BY total_unidades_vendidas DESC;
@@ -122,17 +116,19 @@ class SaleModel {
 
     /**
      * Catálogo del POS: lista las categorías que tienen productos activos.
+     * Actualizado para usar la tabla relacional de categorías.
      * @async
      * @static
      * @returns {Promise<Array<Object>>} Categorías con el total de productos de cada una.
      */
     static async getCategoriasCatalogo() {
         const query = `
-            SELECT categoria, COUNT(*) AS total_productos
-            FROM productos
-            WHERE activo = 1
-            GROUP BY categoria
-            ORDER BY categoria ASC;
+            SELECT c.nombre AS categoria, COUNT(p.id) AS total_productos
+            FROM productos p
+            JOIN categorias c ON p.categoria_id = c.id
+            WHERE p.estado_id = 1
+            GROUP BY c.id, c.nombre
+            ORDER BY c.nombre ASC;
         `;
         const [rows] = await db.query(query);
         return rows;
@@ -149,8 +145,8 @@ class SaleModel {
     static async getProductosCatalogo(categoria, termino) {
         let query = `
             SELECT id, nombre, codigo_barras, categoria, precio, stock_mostrador
-            FROM productos
-            WHERE activo = 1
+            FROM v_productos
+            WHERE estado = 'activo'
         `;
         const params = [];
 
@@ -160,7 +156,6 @@ class SaleModel {
         }
 
         if (termino) {
-            // Se escapan los comodines para que el texto del cajero se busque literal
             const textoSeguro = termino.replace(/[\\%_]/g, '\\$&');
             query += ' AND (nombre LIKE ? OR codigo_barras LIKE ?)';
             params.push(`%${textoSeguro}%`, `%${textoSeguro}%`);

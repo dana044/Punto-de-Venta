@@ -1,6 +1,6 @@
 /**
  * @file receiving.service.js
- * @description Registrar recepción de mercancía.
+ * @description Registrar recepción de mercancía adaptado a la 3FN (creación de lotes).
  * @author Jetzaly Josmery Tello Campos
  */
 
@@ -15,6 +15,10 @@ const obtenerDetallePedido = async (folio) => {
   return await getPedidoByFolio(folio);
 };
 
+/**
+ * Registra la recepción de mercancía actualizando el pedido y generando lotes en almacén (3FN).
+ * Ya no actualiza columnas de stock directamente en la tabla productos.
+ */
 const registrarRecepcion = async (folio, itemsRecibidos) => {
   const pedido = await getPedidoByFolio(folio);
 
@@ -31,9 +35,8 @@ const registrarRecepcion = async (folio, itemsRecibidos) => {
   }
 
   const connection = await db.getConnection();
-  
+
   try {
-    // Iniciamos transacción para que stock y estado de pedido se guarden al mismo tiempo
     await connection.beginTransaction();
 
     for (const item of itemsRecibidos) {
@@ -41,10 +44,11 @@ const registrarRecepcion = async (folio, itemsRecibidos) => {
       const cantidad = Number(cantidadRecibida) || 0;
 
       if (cantidad > 0) {
-        // Incrementa el stock directamente en la tabla 'productos'
+        // En 3FN, la entrada de mercancía al almacén se registra creando un lote con estado 'registrado'
         await connection.execute(
-          'UPDATE productos SET stock_almacen = stock_almacen + ? WHERE id = ?',
-          [cantidad, productoId]
+          `INSERT INTO lotes_producto (producto_id, cantidad, fecha_caducidad, estado, recibido_en) 
+           VALUES (?, ?, NULL, 'registrado', NOW())`,
+          [Number(productoId), cantidad]
         );
       }
     }
@@ -56,8 +60,8 @@ const registrarRecepcion = async (folio, itemsRecibidos) => {
     );
 
     await connection.commit();
-    pedido.estado = 'recibido'; 
-    
+    pedido.estado = 'recibido';
+
     return { ok: true, pedido };
   } catch (error) {
     await connection.rollback();

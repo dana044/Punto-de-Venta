@@ -17,6 +17,10 @@ const app = express();
 app.use(express.json());
 
 /** 
+ * Middleware para procesar datos codificados en URL.
+ */
+app.use(express.urlencoded({ extended: true }));
+/** 
  * Servidor de archivos estáticos.
  * Expone la carpeta 'public' para insertar CSS, JS e imágenes a las vistas.
  */
@@ -98,8 +102,8 @@ app.get('/pos', (req, res) => {
 /**
  * Ruta para la interfaz de empleados.
  */
-app.get('/empleados', (req, res) => { 
-  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'empleados.html')); 
+app.get('/empleados', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'empleados.html'));
 });
 
 /** 

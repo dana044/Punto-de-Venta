@@ -1,7 +1,7 @@
 /**
  * @file supplier.model.js
- * @description Modelo de acceso a datos para la gestión y validación de distribuidores/proveedores.
- *              se agrega la gestión de múltiples teléfonos y correos por distribuidor (tablas proveedor_telefonos y proveedor_correos).
+ * @description Modelo de acceso a datos para la gestión y validación de distribuidores/proveedores (3FN).
+ *              Se agrega la gestión de múltiples teléfonos y correos por distribuidor (tablas proveedor_telefonos y proveedor_correos).
  * @author Alfonso Mendoza Vásquez (Doomsayer / Programador XP)
  * @author Citlaly Morales Viveros (Cliente / Programador XP)
  */
@@ -11,50 +11,51 @@ const db = require('../config/db');
 class SupplierModel {
     /**
      * Registra un nuevo distribuidor validando estrictamente que no existan duplicados.
-     *
-     * El alta se ejecuta dentro de una transacción para que el distribuidor y todos sus
-     * medios de contacto se guarden completos o no se guarden.
+     * El alta se ejecuta dentro de una transacción para garantizar integridad en 3FN.
      *
      * @async
      * @function create
      * @param {Object} data - Objeto con los datos validados del proveedor.
      * @param {string} data.nombre - Razón social del distribuidor.
-     * @param {string|null} data.direccion - Dirección física (opcional).
+     * @param {string|null} data.calle - Calle y número (opcional).
+     * @param {string|null} data.colonia - Colonia (opcional).
+     * @param {string|null} data.ciudad - Ciudad (opcional).
+     * @param {string|null} data.estado - Estado (opcional).
+     * @param {string|null} data.codigo_postal - Código postal de 5 dígitos (opcional).
      * @param {Array<{telefono: string, tipo: string}>} data.telefonos - teléfonos ya validados (puede ir vacío).
      * @param {string[]} data.correos - correos ya validados y en minúsculas (mínimo uno).
      * @returns {Promise<number>} Retorna el ID (insertId) del distribuidor recién creado.
      * @throws {Error} Lanza un error HTTP 409 si se detecta un proveedor duplicado.
      */
-    static async create({ nombre, direccion, telefonos = [], correos = [] }) {
+    static async create({ nombre, calle, colonia, ciudad, estado, codigo_postal, telefonos = [], correos = [] }) {
         const connection = await db.getConnection();
         try {
             await connection.beginTransaction();
 
-            const telefonoPrincipal = telefonos.length > 0 ? telefonos[0].telefono : null;
-            const email = correos[0];
-
-            // Evitar duplicados
+            // Evitar duplicados por nombre
             const [existente] = await connection.execute(
-                'SELECT id FROM proveedores WHERE nombre = ? OR email = ? LIMIT 1',
-                [nombre, email]
+                'SELECT id FROM proveedores WHERE nombre = ? LIMIT 1',
+                [nombre]
             );
 
             if (existente.length > 0) {
-                const error = new Error('Ya existe un proveedor registrado con ese nombre o correo electrónico.');
-                error.statusCode = 409; 
+                const error = new Error('Ya existe un proveedor registrado con ese nombre.');
+                error.statusCode = 409;
                 throw error;
             }
 
             // HU-21: ninguno de los correos adicionales puede pertenecer ya a otro distribuidor
-            await SupplierModel._validarCorreosUnicos(connection, correos);
+            if (correos.length > 0) {
+                await SupplierModel._validarCorreosUnicos(connection, correos);
+            }
 
-            // Inserción parametrizada contra inyección SQL
+            // Inserción parametrizada contra inyección SQL adaptada a 3FN
             const [result] = await connection.execute(
-                'INSERT INTO proveedores (nombre, direccion, telefono, email, activo) VALUES (?, ?, ?, ?, TRUE)',
-                [nombre, direccion || null, telefonoPrincipal, email]
+                'INSERT INTO proveedores (nombre, calle, colonia, ciudad, estado, codigo_postal, activo) VALUES (?, ?, ?, ?, ?, ?, TRUE)',
+                [nombre, calle || null, colonia || null, ciudad || null, estado || null, codigo_postal || null]
             );
 
-            // HU-21: se guardan todos los medios de contacto asociados al nuevo distribuidor
+            // HU-21: se guardan todos los medios de contacto en las tablas foráneas
             await SupplierModel._reemplazarContactos(connection, result.insertId, telefonos, correos);
 
             await connection.commit();
@@ -68,20 +69,17 @@ class SupplierModel {
     }
 
     /**
-     * Obtiene la lista general de proveedores registrados activos e inactivos ordenados del más reciente al más antiguo
-     *
-     * Cada proveedor incluye además los arreglos 'telefonos' y 'correos', ordenados con el contacto
-     * principal primero. Los contactos se consultan en bloque y se agrupan en memoria para evitar una consulta por proveedor.
+     * Obtiene la lista general de proveedores registrados activos e inactivos.
      *
      * @async
      * @static
      * @function getAllActive
      * @returns {Promise<Array<Object>>} Arreglo con los registros de proveedores y su estado lógico.
-     * @throws {Error} Error originado por fallo en la consulta SQL.
      */
     static async getAllActive() {
+        // Se consultan las columnas atómicas de dirección adaptadas a 3FN
         const [rows] = await db.execute(
-            'SELECT id, nombre, direccion, telefono, email, activo FROM proveedores ORDER BY id DESC'
+            'SELECT id, nombre, calle, colonia, ciudad, estado, codigo_postal, activo FROM proveedores ORDER BY id DESC'
         );
 
         const [telefonos] = await db.execute(
@@ -118,7 +116,6 @@ class SupplierModel {
      * @function reactivateSupplier
      * @param {number|string} id - Identificador único del proveedor a reactivar.
      * @returns {Promise<boolean>} Retorna true si el registro fue actualizado exitosamente.
-     * @throws {Error} Error originado durante la transacción o actualización en base de datos.
      */
     static async reactivateSupplier(id) {
         const connection = await db.getConnection();
@@ -131,50 +128,39 @@ class SupplierModel {
     }
 
     /**
-     * Actualiza la información de un distribuidor existente usando COALESCE
-     * para no sobreescribir con nulos los datos que no se enviaron.
-     *
-     * Si se envía 'telefonos' y/o 'correos', la lista completa reemplaza a la anterior
-     * (lo que el usuario ve en el formulario es lo que queda guardado). Si alguna de las dos
-     * listas es 'undefined', sus contactos actuales no se tocan. Todo ocurre en una transacción.
+     * Actualiza la información de un distribuidor existente usando COALESCE.
+     * En 3FN se actualizan las columnas geográficas y se ignora teléfono/correo en la cabecera.
      *
      * @async
      * @function update
      * @param {number} id - Identificador del distribuidor.
      * @param {Object} data - Objeto con los datos a actualizar.
-     * @param {string} [data.nombre] - Nueva razón social.
-     * @param {string} [data.direccion] - Nueva dirección.
-     * @param {Array<{telefono: string, tipo: string}>} [data.telefonos] - lista completa de teléfonos.
-     * @param {string[]} [data.correos] - lista completa de correos (si viene, debe tener al menos uno).
      * @returns {Promise<boolean>} Retorna true si se afectó alguna fila.
-     * @throws {Error} Lanza un error HTTP 409 si algún correo ya pertenece a otro distribuidor.
      */
-    static async update(id, { nombre, direccion, telefonos, correos }) {
+    static async update(id, { nombre, calle, colonia, ciudad, estado, codigo_postal, telefonos, correos }) {
         const connection = await db.getConnection();
         try {
             await connection.beginTransaction();
-
-            // HU-21: el primer elemento de cada lista es el contacto principal (columnas telefono/email)
-            const telefonoPrincipal = Array.isArray(telefonos) && telefonos.length > 0 ? telefonos[0].telefono : null;
-            const correoPrincipal = Array.isArray(correos) && correos.length > 0 ? correos[0] : null;
 
             if (Array.isArray(correos) && correos.length > 0) {
                 await SupplierModel._validarCorreosUnicos(connection, correos, id);
             }
 
             const [result] = await connection.execute(
-                'UPDATE proveedores SET nombre = COALESCE(?, nombre), direccion = COALESCE(?, direccion), telefono = COALESCE(?, telefono), email = COALESCE(?, email) WHERE id = ?',
-                [nombre || null, direccion || null, telefonoPrincipal, correoPrincipal, id]
+                `UPDATE proveedores 
+                 SET nombre = COALESCE(?, nombre), 
+                     calle = COALESCE(?, calle), 
+                     colonia = COALESCE(?, colonia), 
+                     ciudad = COALESCE(?, ciudad), 
+                     estado = COALESCE(?, estado), 
+                     codigo_postal = COALESCE(?, codigo_postal) 
+                 WHERE id = ?`,
+                [nombre || null, calle || null, colonia || null, ciudad || null, estado || null, codigo_postal || null, id]
             );
 
             if (result.affectedRows === 0) {
                 await connection.rollback();
                 return false;
-            }
-
-            // HU-21: si se eliminaron todos los teléfonos, COALESCE conservaría el anterior; se limpia explícitamente
-            if (Array.isArray(telefonos) && telefonos.length === 0) {
-                await connection.execute('UPDATE proveedores SET telefono = NULL WHERE id = ?', [id]);
             }
 
             await SupplierModel._reemplazarContactos(connection, id, telefonos, correos);
@@ -206,9 +192,7 @@ class SupplierModel {
     }
 
     /**
-     * Reemplaza los teléfonos y/o correos de un distribuidor (borra los actuales e inserta la lista nueva).
-     * Debe invocarse con una conexión que ya tenga una transacción abierta.
-     * La posición 0 de cada lista se marca como contacto principal ('es_principal').
+     * Reemplaza los teléfonos y/o correos de un distribuidor.
      *
      * @async
      * @private
@@ -247,11 +231,6 @@ class SupplierModel {
      * @async
      * @private
      * @function _validarCorreosUnicos
-     * @param {import('mysql2/promise').PoolConnection} connection - Conexión activa.
-     * @param {string[]} correos - Correos a verificar.
-     * @param {number|null} [excluirProveedorId=null] - Distribuidor que se ignora en la búsqueda (el que se está editando).
-     * @returns {Promise<void>}
-     * @throws {Error} Lanza un error HTTP 409 si algún correo ya pertenece a otro distribuidor.
      */
     static async _validarCorreosUnicos(connection, correos, excluirProveedorId = null) {
         const marcadores = correos.map(() => '?').join(', ');
