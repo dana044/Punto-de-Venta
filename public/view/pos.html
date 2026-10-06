@@ -214,12 +214,12 @@
       </ul>
     </aside>
 
-    <main class="main-content">
+    <main class="main-content main-content--pos">
       <h1>Punto de venta</h1>
-      <p class="text-muted" style="margin-bottom: 1.5rem;">Agrega productos escaneando o buscando por nombre. Los totales se recalculan automáticamente.</p>
+      <p class="text-muted" style="margin-bottom: 0.75rem;">Agrega productos escaneando, buscando por nombre o haciendo clic sobre ellos. Los totales se recalculan automáticamente.</p>
 
       <div class="pos-header-status"
-        style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #e5e7eb;">
+        style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 0.6rem 1.25rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #e5e7eb;">
         <div>
           <span style="font-size: 0.85rem; color: #6b7280; text-transform: uppercase; font-weight: 600;">Folio de Venta</span>
           <h2 id="lblFolio" style="margin: 0; color: #111827; font-size: 1.4rem;">Generando...</h2>
@@ -230,8 +230,18 @@
         </div>
       </div>
       
-      <h2>Venta en Curso</h2>
       <div id="alertMessage" class="alert alert--error" hidden></div>
+
+      <!--
+        Diseño dividido en dos paneles (mitad y mitad):
+        [ Categorías y búsqueda | Productos agregados y totales ]
+        Los estilos viven en 03-layout.css (.pos-layout) y 04-components.css (.pos-panel).
+      -->
+      <div class="pos-layout">
+
+      <!-- PANEL IZQUIERDO: búsqueda, cantidad/descuento y catálogo por categorías -->
+      <section class="pos-panel pos-panel-catalogo">
+      <h2 class="pos-panel__titulo">Categorías y búsqueda</h2>
 
       <div class="carrito-toolbar">
         <div class="form-group" style="flex-grow: 1; min-width: 200px;">
@@ -253,7 +263,7 @@
           <label class="form-label">Valor</label>
           <input type="number" id="inputDescuentoValor" class="form-input" min="0" value="0" style="width: 100px;" />
         </div>
-        <button class="btn btn--primary" id="btnAgregar">+ Agregar a la venta</button>
+        <!-- Se eliminó el botón "Agregar a la venta": ahora el producto se agrega con un clic sobre su tarjeta (o con Enter en el buscador) -->
       </div>
 
       <!-- Catálogo: categorías por defecto, productos de la categoría o resultados de la búsqueda en vivo -->
@@ -266,7 +276,14 @@
           <div class="catalogo-grid" id="catalogoGrid"></div>
         </div>
       </div>
+      </section>
 
+      <!-- PANEL DERECHO: productos agregados (con scroll) y totales siempre visibles -->
+      <section class="pos-panel pos-panel-venta">
+      <h2 class="pos-panel__titulo">Productos agregados y totales</h2>
+
+      <!-- Caja con scroll: solo la lista se desplaza, los totales y el botón Cobrar quedan fijos abajo -->
+      <div class="pos-venta-lista" id="carritoScroll">
       <table class="data-table">
         <thead>
           <tr>
@@ -284,8 +301,10 @@
           </tr>
         </tbody>
       </table>
+      </div>
 
-      <div class="totales-venta" style="margin-top: 1rem;">
+      <!-- Totales de la venta: siempre visibles en pantalla, fuera del scroll de la lista -->
+      <div class="totales-venta">
         <div class="totales-venta__fila"><span>Subtotal</span><span id="totSubtotal">$0.00</span></div>
         <div class="totales-venta__fila"><span>Descuentos</span><span id="totDescuentos">-$0.00</span></div>
         <div class="totales-venta__fila"><span>IVA (16%)</span><span id="totIva">$0.00</span></div>
@@ -294,6 +313,9 @@
           Cobrar
         </button>
       </div>
+      </section>
+
+      </div><!-- /.pos-layout -->
     </main>
   </div>
 

@@ -41,7 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputCantidad = document.getElementById('inputCantidad');
   const selectDescuentoTipo = document.getElementById('selectDescuentoTipo');
   const inputDescuentoValor = document.getElementById('inputDescuentoValor');
-  const btnAgregar = document.getElementById('btnAgregar');
+  // Caja con scroll de la lista de venta (panel derecho); se usa para dejar visible el último producto agregado
+  const carritoScroll = document.getElementById('carritoScroll');
   const carritoBody = document.getElementById('carritoBody');
   const btnAbrirCobro = document.getElementById('btnAbrirCobro');
 
@@ -199,7 +200,7 @@ async function inicializarVenta() {
       const nombre = elNombre.textContent.trim();
       const etiquetaRol = userRole === 'administrador' ? 'Administrador' : 'Cajero';
       elCajero.textContent = nombre && nombre !== 'Usuario'
-        ? `${etiquetaRol} ${nombre}: Turno en curso`
+        ? `${etiquetaRol} ${nombre}`
         : `${etiquetaRol}: Turno en curso`;
     };
 
@@ -217,9 +218,8 @@ async function inicializarVenta() {
     }
   });
 
-  btnAgregar.addEventListener('click', async () => {
-    await buscarYAgregarProducto(inputBuscarProducto.value.trim());
-  });
+  // El botón "Agregar a la venta" (btnAgregar) se eliminó del diseño: los productos se agregan
+  // con un clic en su tarjeta del catálogo (ver pintarProductosCatalogo) o con Enter en el buscador (arriba).
 
   async function buscarYAgregarProducto(query) {
     if (!query) {
@@ -458,11 +458,14 @@ async function inicializarVenta() {
           <td>${etiquetaDesc} (-$${item.descuentoLinea.toFixed(2)})</td>
           <td>$${item.totalLinea.toFixed(2)}</td>
           <td class="btn-icon-delete-cell">
-            <button class="btn-icon-delete" onclick="quitarLinea(${index})" title="Quitar">🗑</button>
+            <button class="btn-icon-delete" onclick="quitarLinea(${index})" title="Quitar">🗑️</button>
           </td>
         </tr>
       `;
     }).join('');
+
+    // Desplaza la lista de venta hasta el final para que el último producto agregado siempre quede a la vista
+    carritoScroll.scrollTop = carritoScroll.scrollHeight;
   }
 
   function pintarTotales(totales) {
@@ -488,7 +491,7 @@ async function inicializarVenta() {
   btnAbrirCobro.addEventListener('click', () => {
     mostrarFolioSiguiente(); // Refresca el folio por si otro cajero cobró mientras tanto
     modalTotalCobrar.textContent = `$${totalActual.toFixed(2)}`;
-    inputMontoRecibido.value = totalActual.toFixed(2); // Sugerir pago exacto
+    inputMontoRecibido.value = "";
     calcularCambio();
     modalCobro.classList.remove('modal--hidden');
     inputMontoRecibido.focus();

@@ -1,3 +1,10 @@
+/**
+ * @file 04-components.css
+ * @description Componentes reutilizables: botones, formularios, pestañas, badges, alertas
+ *              y los paneles del Punto de Venta.
+ * @author Citlaly Morales Viveros (Cliente / Programadora XP)
+ */
+
 /* BOTONES Y ESTILOS BASE */
 .btn {
   display: inline-flex;
@@ -233,4 +240,92 @@
 .btn-icon-edit:hover {
   background-color: var(--color-secondary);
   color: #FFFFFF;
+}
+
+/* ==========================================================================
+   PUNTO DE VENTA: PANELES (Categorías y búsqueda | Productos agregados y totales)
+   --------------------------------------------------------------------------
+   Se apoyan en .pos-layout (03-layout.css). Las reglas con doble clase sobrescriben
+   a propósito los estilos de .catalogo-* definidos en el <style> de pos.html.
+   @author Citlaly Morales Viveros (Cliente / Programadora XP)
+   ========================================================================== */
+
+/* Tarjeta contenedora de cada mitad de la pantalla */
+.pos-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+/* Título de cada panel */
+.pos-panel__titulo {
+  flex-shrink: 0;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* --- Panel izquierdo: búsqueda + catálogo --- */
+
+/* Barra de búsqueda y descuento: el buscador ocupa su propia fila completa */
+.pos-panel-catalogo .carrito-toolbar {
+  flex-shrink: 0;
+  margin-bottom: 0.75rem;
+}
+.pos-panel-catalogo .carrito-toolbar > .form-group:first-child {
+  flex: 1 1 100%;
+}
+
+/* El catálogo se estira hasta el final del panel y solo su cuadrícula tiene scroll */
+.pos-panel-catalogo .catalogo-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+.pos-panel-catalogo .catalogo-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+/* --- Panel derecho: lista de venta con scroll + totales fijos --- */
+
+/* Caja con scroll de los productos agregados */
+.pos-venta-lista {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+/* El encabezado de la tabla se queda pegado arriba mientras se desplaza la lista */
+.pos-venta-lista .data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--bg-card);
+}
+
+/* Totales y botón Cobrar: nunca se encogen ni salen de la pantalla */
+.pos-panel-venta .totales-venta {
+  flex-shrink: 0;
+  margin-top: 1rem;
+}
+
+/* Pantallas angostas: se limita la altura de cada zona con scroll porque los paneles se apilan */
+@media (max-width: 900px) {
+  .pos-panel-catalogo .catalogo-scroll {
+    max-height: 320px;
+  }
+  .pos-venta-lista {
+    max-height: 360px;
+  }
 }

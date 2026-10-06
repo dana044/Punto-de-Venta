@@ -1,3 +1,9 @@
+/**
+ * @file 03-layout.css
+ * @description Estructura general de las pantallas (sidebar, contenido principal, encabezados)
+ *              y la distribución en dos paneles del Punto de Venta.
+ */
+
 .app-container {
   display: flex;
   min-height: 100vh;
@@ -112,4 +118,63 @@
   font-size: 0.75rem;
   color: #94A3B8;
   text-transform: capitalize;
+}
+
+/* PUNTO DE VENTA: DISTRIBUCIÓN EN DOS PANELES */
+
+/* Variante de .main-content para el POS: alto fijo de la ventana, sin scroll general de la página */
+.main-content--pos {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Contenedor de los dos paneles: 2 columnas iguales que rellenan el alto restante */
+.pos-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+.totales-venta {
+  padding: 1.25rem 3rem; /* Da más espacio horizontal interno */
+  background: #f9fafb;     /* Un fondo suave para diferenciarlo */
+  border-top: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 0 0 var(--radius-md, 8px) var(--radius-md, 8px);
+  width: 70% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.totales-venta__fila {
+  display: flex !important;
+  justify-content: space-between !important; /* Separa texto a la izq y monto a la der */
+  align-items: center !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+#btnAbrirCobro {
+  width: 100% !important; /* Estira el botón a todo lo ancho de la tarjeta */
+}
+
+/* Pantallas angostas: los paneles se apilan y la página vuelve a hacer scroll normal */
+@media (max-width: 900px) {
+  .main-content--pos {
+    height: auto;
+    overflow-y: auto;
+  }
+
+  .pos-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
 }
