@@ -33,15 +33,15 @@ const registrarEmpleado = async (req, res) => {
         mensaje: 'Falta información. Debes completar nombre completo, correo, rol y contraseña.'
       });
     }
-
-    const correoDuplicado = await findByCorreoYRol(correo, rolFinal);
+    
+    const diccionarioRoles = { 'administrador': 1, 'cajero': 2, 'almacenista': 3 };
+    const idRolNumerico = diccionarioRoles[rolFinal] || 2;
+    
+    const correoDuplicado = await findByCorreoYRol(correo, idRolNumerico);
     if (correoDuplicado) {
       return res.status(409).json({ mensaje: 'Ese correo ya está en uso con ese rol. Usa un correo diferente.' });
     }
-
-    const diccionarioRoles = { 'administrador': 1, 'cajero': 2, 'almacenista': 3 };
-    const idRolNumerico = diccionarioRoles[rolFinal] || 2;
-
+    
     const nuevoEmpleado = await createUser({
       nombreCompleto,
       correo,

@@ -19,6 +19,13 @@ const IVA_RATE = 0.16;
  */
 const generarNumAutorizacion = () => String(crypto.randomInt(100000, 1000000));
 
+const generarFolioFacturacion = () => {
+  const anio = new Date().getFullYear();
+  const parte1 = crypto.randomBytes(2).toString('hex').toUpperCase();
+  const parte2 = crypto.randomBytes(2).toString('hex').toUpperCase();
+  return `${parte1}-${parte2}-${anio}`;
+};
+
 const MAX_INTENTOS_UNICOS = 10;
 
 const buscarProducto = async (productoId) => {
@@ -132,7 +139,8 @@ const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido, numAu
     const ventaId = ventaResult.insertId;
 
     const folio = SaleModel.formatearFolio(ventaId);
-    await connection.execute('UPDATE ventas SET folio = ? WHERE id = ?', [folio, ventaId]);
+    const folioFacturacion = generarFolioFacturacion();
+    await connection.execute('UPDATE ventas SET folio = ?, folio_facturacion = ? WHERE id = ?', [folio, folioFacturacion,ventaId]);
 
     for (const item of ventaData.items) {
       const [filas] = await connection.execute(
@@ -166,6 +174,7 @@ const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido, numAu
       resultado: {
         mensaje: 'Venta procesada con éxito.',
         folio,
+        folioFacturacion,
         numAutorizacion: autorizacion,
         total: ventaData.total,
         cambio: metodoPago === 'efectivo' ? Number((montoRecibido - ventaData.total).toFixed(2)) : 0
