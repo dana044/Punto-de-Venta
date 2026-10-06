@@ -39,11 +39,14 @@ const registrarEmpleado = async (req, res) => {
       return res.status(409).json({ mensaje: 'Ese correo ya está en uso con ese rol. Usa un correo diferente.' });
     }
 
+    const diccionarioRoles = { 'administrador': 1, 'cajero': 2, 'almacenista': 3 };
+    const idRolNumerico = diccionarioRoles[rolFinal] || 2;
+
     const nuevoEmpleado = await createUser({
       nombreCompleto,
       correo,
       password,
-      role: rolFinal
+      rolId: idRolNumerico,
     });
 
     const { password: _passwordOculta, ...empleadoParaCliente } = nuevoEmpleado;
@@ -91,7 +94,11 @@ const listarEmpleados = async (req, res) => {
  */
 const actualizarEmpleado = async (req, res) => {
   const { id } = req.params;
-  const { nombreCompleto, correo, role, password, oldPassword } = req.body;
+  const { nombreCompleto, correo, role, rol, password, oldPassword } = req.body;
+  const rolFinal = role || rol;
+
+  const diccionarioRoles = { 'administrador': 1, 'cajero': 2, 'almacenista': 3 };
+  const IdRolNumerico = diccionarioRoles[rolFinal] || 2;
 
   try {
     const empleadoExiste = await getUserById(id);
@@ -99,7 +106,7 @@ const actualizarEmpleado = async (req, res) => {
       return res.status(404).json({ mensaje: 'El empleado no existe.' });
     }
 
-    const correoDuplicado = await findByCorreoYRol(correo, role, id);
+    const correoDuplicado = await findByCorreoYRol(correo, IdRolNumerico, id);
     if (correoDuplicado) {
       return res.status(409).json({ mensaje: 'Ese correo ya está en uso con ese rol. Usa un correo diferente.' });
     }
@@ -118,7 +125,7 @@ const actualizarEmpleado = async (req, res) => {
       }
     }
 
-    const empleadoActualizado = await updateUser(id, { nombreCompleto, correo, role, password });
+    const empleadoActualizado = await updateUser(id, { nombreCompleto, correo, rolId: IdRolNumerico, password });
     const { password: _passwordOculta, ...empleadoParaCliente } = empleadoActualizado;
 
     return res.status(200).json({

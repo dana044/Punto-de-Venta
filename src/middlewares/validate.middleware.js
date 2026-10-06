@@ -82,7 +82,11 @@ const validateCarrito = (req, res, next) => {
 const ROLES_VALIDOS_IDS = [1, 2, 3];
 
 const validateEmployee = (req, res, next) => {
-  const { nombreCompleto, correo, rolId, password, confirmarPassword } = req.body;
+  const { nombreCompleto, correo, rol, role, password, confirmarPassword } = req.body;
+  const rolFinal = rol || role;
+
+  const diccionarioRoles = { 'administrador': 1, 'cajero': 2, 'almacenista': 3 }; 6
+  const rolId = diccionarioRoles[rolFinal] || null;
 
   if (!nombreCompleto || !correo || !rolId || !password) {
     return res.status(400).json({

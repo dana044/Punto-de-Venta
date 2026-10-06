@@ -336,12 +336,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else if (!modoEdicion && password !== confirmarPassword) {
       mostrarAlerta('Las contrasenas no coinciden.', 'error');
+      return;      
+    }
+    if (!modoEdicion && !password) {
+      mostrarAlerta('Falta la contraseña. El administrador debe asignarle una al nuevo empleado.', 'error');
       return;
     }
 
     const empleadoData = {
       nombreCompleto: document.getElementById('nombreCompleto').value.trim(),
       role: document.getElementById('role').value,
+      rol: document.getElementById('role').value,
       correo: correoInput.value.trim()
     };
 
