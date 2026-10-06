@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>La Number One - Centro de Reportes</title>
+  <link rel="stylesheet" href="/css/01-variables.css" />
+  <link rel="stylesheet" href="/css/02-base.css" />
+  <link rel="stylesheet" href="/css/03-layout.css" />
+  <link rel="stylesheet" href="/css/04-components.css" />
+  <link rel="stylesheet" href="/css/05-modals.css" />
+  <link rel="stylesheet" href="/css/06-tables.css" />
+  <link rel="stylesheet" href="/css/08-reportes.css" />
+  <style>
+    .reportes-tabs-header {
+      display: flex;
+      gap: 1.5rem;
+      border-bottom: 2px solid #E5E7EB;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.25rem;
+    }
+
+    .reporte-tab-btn {
+      padding: 0.75rem 1rem;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #6B7280;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .reporte-tab-btn:hover {
+      color: var(--color-primary, #055651);
+    }
+
+    .reporte-tab-btn.active {
+      color: var(--color-primary, #055651);
+      border-bottom: 3px solid var(--color-primary, #055651);
+    }
+
+    .reporte-seccion-panel {
+      display: none;
+      animation: fadeIn 0.25s ease-in-out;
+    }
+
+    .reporte-seccion-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .reporte-documento {
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: var(--radius-md, 8px);
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      margin-top: 1rem;
+    }
+
+    .reporte-encabezado-doc {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid #1E293B;
+      margin-bottom: 1rem;
+    }
+
+    .reporte-encabezado-doc img {
+      height: 50px;
+      width: auto;
+    }
+
+    .reporte-encabezado-doc h2 {
+      margin: 0;
+      font-size: 1.3rem;
+      color: #0F172A;
+    }
+
+    .reporte-encabezado-doc p {
+      margin: 0.15rem 0 0 0;
+      color: #334155;
+      font-size: 0.85rem;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .summary-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-color, #E5E7EB);
+      border-radius: var(--radius-md, 8px);
+      padding: 0.75rem;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .summary-card__title {
+      font-size: 0.75rem;
+      color: var(--text-muted, #64748B);
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+
+    .summary-card__value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--color-primary, #055651);
+    }
+
+    .badge-rank {
+      display: inline-block;
+      min-width: 24px;
+      padding: 0.15rem 0.35rem;
+      border-radius: 9999px;
+      font-weight: 700;
+      text-align: center;
+      font-size: 0.75rem;
+      background: #E6F0EF;
+      color: var(--color-primary, #055651);
+    }
+
+    .badge-rank--gold {
+      background: #FEF3C7;
+      color: #B45309;
+    }
+
+    /* En pantalla, la imagen de impresión permanece oculta */
+    .chart-print-img {
+      display: none;
+    }
+
+    /* REGLAS DE IMPRESIÓN (PDF CON GRÁFICAS Y TABLA) */
+    @page {
+      size: letter portrait;
+      margin: 0.6cm;
+    }
+
+    @media print {
+      body {
+        background: #FFFFFF !important;
+        font-size: 8.5pt !important;
+        color: #000 !important;
+      }
+
+      .sidebar, .page-header, .table-card__toolbar, .reportes-tabs-header, .no-print {
+        display: none !important;
+      }
+
+      .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+      }
+
+      .reporte-documento {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        display: block !important;
+      }
+
+      .reporte-encabezado-doc {
+        padding-bottom: 0.35rem !important;
+        margin-bottom: 0.5rem !important;
+      }
+
+      .reporte-encabezado-doc img {
+        height: 40px !important;
+      }
+
+      .reporte-encabezado-doc h2 {
+        font-size: 1.1rem !important;
+      }
+
+      .summary-grid {
+        gap: 0.4rem !important;
+        margin-bottom: 0.5rem !important;
+      }
+
+      .summary-card {
+        padding: 0.4rem !important;
+      }
+
+      .summary-card__value {
+        font-size: 1.05rem !important;
+      }
+
+      /* Control estricto de las gráficas en impresión */
+      .chart-card {
+        margin-bottom: 0.5rem !important;
+        padding: 0 !important;
+        border: none !important;
+      }
+
+      .chart-box {
+        position: relative !important;
+        height: 140px !important;
+        min-height: 140px !important;
+        max-height: 140px !important;
+      }
+
+      /* Ocultar el canvas nativo y mostrar la imagen Base64 */
+      .chart-box canvas {
+        display: none !important;
+      }
+
+      .chart-print-img {
+        display: block !important;
+        height: 130px !important;
+        max-height: 130px !important;
+        width: auto !important;
+        margin: 0 auto !important;
+        object-fit: contain !important;
+      }
+
+      /* Tablas visibles y sin cortes */
+      .data-table {
+        display: table !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin-top: 0.4rem !important;
+      }
+
+      .data-table thead {
+        display: table-header-group !important;
+      }
+
+      .data-table tbody {
+        display: table-row-group !important;
+      }
+
+      .data-table tr {
+        display: table-row !important;
+      }
+
+      .data-table th, .data-table td {
+        display: table-cell !important;
+        border: 1px solid #94A3B8 !important;
+        padding: 3px 5px !important;
+        font-size: 8pt !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="sidebar__brand">La Number One</div>
+      
+      <div class="sidebar__user-profile">
+        <img id="userAvatarImg" src="/img/avatars/admin.png" alt="Avatar" class="sidebar__avatar" />
+        <div class="sidebar__user-info">
+          <span class="sidebar__user-name" id="userDisplayName">Usuario</span>
+          <span class="sidebar__user-role" id="userDisplayRole">Rol</span>
+        </div>
+      </div>
+
+      <ul class="sidebar__nav" id="sidebarNav">
+        <li id="menuPersonal" hidden><a href="/empleados" class="sidebar__link">Administrar Personal</a></li>
+        <li id="menuPos" hidden><a href="/pos" class="sidebar__link">Punto de Venta</a></li>
+        <li id="menuInventario" hidden><a href="/inventario" class="sidebar__link">Inventario</a></li>
+        <li id="menuRecepcion" hidden><a href="/recepcion" class="sidebar__link">Recepción / Pedidos</a></li>
+        <li id="menuProveedores" hidden><a href="/proveedores" class="sidebar__link">Proveedores</a></li>
+        <li id="menuReportes" hidden><a href="/reportes" class="sidebar__link sidebar__link--active">Reportes</a></li>
+        <li id="menuHistorialVentas" hidden><a href="/historial-ventas" class="sidebar__link">Historial de Ventas</a></li>
+        <li><a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <div class="page-header no-print">
+        <div>
+          <h1>Centro General de Reportes</h1>
+          <p class="text-muted">Genera y consulta los informes analíticos del sistema.</p>
+        </div>
+      </div>
+
+      <nav class="reportes-tabs-header no-print" id="contenedorSubtabs">
+        <button type="button" class="reporte-tab-btn active" data-panel="panelStock" id="tabBtnStock">Stock Bajo</button>
+        <button type="button" class="reporte-tab-btn" data-panel="panelVentasMensual" id="tabBtnVentasMensual">Ventas Mensuales</button>
+        <button type="button" class="reporte-tab-btn" data-panel="panelDiario" id="tabBtnDiario">Ventas del Día</button>
+        <button type="button" class="reporte-tab-btn" data-panel="panelPresentacion" id="tabBtnPresentacion">Por Presentación</button>
+      </nav>
+
+      <!-- 1. STOCK BAJO -->
+      <section id="panelStock" class="reporte-seccion-panel active">
+        <div class="table-card no-print">
+          <div class="table-card__toolbar">
+            <div>
+              <h2>Parámetros de Búsqueda</h2>
+              <span class="table-card__count" id="reporteCount">&nbsp;</span>
+            </div>
+
+            <form id="formStockBajo" style="display: flex; gap: 1rem; align-items: flex-end;">
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="ubicacionStock">Ubicación</label>
+                <select id="ubicacionStock" class="form-select">
+                  <option value="mostrador">Mostrador</option>
+                  <option value="almacen">Almacén</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="limiteStock">Mostrar con menos de</label>
+                <input type="number" id="limiteStock" class="form-input" min="1" step="1" value="10" required />
+              </div>
+              <button type="submit" class="btn btn--primary" id="btnGenerarReporte">Generar reporte</button>
+              <button type="button" class="btn btn--secondary" id="btnImprimirStock" hidden>Imprimir reporte</button>
+            </form>
+          </div>
+          <div id="reporteAlert" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
+        </div>
+
+        <div class="reporte-documento" id="docStockBajo" style="display: none;">
+          <div class="reporte-encabezado-doc">
+            <img src="/img/logo.png" alt="Logo La Number One" />
+            <div>
+              <h2>La Number One</h2>
+              <p id="docStockTitulo" style="font-weight: 700;"></p>
+              <p id="docStockCriterio" style="color: #475569;"></p>
+              <p id="docStockMeta" style="color: #64748B; font-size: 0.8rem;"></p>
+            </div>
+          </div>
+
+          <div id="seccionGraficasStock" style="display: none; margin-bottom: 1rem;">
+            <div class="charts-grid">
+              <div class="table-card chart-card">
+                <h3>Productos con menor existencia</h3>
+                <div class="chart-box"><canvas id="graficaProductos"></canvas></div>
+              </div>
+              <div class="table-card chart-card">
+                <h3>Productos por categoría bajo el límite</h3>
+                <div class="chart-box"><canvas id="graficaCategorias"></canvas></div>
+              </div>
+            </div>
+          </div>
+
+          <h3 style="margin-bottom: 0.4rem; color: #1E293B;">Detalle de Existencias</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Presentación</th>
+                <th id="thExistencia">Existencia</th>
+              </tr>
+            </thead>
+            <tbody id="tablaStockBajoBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 2. VENTAS MENSUALES -->
+      <section id="panelVentasMensual" class="reporte-seccion-panel">
+        <div class="table-card no-print">
+          <div class="table-card__toolbar">
+            <div>
+              <h2>Parámetros de Consulta</h2>
+              <span class="table-card__count" id="ventasCount">&nbsp;</span>
+            </div>
+
+            <form id="formFiltroVentas" style="display: flex; gap: 1rem; align-items: flex-end;">
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="selectMes">Mes</label>
+                <select id="selectMes" class="form-select">
+                  <option value="1">Enero</option><option value="2">Febrero</option>
+                  <option value="3">Marzo</option><option value="4">Abril</option>
+                  <option value="5">Mayo</option><option value="6">Junio</option>
+                  <option value="7">Julio</option><option value="8">Agosto</option>
+                  <option value="9">Septiembre</option><option value="10" selected>Octubre</option>
+                  <option value="11">Noviembre</option><option value="12">Diciembre</option>
+                </select>
+              </div>
+
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="inputAnio">Año</label>
+                <input type="number" id="inputAnio" class="form-input" value="2026" min="2024" max="2035" style="width: 100px;" required />
+              </div>
+
+              <button type="submit" class="btn btn--primary" id="btnGenerar">Generar Informe</button>
+              <button type="button" class="btn btn--secondary" id="btnImprimirReporte" hidden>Imprimir Reporte</button>
+            </form>
+          </div>
+          <div id="alertaVentas" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
+        </div>
+
+        <div class="reporte-documento" id="docVentasMensual" style="display: none;">
+          <div class="reporte-encabezado-doc">
+            <img src="/img/logo.png" alt="Logo La Number One" />
+            <div>
+              <h2>La Number One - Sistema POS</h2>
+              <p id="docVentasPeriodo" style="font-weight: 700;"></p>
+              <p id="docVentasMeta" style="color: #64748B; font-size: 0.8rem;"></p>
+            </div>
+          </div>
+
+          <div class="summary-grid" id="metricasVenta" style="display: none;">
+            <div class="summary-card">
+              <div class="summary-card__title">Ingresos Facturados</div>
+              <div class="summary-card__value" id="metricaTotalIngresos">$0.00</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Unidades Vendidas</div>
+              <div class="summary-card__value" id="metricaTotalPiezas">0 pzas</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Artículos con Venta</div>
+              <div class="summary-card__value" id="metricaProductosVendidos">0</div>
+            </div>
+          </div>
+
+          <div class="table-card chart-card" id="contenedorGraficaVentas" style="margin-bottom: 1rem; display: none;">
+            <h3>Top de Artículos con Mayor Demanda en el Mes</h3>
+            <div class="chart-box" style="height: 160px;">
+              <canvas id="graficaVentas"></canvas>
+            </div>
+          </div>
+
+          <h3 style="margin-bottom: 0.4rem; color: #1E293B;">Desglose General de Artículos</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">Rank</th>
+                <th>Código</th>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Piezas</th>
+                <th>Total ($)</th>
+                <th>% Aporte</th>
+              </tr>
+            </thead>
+            <tbody id="tablaVentasBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 3. VENTAS DEL DÍA -->
+      <section id="panelDiario" class="reporte-seccion-panel">
+        <div class="table-card no-print">
+          <div class="table-card__toolbar">
+            <div>
+              <h2>Parámetros de Fecha</h2>
+              <span class="table-card__count" id="diarioCount">&nbsp;</span>
+            </div>
+
+            <form id="formReporteDiario" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="inputFechaDiario">Día</label>
+                <input type="date" id="inputFechaDiario" class="form-input" style="width: 170px;" required />
+              </div>
+              <button type="submit" class="btn btn--primary" id="btnGenerarDiario">Generar Reporte</button>
+              <button type="button" class="btn btn--secondary" id="btnImprimirDiario" hidden>Imprimir Reporte</button>
+            </form>
+          </div>
+          <div id="alertaDiario" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
+        </div>
+
+        <div class="reporte-documento" id="docDiario" style="display: none;">
+          <div class="reporte-encabezado-doc">
+            <img src="/img/logo.png" alt="Logo La Number One" />
+            <div>
+              <h2>La Number One - Sistema POS</h2>
+              <p id="docDiarioTitulo" style="font-weight: 700;"></p>
+              <p id="docDiarioMeta" style="color: #64748B; font-size: 0.8rem;"></p>
+            </div>
+          </div>
+
+          <div class="summary-grid" id="metricasDiario" style="display: none;">
+            <div class="summary-card">
+              <div class="summary-card__title">Total del Día</div>
+              <div class="summary-card__value" id="diarioMetricaImporte">$0.00</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Ventas Realizadas</div>
+              <div class="summary-card__value" id="diarioMetricaVentas">0</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Ticket Promedio</div>
+              <div class="summary-card__value" id="diarioMetricaTicket">$0.00</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Hora con Más Ventas</div>
+              <div class="summary-card__value" id="diarioMetricaHoraPico" style="font-size: 1.05rem;">---</div>
+            </div>
+          </div>
+
+          <div class="charts-grid" id="graficasDiario" style="display: none; margin-bottom: 1rem;">
+            <div class="table-card chart-card">
+              <h3>Importe Vendido por Hora ($)</h3>
+              <div class="chart-box" style="height: 140px;">
+                <canvas id="graficaDiarioHora"></canvas>
+              </div>
+            </div>
+            <div class="table-card chart-card">
+              <h3>Importe por Método de Pago</h3>
+              <div class="chart-box" style="height: 140px;">
+                <canvas id="graficaDiarioMetodo"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <h3 style="margin-bottom: 0.4rem; color: #1E293B;">Detalle de Transacciones</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Folio</th>
+                <th>Hora</th>
+                <th>Método de Pago</th>
+                <th>Piezas</th>
+                <th>Subtotal ($)</th>
+                <th>IVA ($)</th>
+                <th>Total ($)</th>
+              </tr>
+            </thead>
+            <tbody id="tablaDiarioBody"></tbody>
+            <tfoot id="tablaDiarioFoot"></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <!-- 4. POR PRESENTACIÓN -->
+      <section id="panelPresentacion" class="reporte-seccion-panel">
+        <div class="table-card no-print">
+          <div class="table-card__toolbar">
+            <div>
+              <h2>Parámetros de Formato</h2>
+              <span class="table-card__count" id="presentacionCount">&nbsp;</span>
+            </div>
+
+            <form id="formReportePresentacion" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="selectMesPresentacion">Mes</label>
+                <select id="selectMesPresentacion" class="form-select">
+                  <option value="1">Enero</option><option value="2">Febrero</option>
+                  <option value="3">Marzo</option><option value="4">Abril</option>
+                  <option value="5">Mayo</option><option value="6">Junio</option>
+                  <option value="7">Julio</option><option value="8">Agosto</option>
+                  <option value="9">Septiembre</option><option value="10" selected>Octubre</option>
+                  <option value="11">Noviembre</option><option value="12">Diciembre</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="inputAnioPresentacion">Año</label>
+                <input type="number" id="inputAnioPresentacion" class="form-input" value="2026" min="2024" max="2035" style="width: 100px;" required />
+              </div>
+              <button type="submit" class="btn btn--primary" id="btnGenerarPresentacion">Generar Reporte</button>
+              <button type="button" class="btn btn--secondary" id="btnImprimirPresentacion" hidden>Imprimir Reporte</button>
+            </form>
+          </div>
+          <div id="alertaPresentacion" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
+        </div>
+
+        <div class="reporte-documento" id="docPresentacion" style="display: none;">
+          <div class="reporte-encabezado-doc">
+            <img src="/img/logo.png" alt="Logo La Number One" />
+            <div>
+              <h2>La Number One - Sistema POS</h2>
+              <p id="docPresentacionTitulo" style="font-weight: 700;"></p>
+              <p id="docPresentacionMeta" style="color: #64748B; font-size: 0.8rem;"></p>
+            </div>
+          </div>
+
+          <div class="summary-grid" id="metricasPresentacion" style="display: none;">
+            <div class="summary-card">
+              <div class="summary-card__title">Presentaciones con Venta</div>
+              <div class="summary-card__value" id="presMetricaFormatos">0</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Unidades Vendidas</div>
+              <div class="summary-card__value" id="presMetricaUnidades">0 pzas</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Importe (sin IVA)</div>
+              <div class="summary-card__value" id="presMetricaImporte">$0.00</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Líder</div>
+              <div class="summary-card__value" id="presMetricaLider" style="font-size: 1.05rem;">---</div>
+            </div>
+          </div>
+
+          <div class="charts-grid" id="graficasPresentacion" style="display: none; margin-bottom: 1rem;">
+            <div class="table-card chart-card">
+              <h3>Unidades Vendidas por Presentación</h3>
+              <div class="chart-box" style="height: 140px;">
+                <canvas id="graficaPresentacionUnidades"></canvas>
+              </div>
+            </div>
+            <div class="table-card chart-card">
+              <h3>Participación en el Importe</h3>
+              <div class="chart-box" style="height: 140px;">
+                <canvas id="graficaPresentacionImporte"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <h3 style="margin-bottom: 0.4rem; color: #1E293B;">Rendimiento por Empaque</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">Rank</th>
+                <th>Presentación</th>
+                <th>Distintos</th>
+                <th>Piezas</th>
+                <th>Importe ($)</th>
+                <th>% Aporte</th>
+              </tr>
+            </thead>
+            <tbody id="tablaPresentacionBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/chart.umd.min.js"></script>
+  <script src="/js/reportes.js"></script>
+  <script src="/js/perfil.js"></script>
+  <script src="/js/inactividad.js"></script>
+</body>
+
+</html>

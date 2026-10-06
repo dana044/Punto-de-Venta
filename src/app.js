@@ -20,6 +20,7 @@ app.use(express.json());
  * Middleware para procesar datos codificados en URL.
  */
 app.use(express.urlencoded({ extended: true }));
+
 /** 
  * Servidor de archivos estáticos.
  * Expone la carpeta 'public' para insertar CSS, JS e imágenes a las vistas.
@@ -114,17 +115,24 @@ app.get('/proveedores', (req, res) => {
 });
 
 /**
- * Ruta para la interfaz de reportes de inventario (HU-37: Citlaly).
+ * Ruta unificada para la interfaz general de Reportes (con subpestañas).
  */
-app.get('/reportes-inventario', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'reportes-inventario.html'));
+app.get('/reportes', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'reportes.html'));
 });
 
 /**
- * Ruta para la interfaz independiente de reportes de venta (HU-40: Stephanie).
+ * Redirecciones de compatibilidad hacia la vista unificada de Reportes.
  */
-app.get('/reportes-ventas', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'reportes-ventas.html'));
+app.get(['/reportes-inventario', '/reportes-ventas'], (req, res) => {
+  res.redirect('/reportes');
+});
+
+/**
+ * Ruta para la interfaz de Historial de Ventas (individualizado por cajero y cancelaciones).
+ */
+app.get('/historial-ventas', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'view', 'historial-ventas.html'));
 });
 
 /**

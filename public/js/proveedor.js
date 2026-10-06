@@ -45,7 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================================
     // CONFIGURACIÓN HOMOLOGADA DEL MENÚ POR ROL (HU-03)
     // ==========================================================================
-    configurarMenuPorRol(userRole);
+    function configurarMenuPorRol(rol) {
+    // La visibilidad de accesos ahora es gobernada centralizadamente por perfil.js
+  }
 
     document.getElementById('btnLogout')?.addEventListener('click', (e) => {
         e.preventDefault();
@@ -250,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.reactivarProveedor = async (id) => {
-        if (!confirm('¿Deseas reactivar a este distribuidor?')) return;
+        if (!confirm('¿Deseas reactivar a este proveedor?')) return;
         try {
             const response = await fetch(`/api/suppliers/${id}/reactivate`, { 
                 method: 'PUT',
@@ -274,11 +276,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('nombre').value = prov.nombre;
         document.getElementById('direccion').value = prov.direccion || '';
         poblarContactos(obtenerTelefonos(prov), obtenerCorreos(prov));
-        abrirModal('Editar Distribuidor');
+        abrirModal('Editar Proveedor');
     };
 
     window.bajaLogicaProveedor = async (id) => {
-        if (!confirm('¿Estás seguro de dar de baja a este distribuidor? Pasará a estado inactivo.')) return;
+        if (!confirm('¿Estás seguro de dar de baja a este proveedor? Pasará a estado inactivo.')) return;
         
         try {
             const response = await fetch(`/api/suppliers/${id}`, { 
@@ -296,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    function abrirModal(titulo = 'Registro de Distribuidor') {
+    function abrirModal(titulo = 'Registro de Proveedor') {
         document.getElementById('formTitle').textContent = titulo;
         modal.style.display = 'flex';
     }

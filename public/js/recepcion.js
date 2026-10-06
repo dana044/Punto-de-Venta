@@ -22,7 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  configurarMenuPorRol(userRole);
+  function configurarMenuPorRol(rol) {
+    // La visibilidad de accesos ahora es gobernada centralizadamente por perfil.js
+  }
 
   document.getElementById('btnLogout')?.addEventListener('click', (e) => {
     e.preventDefault();

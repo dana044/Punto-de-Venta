@@ -161,13 +161,13 @@
 
     /* Estilos exclusivos para imprimir el ticket (HU-29) */
     @media print {
-      body * { visibility: hidden; } /* Ocultar todo el sistema */
-      #modalTicket, #modalTicket * { visibility: visible; } /* Mostrar solo el ticket */
+      body * { visibility: hidden; }
+      #modalTicket, #modalTicket * { visibility: visible; }
       #modalTicket { 
         position: absolute; left: 0; top: 0; width: 100%; 
         background: white; box-shadow: none; display: block !important;
       }
-      .no-print { display: none !important; } /* Ocultar botones de imprimir/cerrar */
+      .no-print { display: none !important; }
     }
   </style>
 </head>
@@ -176,13 +176,12 @@
   <div class="app-container">
     <aside class="sidebar">
       <div class="sidebar__brand">La Number One</div>
-
-      <!-- Tarjeta de Perfil -->
+      
       <div class="sidebar__user-profile">
-        <img id="userAvatarImg" src="/img/avatars/cajero.png" alt="Avatar" class="sidebar__avatar" />
+        <img id="userAvatarImg" src="/img/avatars/admin.png" alt="Avatar" class="sidebar__avatar" />
         <div class="sidebar__user-info">
           <span class="sidebar__user-name" id="userDisplayName">Usuario</span>
-          <span class="sidebar__user-role" id="userDisplayRole">Turno activo</span>
+          <span class="sidebar__user-role" id="userDisplayRole">Rol</span>
         </div>
       </div>
 
@@ -190,14 +189,11 @@
         <li id="menuPersonal" hidden>
           <a href="/empleados" class="sidebar__link">Administrar Personal</a>
         </li>
+        <li id="menuPos" hidden>
+          <a href="/pos" class="sidebar__link sidebar__link--active">Punto de Venta</a>
+        </li>
         <li id="menuInventario" hidden>
           <a href="/inventario" class="sidebar__link">Inventario</a>
-        </li>
-        <li id="menuReportes" hidden>
-          <a href="/reportes-inventario" class="sidebar__link">Reportes de Inventario</a>
-        </li>
-        <li id="menuReporteVentas" hidden>
-          <a href="/reportes-ventas" class="sidebar__link">Reporte de Ventas</a>
         </li>
         <li id="menuRecepcion" hidden>
           <a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a>
@@ -205,8 +201,11 @@
         <li id="menuProveedores" hidden>
           <a href="/proveedores" class="sidebar__link">Proveedores</a>
         </li>
-        <li id="menuPos" hidden>
-          <a href="/pos" class="sidebar__link sidebar__link--active">Punto de Venta</a>
+        <li id="menuReportes" hidden>
+          <a href="/reportes" class="sidebar__link">Reportes</a>
+        </li>
+        <li id="menuHistorialVentas" hidden>
+          <a href="/historial-ventas" class="sidebar__link">Historial de Ventas</a>
         </li>
         <li>
           <a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a>
@@ -355,7 +354,7 @@
     </div>
   </div>
   
-  <!-- Modal Quitar Producto: elimina por cantidad y exige la contraseña del administrador -->
+  <!-- Modal Quitar Producto -->
   <div class="modal-overlay modal--hidden" id="modalQuitar">
     <div class="modal-card" style="max-width: 440px; padding: 0;">
       <div class="modal-header" style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
@@ -384,7 +383,7 @@
     </div>
   </div>
 
-  <!-- Modal Terminal Bancaria: la pantalla solo confirma lo que ocurrió en la terminal física -->
+  <!-- Modal Terminal Bancaria -->
   <div class="modal-overlay modal--hidden" id="modalTarjeta">
     <div class="modal-card" style="max-width: 440px; padding: 0;">
       <div class="modal-header" style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
@@ -395,7 +394,6 @@
         <div class="spinner"></div>
         <p style="margin: 0 0 0.25rem 0; font-weight: 700;">Esperando cobro en terminal bancaria...</p>
         <p class="text-muted" style="margin: 0 0 1.25rem 0;">Total a cobrar en la terminal: <strong id="tarjetaMonto">$0.00</strong></p>
-        <!-- El No. de Autorización ahora se genera automáticamente al cobrar; el campo se oculta (no se captura) -->
         <div class="form-group" style="text-align: left; margin-bottom: 0; display: none;">
           <label class="form-label" for="inputNumAutorizacion">No. de Autorización (opcional)</label>
           <input type="text" id="inputNumAutorizacion" class="form-input" maxlength="6" inputmode="numeric" placeholder="Ej. 123456" autocomplete="off" />
@@ -411,7 +409,7 @@
     </div>
   </div>
 
-  <!-- Modal Transferencia (SPEI): el cajero verifica el depósito en su banca y confirma manualmente -->
+  <!-- Modal Transferencia (SPEI) -->
   <div class="modal-overlay modal--hidden" id="modalTransferencia">
     <div class="modal-card" style="max-width: 480px; padding: 0;">
       <div class="modal-header" style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
@@ -442,15 +440,12 @@
   <!-- HU-29: Modal del Comprobante / Ticket de Venta -->
   <div id="modalTicket" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;">
     <div style="background: #fff; width: 320px; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000;">
-      
-      <!-- Cabecera del Ticket -->
       <div style="text-align: center; margin-bottom: 15px;">
         <h3 style="margin: 0; font-size: 16px;">PUNTO DE VENTA UV</h3>
         <p style="margin: 2px 0;">Sucursal Centro · Ruiz Cortines 125</p>
         <p style="margin: 2px 0;">RFC: PUV260901ABC · Rég. General</p>
       </div>
 
-      <!-- Datos de la Transacción -->
       <div style="margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 10px;">
         <div style="display: flex; justify-content: space-between;"><span>Folio:</span> <strong id="tkFolio">---</strong></div>
         <div style="display: flex; justify-content: space-between;"><span>Cajero:</span> <span id="tkCajero">---</span></div>
@@ -458,7 +453,6 @@
         <div style="display: flex; justify-content: space-between;"><span>Cliente:</span> <span>PÚBLICO EN GENERAL</span></div>
       </div>
 
-      <!-- Detalle de Artículos -->
       <table style="width: 100%; text-align: left; margin-bottom: 10px; border-collapse: collapse;">
         <thead>
           <tr style="border-bottom: 1px dashed #000;">
@@ -467,12 +461,9 @@
             <th style="text-align: right;">IMPORTE</th>
           </tr>
         </thead>
-        <tbody id="tkArticulos">
-          <!-- Los artículos se inyectarán aquí con JS -->
-        </tbody>
+        <tbody id="tkArticulos"></tbody>
       </table>
 
-      <!-- Totales -->
       <div style="border-top: 1px dashed #000; padding-top: 10px; margin-bottom: 15px;">
         <div style="display: flex; justify-content: space-between;"><span>Subtotal:</span> <span id="tkSubtotal">$0.00</span></div>
         <div style="display: flex; justify-content: space-between;"><span>IVA (16%):</span> <span id="tkIva">$0.00</span></div>
@@ -481,7 +472,6 @@
         </div>
       </div>
 
-      <!-- Método de Pago -->
       <div style="border-top: 1px dashed #000; padding-top: 10px; margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between;"><span>Método de Pago:</span> <span id="tkMetodo">---</span></div>
         <div style="display: flex; justify-content: space-between;"><span>Recibido:</span> <span id="tkRecibido">$0.00</span></div>
@@ -489,24 +479,20 @@
         <div id="tkAutorizacionFila" style="display: none; justify-content: space-between;"><span>No. Autorización:</span> <span id="tkAutorizacion">---</span></div>
       </div>
 
-      <!-- Auto-facturación: el cliente factura por su cuenta en la página web con este folio y su RFC -->
       <div style="border: 1px dashed #000; padding: 8px; margin-bottom: 15px; text-align: center;">
         <p style="margin: 2px 0; font-weight: bold;">¿REQUIERE FACTURA?</p>
         <p style="margin: 2px 0;">Folio de Facturación:</p>
         <p style="margin: 4px 0; font-size: 15px; font-weight: bold; letter-spacing: 1px;" id="tkFolioFacturacion">---</p>
-        <!-- Dirección del módulo de facturación simulada (proyecto académico) -->
         <p style="margin: 2px 0;">Ingrese a:</p>
         <p style="margin: 2px 0; word-break: break-all;">http://localhost:3000/facturacion.lanumberone</p>
         <p style="margin: 2px 0;">con este folio para realizar su facturación.</p>
       </div>
 
-      <!-- Pie del Ticket -->
       <div style="text-align: center;">
         <p style="margin: 2px 0; font-weight: bold;">¡GRACIAS POR SU COMPRA!</p>
         <p style="margin: 2px 0;">Conserve su ticket para aclaraciones.</p>
       </div>
 
-      <!-- Botones de Acción (No se imprimen) -->
       <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;" class="no-print">
         <button id="btnImprimirTicket" style="background: #046b4e; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; width: 100%;">Imprimir Ticket</button>
         <button id="btnCerrarTicket" style="background: #e5e7eb; color: #374151; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; width: 100%;">Cerrar Venta</button>

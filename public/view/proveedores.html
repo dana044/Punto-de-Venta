@@ -35,14 +35,11 @@
         <li id="menuPersonal" hidden>
           <a href="/empleados" class="sidebar__link">Administrar Personal</a>
         </li>
+        <li id="menuPos" hidden>
+          <a href="/pos" class="sidebar__link">Punto de Venta</a>
+        </li>
         <li id="menuInventario" hidden>
           <a href="/inventario" class="sidebar__link">Inventario</a>
-        </li>
-        <li id="menuReportes" hidden>
-          <a href="/reportes-inventario" class="sidebar__link">Reportes de Inventario</a>
-        </li>
-        <li id="menuReporteVentas" hidden>
-          <a href="/reportes-ventas" class="sidebar__link">Reporte de Ventas</a>
         </li>
         <li id="menuRecepcion" hidden>
           <a href="/recepcion" class="sidebar__link">Recepción de Mercancía</a>
@@ -50,8 +47,11 @@
         <li id="menuProveedores" hidden>
           <a href="/proveedores" class="sidebar__link sidebar__link--active">Proveedores</a>
         </li>
-        <li id="menuPos" hidden>
-          <a href="/pos" class="sidebar__link">Punto de Venta</a>
+        <li id="menuReportes" hidden>
+          <a href="/reportes" class="sidebar__link">Reportes</a>
+        </li>
+        <li id="menuHistorialVentas" hidden>
+          <a href="/historial-ventas" class="sidebar__link">Historial de Ventas</a>
         </li>
         <li>
           <a href="#" id="btnLogout" class="sidebar__link">Cerrar Sesión</a>
@@ -62,10 +62,10 @@
     <main class="main-content">
       <div class="page-header">
         <div>
-          <h1>Directorio de Distribuidores</h1>
+          <h1>Directorio de Proveedores</h1>
           <p>Administra la cartera de proveedores comerciales y contactos para reabastecimiento.</p>
         </div>
-        <button type="button" class="btn btn--primary" id="btnNuevoProveedor">+ Nuevo Distribuidor</button>
+        <button type="button" class="btn btn--primary" id="btnNuevoProveedor">+ Nuevo Proveedor</button>
       </div>
 
       <div id="alertMessage" class="alert" hidden></div>
@@ -83,7 +83,7 @@
                 <input type="checkbox" id="chkMostrarInactivos"> Ver inactivos
               </label>
               <div class="table-search">
-                <input type="text" id="buscarProveedor" placeholder="Buscar distribuidor..." />
+                <input type="text" id="buscarProveedor" placeholder="Buscar proveedor..." />
               </div>
             </div>
           </div>
@@ -108,7 +108,7 @@
         <div class="table-card">
           <div class="table-card__toolbar">
             <div>
-              <h2 style="color: #6b7280;">Distribuidores Inactivos (Baja Lógica)</h2>
+              <h2 style="color: #6b7280;">Proveedores Inactivos (Baja Lógica)</h2>
               <span class="table-card__count" id="inactivosCount">&nbsp;</span>
             </div>
             <div style="display: flex; gap: 1rem; align-items: center;">
@@ -116,7 +116,7 @@
                 <input type="checkbox" id="chkMostrarInactivosAlt" checked> Ver inactivos
               </label>
               <div class="table-search">
-                <input type="text" id="buscarProveedorInactivo" placeholder="Buscar distribuidor..." />
+                <input type="text" id="buscarProveedorInactivo" placeholder="Buscar proveedor..." />
               </div>
             </div>
           </div>
@@ -135,12 +135,12 @@
         </div>
       </section>
 
-      <!-- Modal Distribuidor -->
+      <!-- Modal Proveedor -->
       <div id="modalOverlay" class="modal-overlay" style="display:none;">
         <div class="modal-card stepped-card">
           <header class="stepped-card__header">
             <div>
-              <strong id="formTitle">Registro de Distribuidor</strong>
+              <strong id="formTitle">Registro de Proveedor</strong>
               <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;">Alta y actualización de contactos comerciales</p>
             </div>
             <button type="button" id="btnCerrarModal" class="btn-close-modal">&times;</button>
@@ -178,7 +178,7 @@
 
             <footer class="stepped-card__footer">
               <button type="button" class="btn btn--secondary" id="cancelarBtn">Cancelar</button>
-              <button type="submit" class="btn btn--primary" id="submitBtn">Guardar Distribuidor</button>
+              <button type="submit" class="btn btn--primary" id="submitBtn">Guardar Proveedor</button>
             </footer>
           </form>
         </div>

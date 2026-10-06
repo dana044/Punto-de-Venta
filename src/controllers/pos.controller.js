@@ -1,23 +1,14 @@
 /**
  * @file pos.controller.js
- * @description Controlador del punto de venta y reportes analíticos de ventas (HU-40).
- * @author Jetzaly Josmery Tello Campos 
- * @author Diego Rafael Jiménez Trujano (Integración asíncrona con MySQL)
- * @author Alfonso Mendoza Vásquez (Apertura de caja y Folios HU-25)
- * @author Stephanie Elizdeth Hernández Prieto (HU-40: Reporte Mensual de Ventas)
- * @author Citlaly Morales Viveros (Cliente / Programadora XP)
+ * @description Controlador del punto de venta, reportes analíticos de ventas (HU-40) e historial de ventas.
  */
 
 const salesService = require('../services/sales.service.js');
 const SaleModel = require('../models/sale.model.js');
 const { getAllUsers } = require('../models/user.model.js');
 
-/**
- * HU-25: Inicializa una transacción de venta devolviendo el folio oficial.
- */
 const abrirVenta = async (req, res) => {
     try {
-        // Simulamos la extración del JWT o recibimos del body
         const cajeroId = req.body.cajero_id || 1; 
 
         if (!cajeroId) {
@@ -37,15 +28,6 @@ const abrirVenta = async (req, res) => {
     }
 };
 
-/**
- * Devuelve el folio que tendrá la próxima venta sin crear ninguna venta en la base de datos.
- * Es solo informativo: el folio definitivo se asigna al cobrar.
- *
- * @async
- * @function obtenerSiguienteFolio
- * @param {import('express').Request} req
- * @param {import('express').Response} res
- */
 const obtenerSiguienteFolio = async (req, res) => {
   try {
     const data = await SaleModel.getSiguienteFolio();
@@ -72,13 +54,9 @@ const calcularTotales = async (req, res) => {
   }
 };
 
-/**
- * Recibe el carrito, el método de pago y procesa la transacción final (HU-30).
- */
 const procesarCobro = async (req, res) => {
   try {
     const { items, metodoPago, montoRecibido, numAutorizacion } = req.body;
-
     const usuarioId = Number(req.body.usuarioId);
 
     if (!usuarioId) {
@@ -98,13 +76,6 @@ const procesarCobro = async (req, res) => {
   }
 };
 
-/**
- * HU-40: Consulta el ranking mensual de artículos más vendidos agrupados por mes y año.
- * @async
- * @function obtenerReporteVentaMensual
- * @param {import('express').Request} req - Petición con query params ?anio=YYYY&mes=MM.
- * @param {import('express').Response} res
- */
 const obtenerReporteVentaMensual = async (req, res) => {
   try {
     const { anio, mes } = req.query;
@@ -127,13 +98,6 @@ const obtenerReporteVentaMensual = async (req, res) => {
   }
 };
 
-/**
- * Catálogo del POS: devuelve las categorías con productos activos para la cuadrícula inicial.
- * @async
- * @function listarCategoriasCatalogo
- * @param {import('express').Request} req
- * @param {import('express').Response} res
- */
 const listarCategoriasCatalogo = async (req, res) => {
   try {
     const categorias = await SaleModel.getCategoriasCatalogo();
@@ -144,13 +108,6 @@ const listarCategoriasCatalogo = async (req, res) => {
   }
 };
 
-/**
- * Catálogo del POS: devuelve productos filtrados por categoría (?categoria=) o por texto (?q=).
- * @async
- * @function listarProductosCatalogo
- * @param {import('express').Request} req - Petición con query params opcionales categoria y q.
- * @param {import('express').Response} res
- */
 const listarProductosCatalogo = async (req, res) => {
   try {
     const categoria = (req.query.categoria || '').trim();
@@ -164,11 +121,6 @@ const listarProductosCatalogo = async (req, res) => {
   }
 };
 
-/**
- * Valida y normaliza los parámetros ?anio= y ?mes= de los reportes de ventas.
- * @param {import('express').Request} req
- * @returns {{anio: number, mes: number}|null} Los valores numéricos o null si no son válidos.
- */
 const leerPeriodoReporte = (req) => {
   const anio = Number(req.query.anio);
   const mes = Number(req.query.mes);
@@ -178,11 +130,6 @@ const leerPeriodoReporte = (req) => {
   return { anio, mes };
 };
 
-/**
- * Valida el parámetro ?fecha= (AAAA-MM-DD) y confirma que sea un día real del calendario.
- * @param {string} fecha
- * @returns {boolean}
- */
 const esFechaValida = (fecha) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || '')) return false;
 
@@ -193,13 +140,6 @@ const esFechaValida = (fecha) => {
     && fechaJs.getUTCDate() === dia;
 };
 
-/**
- * Reporte de ventas de un día específico: cantidad de ventas e importe total de ese día.
- * @async
- * @function obtenerReporteDiario
- * @param {import('express').Request} req - Petición con query param ?fecha=AAAA-MM-DD.
- * @param {import('express').Response} res
- */
 const obtenerReporteDiario = async (req, res) => {
   try {
     const fecha = req.query.fecha;
@@ -222,13 +162,6 @@ const obtenerReporteDiario = async (req, res) => {
   }
 };
 
-/**
- * Reporte de productos por presentación: rendimiento de cada formato de empaque.
- * @async
- * @function obtenerReportePresentacion
- * @param {import('express').Request} req - Petición con query params ?anio=YYYY&mes=MM.
- * @param {import('express').Response} res
- */
 const obtenerReportePresentacion = async (req, res) => {
   try {
     const periodo = leerPeriodoReporte(req);
@@ -251,13 +184,115 @@ const obtenerReportePresentacion = async (req, res) => {
 };
 
 /**
- * Autoriza la eliminación de productos del carrito: exige la contraseña de un administrador activo.
- * Solo valida la contraseña; el carrito vive en el navegador, por eso no modifica nada en la base de datos.
- * @async
- * @function autorizarEliminacion
- * @param {import('express').Request} req - Petición con { contrasena } en el cuerpo.
- * @param {import('express').Response} res - 200 con el nombre del administrador, 400 o 401.
+ * Reporte de compras por distribuidor y rango de fechas.
  */
+const obtenerReporteCompras = async (req, res) => {
+  try {
+    const { inicio, fin } = req.query;
+    if (!esFechaValida(inicio) || !esFechaValida(fin)) {
+      return res.status(400).json({ mensaje: 'Rango de fechas inválido (AAAA-MM-DD).' });
+    }
+
+    const compras = await SaleModel.getReporteCompras(inicio, fin);
+    return res.status(200).json({ compras });
+  } catch (error) {
+    console.error('[Error Log - ERROR REPORTE COMPRAS DISTRIBUIDOR]:', error);
+    return res.status(500).json({ mensaje: 'Error al consultar las compras por distribuidor.' });
+  }
+};
+
+/**
+ * Consulta el historial de ventas con filtros de empleado y día.
+ */
+const consultarHistorialVentas = async (req, res) => {
+  try {
+    const rol = (req.headers['x-user-role'] || '').toLowerCase();
+    const usuarioSesionId = req.headers['x-user-id'];
+
+    const filtros = {};
+
+    // Si es cajero, solo se le permite consultar su propio historial
+    if (rol === 'cajero') {
+      filtros.usuarioId = usuarioSesionId;
+    } else if (req.query.usuarioId) {
+      filtros.usuarioId = req.query.usuarioId;
+    }
+
+    if (req.query.fecha) filtros.fecha = req.query.fecha;
+    if (req.query.estado) filtros.estado = req.query.estado;
+
+    const historial = await SaleModel.getHistorialVentas(filtros);
+    return res.status(200).json({ historial });
+  } catch (error) {
+    console.error('[Error Log - ERROR HISTORIAL VENTAS]:', error);
+    return res.status(500).json({ mensaje: 'Error al consultar el historial de ventas.' });
+  }
+};
+
+/**
+ * Solicitar cancelación de venta (por cajero o empleado).
+ */
+const pedirCancelacionVenta = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { motivo } = req.body;
+
+    if (!motivo || !motivo.trim()) {
+      return res.status(400).json({ mensaje: 'Debes indicar el motivo de la cancelación.' });
+    }
+
+    const ok = await SaleModel.solicitarCancelacion(id, motivo);
+    if (!ok) {
+      return res.status(400).json({ mensaje: 'No se pudo solicitar la cancelación. Verifica que la venta no esté ya cancelada.' });
+    }
+
+    return res.status(200).json({ mensaje: 'Solicitud enviada para aprobación del administrador.' });
+  } catch (error) {
+    console.error('[Error Log - ERROR SOLICITAR CANCELACION]:', error);
+    return res.status(500).json({ mensaje: 'Error al solicitar la cancelación de la venta.' });
+  }
+};
+
+/**
+ * Autorizar cancelación de venta (solo administrador).
+ */
+/**
+ * Autorizar cancelación de venta verificando la contraseña del administrador.
+ */
+const aprobarCancelacionVenta = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { contrasena, motivo } = req.body;
+
+    if (!contrasena) {
+      return res.status(400).json({ mensaje: 'Se requiere la contraseña del administrador para autorizar la cancelación.' });
+    }
+
+    // 1. Validar la contraseña contra los administradores registrados
+    const usuarios = await getAllUsers();
+    const administrador = usuarios.find(
+      (u) => (u.role === 'administrador' || u.rol === 'administrador') && u.activo && u.password === contrasena
+    );
+
+    if (!administrador) {
+      return res.status(401).json({ mensaje: 'Contraseña de administrador incorrecta. Cancelación rechazada.' });
+    }
+
+    // 2. Ejecutar la cancelación y reincorporación de existencias en MySQL
+    const ok = await SaleModel.autorizarCancelacion(id, administrador.id);
+    if (!ok) {
+      return res.status(400).json({ mensaje: 'No se pudo cancelar la venta. Verifica que no haya sido cancelada previamente.' });
+    }
+
+    return res.status(200).json({ 
+      mensaje: `Venta cancelada exitosamente por ${administrador.nombreCompleto}. La mercancía regresó al stock.` 
+    });
+  } catch (error) {
+    console.error('[Error Log - ERROR APROBAR CANCELACION]:', error);
+    return res.status(500).json({ mensaje: 'Error interno al autorizar la cancelación de la venta.' });
+  }
+};
+
 const autorizarEliminacion = async (req, res) => {
   try {
     const { contrasena } = req.body;
@@ -293,6 +328,10 @@ module.exports = {
   obtenerReporteVentaMensual,
   obtenerReporteDiario,
   obtenerReportePresentacion,
+  obtenerReporteCompras,
+  consultarHistorialVentas,
+  pedirCancelacionVenta,
+  aprobarCancelacionVenta,
   autorizarEliminacion,
   listarCategoriasCatalogo,
   listarProductosCatalogo

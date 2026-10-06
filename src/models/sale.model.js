@@ -106,7 +106,7 @@ class SaleModel {
             FROM venta_detalle vd
             INNER JOIN ventas v ON vd.venta_id = v.id
             INNER JOIN v_productos p ON vd.producto_id = p.id
-            WHERE YEAR(v.fecha) = ? AND MONTH(v.fecha) = ?
+            WHERE YEAR(v.fecha) = ? AND MONTH(v.fecha) = ? AND v.estado <> 'cancelada'
             GROUP BY p.id, p.nombre, p.codigo_barras, p.categoria
             ORDER BY total_unidades_vendidas DESC;
         `;
@@ -116,13 +116,10 @@ class SaleModel {
 
     /**
      * Reporte de ventas de un día específico: cada venta del día con su hora, método de pago e importe.
-     * Calcula los totales directamente desde ventas y venta_detalle (sin depender de vistas):
-     * el IVA es el 16 % de (subtotal - descuentos) de la venta y el importe total lo incluye,
-     * igual que el ticket del cliente. Las ventas sin partidas no se cuentan.
      * @async
      * @static
      * @param {string} fecha - Día a consultar en formato AAAA-MM-DD.
-     * @returns {Promise<Array<Object>>} Una fila por venta, de la más temprana a la más reciente.
+     * @returns {Promise<Array<Object>>}
      */
     static async getReporteDiario(fecha) {
         const query = `
@@ -132,13 +129,14 @@ class SaleModel {
                 DATE_FORMAT(v.fecha, '%H:%i') AS hora,
                 HOUR(v.fecha) AS hora_dia,
                 v.metodo_pago,
+                v.estado,
                 SUM(vd.cantidad) AS piezas,
                 SUM(vd.total_linea) AS subtotal_neto,
                 ROUND(SUM(vd.total_linea) * 0.16, 2) AS iva
             FROM ventas v
             INNER JOIN venta_detalle vd ON vd.venta_id = v.id
-            WHERE v.fecha >= ? AND v.fecha < DATE_ADD(?, INTERVAL 1 DAY)
-            GROUP BY v.id, v.folio, v.fecha, v.metodo_pago
+            WHERE v.fecha >= ? AND v.fecha < DATE_ADD(?, INTERVAL 1 DAY) AND v.estado <> 'cancelada'
+            GROUP BY v.id, v.folio, v.fecha, v.metodo_pago, v.estado
             ORDER BY v.fecha ASC;
         `;
         const [rows] = await db.execute(query, [fecha, fecha]);
@@ -147,12 +145,11 @@ class SaleModel {
 
     /**
      * Reporte de productos por presentación: rendimiento de cada formato de empaque en un mes.
-     * El importe se calcula con total_linea (sin IVA), igual que el reporte general de ventas.
      * @async
      * @static
      * @param {number|string} anio
      * @param {number|string} mes
-     * @returns {Promise<Array<Object>>} Una fila por presentación, ordenadas por unidades vendidas.
+     * @returns {Promise<Array<Object>>}
      */
     static async getReportePresentacion(anio, mes) {
         const query = `
@@ -164,7 +161,7 @@ class SaleModel {
             FROM venta_detalle vd
             INNER JOIN ventas v ON vd.venta_id = v.id
             INNER JOIN productos p ON vd.producto_id = p.id
-            WHERE YEAR(v.fecha) = ? AND MONTH(v.fecha) = ?
+            WHERE YEAR(v.fecha) = ? AND MONTH(v.fecha) = ? AND v.estado <> 'cancelada'
             GROUP BY COALESCE(NULLIF(TRIM(p.presentacion), ''), 'Sin presentación')
             ORDER BY total_unidades_vendidas DESC;
         `;
@@ -173,11 +170,145 @@ class SaleModel {
     }
 
     /**
-     * Catálogo del POS: lista las categorías que tienen productos activos.
-     * La categoría es una columna ENUM de la tabla productos y activo = 1 son los productos vigentes.
+     * Reporte de compras agrupadas por distribuidor y rango de fechas.
      * @async
      * @static
-     * @returns {Promise<Array<Object>>} Categorías con el total de productos de cada una.
+     * @param {string} fechaInicio
+     * @param {string} fechaFin
+     * @returns {Promise<Array<Object>>}
+     */
+    static async getReporteCompras(fechaInicio, fechaFin) {
+        const query = `
+            SELECT 
+                pr.id AS proveedor_id,
+                pr.nombre AS proveedor,
+                COUNT(DISTINCT p.id) AS total_pedidos,
+                COALESCE(SUM(pd.cantidad_recibida * pd.costo_unitario), 0) AS total_comprado
+            FROM pedidos p
+            JOIN proveedores pr ON pr.id = p.proveedor_id
+            JOIN pedido_detalle pd ON pd.pedido_id = p.id
+            WHERE p.fecha >= ? AND p.fecha <= DATE_ADD(?, INTERVAL 1 DAY) AND p.estado = 'recibido'
+            GROUP BY pr.id, pr.nombre
+            ORDER BY total_comprado DESC;
+        `;
+        const [rows] = await db.execute(query, [fechaInicio, fechaFin]);
+        return rows;
+    }
+
+    /**
+     * Consulta el historial de ventas individualizado por colaborador y día específico.
+     * @async
+     * @static
+     * @param {Object} filtros - Filtros opcionales: usuarioId, fecha, estado.
+     * @returns {Promise<Array<Object>>}
+     */
+    static async getHistorialVentas(filtros = {}) {
+        let query = `
+            SELECT 
+                id, folio, usuario_id, colaborador, fecha, metodo_pago,
+                estado, motivo_cancelacion, cancelada_por, fecha_cancelacion,
+                subtotal, descuentos, iva, total
+            FROM v_ventas
+            WHERE 1=1
+        `;
+        const params = [];
+
+        if (filtros.usuarioId) {
+            query += ' AND usuario_id = ?';
+            params.push(filtros.usuarioId);
+        }
+
+        if (filtros.fecha) {
+            query += ' AND DATE(fecha) = ?';
+            params.push(filtros.fecha);
+        }
+
+        if (filtros.estado) {
+            query += ' AND estado = ?';
+            params.push(filtros.estado);
+        }
+
+        query += ' ORDER BY fecha DESC';
+
+        const [rows] = await db.execute(query, params);
+        return rows;
+    }
+
+    /**
+     * Solicita la cancelación de una venta por parte de un cajero.
+     * @async
+     * @static
+     * @param {number|string} ventaId
+     * @param {string} motivo
+     * @returns {Promise<boolean>}
+     */
+    static async solicitarCancelacion(ventaId, motivo) {
+        const query = `
+            UPDATE ventas 
+            SET estado = 'solicitada_cancelacion', motivo_cancelacion = ?
+            WHERE id = ? AND estado = 'completada'
+        `;
+        const [result] = await db.execute(query, [motivo, ventaId]);
+        return result.affectedRows > 0;
+    }
+
+    /**
+     * Aprueba la cancelación de una venta, revirtiendo el inventario.
+     * @async
+     * @static
+     * @param {number|string} ventaId
+     * @param {number} adminId
+     * @returns {Promise<boolean>}
+     */
+    static async autorizarCancelacion(ventaId, adminId) {
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            const [venta] = await connection.execute(
+                'SELECT id, estado FROM ventas WHERE id = ? FOR UPDATE',
+                [ventaId]
+            );
+
+            if (!venta.length || venta[0].estado === 'cancelada') {
+                await connection.rollback();
+                return false;
+            }
+
+            const [detalles] = await connection.execute(
+                'SELECT producto_id, cantidad FROM venta_detalle WHERE venta_id = ?',
+                [ventaId]
+            );
+
+            for (const item of detalles) {
+                await connection.execute(
+                    'UPDATE productos SET stock_mostrador = stock_mostrador + ? WHERE id = ?',
+                    [item.cantidad, item.producto_id]
+                );
+            }
+
+            await connection.execute(
+                `UPDATE ventas 
+                 SET estado = 'cancelada', cancelada_por = ?, fecha_cancelacion = NOW() 
+                 WHERE id = ?`,
+                [adminId, ventaId]
+            );
+
+            await connection.commit();
+            return true;
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Catálogo del POS: lista las categorías que tienen productos activos.
+     * @async
+     * @static
+     * @returns {Promise<Array<Object>>}
      */
     static async getCategoriasCatalogo() {
         const query = `
@@ -193,12 +324,9 @@ class SaleModel {
     }
 
     /**
-     * Catálogo del POS: lista productos activos filtrando por categoría y/o por texto (nombre o código de barras).
+     * Catálogo del POS: lista productos activos filtrando por categoría y/o por texto.
      * @async
      * @static
-     * @param {string} [categoria] - Categoría exacta a mostrar (opcional).
-     * @param {string} [termino] - Texto a buscar en el nombre o código de barras (opcional).
-     * @returns {Promise<Array<Object>>} Máximo 60 productos ordenados por nombre.
      */
     static async getProductosCatalogo(categoria, termino) {
         let query = `
