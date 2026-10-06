@@ -8,45 +8,33 @@
 
 const API_PRODUCTOS = '/api/inventory/productos';
 const API_PROVEEDORES = '/api/inventory/proveedores';
-
 const API_ALERTAS = '/api/alerts';
 
 document.addEventListener('DOMContentLoaded', () => {
   const userRole = localStorage.getItem('userRole');
   const token = localStorage.getItem('token');
 
-  // Validacion de sesion activa
   if (!token || !userRole) {
     window.location.href = '/login';
     return;
   }
 
-  // Restriccion de acceso para cajero
   if (userRole === 'cajero') {
     alert('Acceso no autorizado para tu rol.');
     window.location.href = '/pos';
     return;
   }
 
-  // ==========================================================================
   // CIERRE AUTOMATICO DE SESION POR INACTIVIDAD
-  // ==========================================================================
   const TIEMPO_LIMITE_INACTIVIDAD = 5 * 60 * 1000;
   let temporizadorInactividad;
 
-  /**
-   * Cierra la sesión automáticamente cuando se agota el tiempo de inactividad.
-   * Limpia el almacenamiento local, avisa al usuario y redirige al login.
-   */
   function cerrarSesionPorInactividad() {
     localStorage.clear();
     alert('Tu sesion ha expirado automaticamente por inactividad.');
     window.location.replace('/login');
   }
 
-  /**
-   * Reinicia el temporizador de inactividad cada vez que el usuario interactúa con la página.
-   */
   function reiniciarTemporizador() {
     clearTimeout(temporizadorInactividad);
     temporizadorInactividad = setTimeout(cerrarSesionPorInactividad, TIEMPO_LIMITE_INACTIVIDAD);
@@ -59,9 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   reiniciarTemporizador();
 
-  // ==========================================================================
-  // CONFIGURACION DE INTERFAZ Y NAVEGACION
-  // ==========================================================================
   configurarMenuPorRol(userRole);
 
   document.getElementById('btnLogout')?.addEventListener('click', (e) => {
@@ -70,7 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = '/login';
   });
 
-  // Referencias al DOM
   const modalOverlay = document.getElementById('modalOverlay');
   const btnNuevoProducto = document.getElementById('btnNuevoProducto');
   const btnCerrarModal = document.getElementById('btnCerrarModal');
@@ -89,15 +73,11 @@ document.addEventListener('DOMContentLoaded', () => {
   let idsStockBajo = new Set();
   let idsAlertaAlmacen = new Set();
   let idsAlertaMostrador = new Set();
+  const chkCaducidad = document.getElementById('chkCaducidad');
+  let idsCaducidad = new Set();
 
   let productosCache = [];
 
-  /**
-   * Muestra u oculta el modal de producto. Al ocultarlo restablece el formulario,
-   * el título, el texto del botón y la alerta.
-   *
-   * @param {boolean} mostrar - true para mostrar el modal, false para ocultarlo.
-   */
   const toggleModal = (mostrar) => {
     modalOverlay.style.display = mostrar ? 'flex' : 'none';
     if (!mostrar) {
@@ -116,14 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
   cargarProveedores();
   cargarProductos();
 
-  /**
-   * Configura la visibilidad del menu lateral segun el rol del usuario.
-   * - Administrador: Acceso a todos los modulos.
-   * - Almacenista: Acceso a Inventario, Reportes de inventario y Recepcion.
-   * - Cajero: Acceso exclusivo a Punto de Venta.
-   *
-   * @param {string} rol Rol autenticado del usuario.
-   */
   function configurarMenuPorRol(rol) {
     const menuPersonal = document.getElementById('menuPersonal');
     const menuInventario = document.getElementById('menuInventario');
@@ -155,13 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /**
-   * Consulta los distribuidores y los dibuja como checkboxes en el formulario de producto.
-   *
-   * @async
-   * @function cargarProveedores
-   * @returns {Promise<void>}
-   */
   async function cargarProveedores() {
     try {
       const res = await fetch(API_PROVEEDORES, { headers: { 'x-user-role': userRole } });
@@ -194,16 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /**
-   * Consulta el catálogo (general o filtrado por búsqueda), lo guarda en caché y lo renderiza.
-   * Respeta los filtros "Ver inactivos" (solo inactivos) y "Ver stock bajo" (solo stock bajo);
-   * ambos son mutuamente excluyentes.
-   *
-   * @async
-   * @function cargarProductos
-   * @param {string} [termino=''] - Texto de búsqueda (nombre, código o categoría).
-   * @returns {Promise<void>}
-   */
   async function cargarProductos(termino = '') {
     try {
       let url = termino
@@ -215,18 +170,25 @@ document.addEventListener('DOMContentLoaded', () => {
         url += url.includes('?') ? `&${queryInactivos}` : `?${queryInactivos}`;
       }
 
-      const res = await fetch(url, { headers: { 'x-user-role': userRole } });
+      url += url.includes('?') ? `&_t=${Date.now()}` : `?_t=${Date.now()}`;
+
+      const res = await fetch(url, { headers: { 'x-user-role': userRole }, cache: 'no-store' });
       const data = await res.json();
 
       if (res.ok && Array.isArray(data.productos)) {
-        // "Ver inactivos" muestra SOLO los inactivos (el backend devuelve activos + inactivos)
         productosCache = chkMostrarInactivos?.checked
           ? data.productos.filter(esProductoInactivo)
           : data.productos;
         if (chkStockBajo?.checked) await cargarIdsStockBajo();
-        renderizarTabla(chkStockBajo?.checked ? filtrarYOrdenarStockBajo(productosCache) : productosCache);
-        // Refresca el banner de alertas.js (mismos umbrales que usa el backend)
+        if (chkCaducidad?.checked) await cargarIdsCaducidad();
+
+        let listaAMostrar = productosCache;
+        if (chkStockBajo?.checked) listaAMostrar = filtrarYOrdenarStockBajo(productosCache);
+        else if (chkCaducidad?.checked) listaAMostrar = filtrarYOrdenarCaducidad(productosCache);
+
+        renderizarTabla(listaAMostrar);
         if (typeof window.cargarAlertas === 'function') window.cargarAlertas();
+        if (typeof window.cargarAlertasCaducidad === 'function') window.cargarAlertasCaducidad();
       } else {
         tablaBody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color: red; text-align:center;">Error: ${data.mensaje || 'Datos no validos'}</td></tr>`;
       }
@@ -235,15 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /**
-   * Consulta las alertas de stock bajo del backend (/api/alerts) y guarda los ids de los
-   * productos afectados (en total y por ubicación). Así el filtro usa exactamente los mismos
-   * umbrales que el banner.
-   *
-   * @async
-   * @function cargarIdsStockBajo
-   * @returns {Promise<void>}
-   */
   async function cargarIdsStockBajo() {
     try {
       const res = await fetch(API_ALERTAS, { headers: { 'x-user-role': userRole } });
@@ -259,29 +212,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /**
-   * Indica si un producto está inactivo (activo = 0 o false).
-   *
-   * @param {Object} p - Producto del catálogo.
-   * @returns {boolean} true si el producto está inactivo.
-   */
+  async function cargarIdsCaducidad() {
+    try {
+      const res = await fetch('/api/alerts/caducidad', { headers: { 'x-user-role': userRole } });
+      const data = await res.json();
+      const alertas = res.ok && Array.isArray(data.alertas) ? data.alertas : [];
+      idsCaducidad = new Set(alertas.map((a) => a.productoId));
+    } catch (error) {
+      idsCaducidad = new Set();
+    }
+  }
+
+  function filtrarYOrdenarCaducidad(lista) {
+    return lista
+      .filter((p) => idsCaducidad.has(p.id))
+      .sort((a, b) => new Date(a.proxima_caducidad) - new Date(b.proxima_caducidad));
+  }
+
   function esProductoInactivo(p) {
     return Number(p.activo) === 0 || p.activo === false;
   }
 
-  /**
-   * Deja solo los productos que están en alerta y los ordena de menor a mayor existencia.
-   * Según la opción elegida muestra todos los que están en alerta (ordenados por almacén y,
-   * en empate, por mostrador), solo los que están en alerta en almacén o solo en mostrador.
-   *
-   * @param {Array<Object>} lista - Productos a filtrar.
-   * @returns {Array<Object>} Productos en alerta ya ordenados.
-   */
   function filtrarYOrdenarStockBajo(lista) {
     const opcion = ordenStockBajo.value;
     const ids = opcion === 'almacen' ? idsAlertaAlmacen
       : opcion === 'mostrador' ? idsAlertaMostrador
-      : idsStockBajo;
+        : idsStockBajo;
     const principal = opcion === 'mostrador' ? 'stock_mostrador' : 'stock_almacen';
     const secundaria = principal === 'stock_almacen' ? 'stock_mostrador' : 'stock_almacen';
 
@@ -291,12 +247,6 @@ document.addEventListener('DOMContentLoaded', () => {
         || (Number(a[secundaria] || 0) - Number(b[secundaria] || 0)));
   }
 
-  /**
-   * Genera el badge HTML según la cercanía de una fecha de caducidad.
-   *
-   * @param {string|null} fecha - Fecha de caducidad o null si no aplica.
-   * @returns {string} HTML del badge (Sin fecha, Caducado, Caduca en Nd o Vigente).
-   */
   function calcularBadgeCaducidad(fecha) {
     if (!fecha) return '<span class="text-muted">Sin fecha</span>';
 
@@ -309,17 +259,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<span class="badge badge--success">Vigente</span>`;
   }
 
-  /**
-   * Dibuja las filas de la tabla de productos con sus existencias y acciones
-   * (Stock, Editar y el menú ⋮ con Desactivar/Reactivar y Archivar).
-   *
-   * @param {Array<Object>} lista - Productos a mostrar.
-   */
   function renderizarTabla(lista) {
     tablaBody.innerHTML = '';
     const textoEstado = chkMostrarInactivos?.checked
       ? 'inactivos'
-      : 'activos' + (chkStockBajo?.checked ? ' con stock bajo' : '');
+      : 'activos' + (chkStockBajo?.checked ? ' con stock bajo' : chkCaducidad?.checked ? ' próximos a caducar' : '');
     productosCount.textContent = `${lista.length} producto(s) ${textoEstado}`;
 
     if (lista.length === 0) {
@@ -342,7 +286,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `<button class="btn-icon-delete btn-desactivar" data-id="${p.id}" title="Desactivar" style="background-color: #FEF3C7; color: #B45309;">Desactivar</button>`
         : `<button class="btn-icon-delete btn-activar" data-id="${p.id}" title="Reactivar" style="background-color: #E6F0EF; color: var(--color-primary);">Reactivar</button>`;
 
-      // Menú ⋮: agrupa las acciones de baja (Desactivar/Reactivar y Archivar)
       const menuOpcionesHTML = `
         <div class="menu-acciones" style="position: relative; display: inline-block;">
           <button class="btn-icon-edit btn-menu" data-id="${p.id}" title="Más opciones" style="background-color: #F3F4F6; color: #374151;">⋮</button>
@@ -360,7 +303,9 @@ document.addEventListener('DOMContentLoaded', () => {
       </td>
       <td style="${opacidad}">${badgeHTML}</td>
       <td style="${opacidad}">$${Number(p.precio).toFixed(2)}</td>
-      <!-- stock_total representa la sumatoria del almacén (lotes) -->
+      <td style="${opacidad}">
+         <small>${p.area || 'N/A'} - ${p.pasillo || 'N/A'} - ${p.seccion || 'N/A'}</small>
+      </td>
       <td style="${opacidad}"><strong>${p.stock_almacen !== undefined ? p.stock_almacen : 0}</strong></td>
       <td style="${opacidad}">${p.stock_mostrador !== undefined ? p.stock_mostrador : 0}</td>
       <td style="${opacidad}">${badgeCaducidad}</td>
@@ -381,19 +326,22 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarProductos(e.target.value.trim());
   });
 
-  // "Ver inactivos": muestra solo los inactivos; desactiva "Ver stock bajo" (mutuamente excluyentes)
   chkMostrarInactivos?.addEventListener('change', () => {
-    if (chkMostrarInactivos.checked && chkStockBajo) {
-      chkStockBajo.checked = false;
-      ordenStockBajo.style.display = 'none';
+    if (chkMostrarInactivos.checked) {
+      if (chkStockBajo) {
+        chkStockBajo.checked = false;
+        ordenStockBajo.style.display = 'none';
+      }
+      if (chkCaducidad) chkCaducidad.checked = false;
     }
     cargarProductos(buscarInput.value.trim());
   });
 
-  // "Ver stock bajo": muestra el selector de orden, recarga la tabla filtrada
-  // y desactiva "Ver inactivos" (mutuamente excluyentes)
   chkStockBajo?.addEventListener('change', () => {
-    if (chkStockBajo.checked && chkMostrarInactivos) chkMostrarInactivos.checked = false;
+    if (chkStockBajo.checked) {
+      if (chkMostrarInactivos) chkMostrarInactivos.checked = false;
+      if (chkCaducidad) chkCaducidad.checked = false;
+    }
     ordenStockBajo.style.display = chkStockBajo.checked ? 'block' : 'none';
     cargarProductos(buscarInput.value.trim());
   });
@@ -402,11 +350,17 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarProductos(buscarInput.value.trim());
   });
 
-  /**
-   * Abre el modal de producto cargado con los datos de catálogo (sin stock ni caducidad).
-   *
-   * @param {Object} producto - Producto a editar.
-   */
+  chkCaducidad?.addEventListener('change', () => {
+    if (chkCaducidad.checked) {
+      if (chkMostrarInactivos) chkMostrarInactivos.checked = false;
+      if (chkStockBajo) {
+        chkStockBajo.checked = false;
+        ordenStockBajo.style.display = 'none';
+      }
+    }
+    cargarProductos(buscarInput.value.trim());
+  });
+
   function abrirModalEdicion(producto) {
     document.getElementById('productoId').value = producto.id;
     document.getElementById('nombreProducto').value = producto.nombre;
@@ -415,6 +369,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('presentacion').value = producto.presentacion || '';
     document.getElementById('unidadMedida').value = producto.unidad_medida || '';
     document.getElementById('precio').value = producto.precio;
+    document.getElementById('area').value = producto.area || '';
+    document.getElementById('pasillo').value = producto.pasillo || '';
+    document.getElementById('seccion').value = producto.seccion || '';
     const idsSeleccionados = (producto.proveedores_ids || '')
       .toString()
       .split(',')
@@ -446,11 +403,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const payload = {
       nombre: document.getElementById('nombreProducto').value.trim(),
       codigo_barras: document.getElementById('codigoBarras').value.trim(),
-      categoria: document.getElementById('categoria').value.trim(),
+      categoria: document.getElementById('categoria').value,
       presentacion: document.getElementById('presentacion').value.trim(),
       unidad_medida: document.getElementById('unidadMedida').value,
       precio: parseFloat(document.getElementById('precio').value),
-      proveedoresIds: proveedoresSeleccionados
+      proveedoresIds: proveedoresSeleccionados,
+      area: document.getElementById('area').value.trim(),
+      pasillo: document.getElementById('pasillo').value.trim(),
+      seccion: document.getElementById('seccion').value.trim()
     };
 
     const url = idProducto ? `${API_PRODUCTOS}/${idProducto}` : API_PRODUCTOS;
@@ -534,21 +494,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  /**
-   * Muestra una alerta dentro del modal de producto.
-   *
-   * @param {string} mensaje - Texto a mostrar.
-   * @param {'success'|'error'} tipo - Tipo de alerta.
-   */
   function mostrarAlerta(mensaje, tipo) {
     modalAlert.textContent = mensaje;
     modalAlert.className = `alert alert--${tipo}`;
     modalAlert.hidden = false;
   }
 
-  /**
-   * Oculta y limpia la alerta del modal de producto.
-   */
   function ocultarAlerta() {
     if (modalAlert) {
       modalAlert.hidden = true;
@@ -556,13 +507,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ==========================================================================
-  // MENÚ DE OPCIONES (⋮) DE CADA FILA
-  // ==========================================================================
-
-  /**
-   * Cierra todos los menús ⋮ abiertos en la tabla.
-   */
   function cerrarMenusAcciones() {
     document.querySelectorAll('.menu-acciones__lista').forEach((lista) => {
       lista.style.display = 'none';
@@ -581,51 +525,29 @@ document.addEventListener('DOMContentLoaded', () => {
     cerrarMenusAcciones();
   });
 
-  // Un clic fuera del menú también lo cierra
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.menu-acciones')) cerrarMenusAcciones();
   });
 
-  // ==========================================================================
-  // LÓGICA DEL MODAL DE STOCK (LOTES + MOVER / AJUSTAR)
-  // ==========================================================================
   const modalStock = document.getElementById('modalStockOverlay');
   const alertStock = document.getElementById('modalAlertStock');
   const stockProductoId = document.getElementById('stockProductoId');
-  const formNuevoLote = document.getElementById('formNuevoLote');
   const tablaLotesBody = document.getElementById('tablaLotesBody');
-  const btnGuardarLote = document.getElementById('btnGuardarLote');
   const formAjuste = document.getElementById('formAjuste');
   const btnGuardarAjuste = document.getElementById('btnGuardarAjuste');
   const inputCantidadAjuste = document.getElementById('cantidadAjuste');
 
-  /**
-   * Obtiene la fecha local de hoy en formato YYYY-MM-DD (para el atributo min de las caducidades).
-   *
-   * @returns {string} Fecha actual local.
-   */
   function fechaLocalHoy() {
     const tzOffset = (new Date()).getTimezoneOffset() * 60000;
     return (new Date(Date.now() - tzOffset)).toISOString().slice(0, 10);
   }
 
-  /**
-   * Muestra una alerta dentro del modal de stock.
-   *
-   * @param {string} mensaje - Texto a mostrar.
-   * @param {'success'|'error'} tipo - Tipo de alerta.
-   */
   function mostrarAlertaStock(mensaje, tipo) {
     alertStock.textContent = mensaje;
     alertStock.className = `alert alert--${tipo}`;
     alertStock.hidden = false;
   }
 
-  /**
-   * Cambia la pestaña activa del modal de stock.
-   *
-   * @param {string} idPestana - Id del contenido a mostrar ('tab-lotes' o 'tab-ajuste').
-   */
   function cambiarPestana(idPestana) {
     modalStock.querySelectorAll('.tab-btn').forEach((btn) => {
       const activa = btn.dataset.target === idPestana;
@@ -639,22 +561,15 @@ document.addEventListener('DOMContentLoaded', () => {
     alertStock.hidden = true;
   }
 
-  /**
-   * Muestra u oculta el modal de stock. Al ocultarlo restablece formularios y alertas.
-   *
-   * @param {boolean} mostrar - true para mostrar el modal, false para ocultarlo.
-   */
   const toggleModalStock = (mostrar) => {
     modalStock.style.display = mostrar ? 'flex' : 'none';
     if (!mostrar) {
-      formNuevoLote.reset();
       formAjuste.reset();
       alertStock.hidden = true;
       document.getElementById('grupoCaducidadAjuste').style.display = 'none';
       inputCantidadAjuste.min = 1;
     } else {
       const hoy = fechaLocalHoy();
-      document.getElementById('loteCaducidad').setAttribute('min', hoy);
       document.getElementById('caducidadAjuste').setAttribute('min', hoy);
     }
   };
@@ -667,24 +582,11 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => cambiarPestana(btn.dataset.target));
   });
 
-  /**
-   * Actualiza el subtítulo del modal con las existencias actuales del producto.
-   *
-   * @param {Object} producto - Producto con stock_almacen y stock_mostrador.
-   */
   function actualizarSubtituloStock(producto) {
     document.getElementById('stockSubtitle').textContent =
       `${producto.codigo_barras} - ${producto.nombre} (Almacén: ${producto.stock_almacen || 0} | Mostrador: ${producto.stock_mostrador || 0})`;
   }
 
-  /**
-   * Recarga la tabla principal, los lotes y el subtítulo del modal tras un cambio de stock.
-   *
-   * @async
-   * @function refrescarStock
-   * @param {number|string} productoId - Producto que se está gestionando.
-   * @returns {Promise<void>}
-   */
   async function refrescarStock(productoId) {
     await cargarProductos(buscarInput?.value.trim());
     const producto = productosCache.find((p) => p.id == productoId);
@@ -692,46 +594,67 @@ document.addEventListener('DOMContentLoaded', () => {
     await cargarLotesDeProducto(productoId);
   }
 
-  /**
-   * Consulta los lotes de almacén de un producto y los dibuja en la tabla del modal.
-   *
-   * @async
-   * @function cargarLotesDeProducto
-   * @param {number|string} productoId - Producto cuyos lotes se consultan.
-   * @returns {Promise<void>}
-   */
   async function cargarLotesDeProducto(productoId) {
     tablaLotesBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando lotes...</td></tr>';
+    const contenedorPendientes = document.getElementById('contenedorLotesPendientes');
+    if (contenedorPendientes) contenedorPendientes.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Cargando mercancía pendiente...</p>';
+
     try {
-      const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes`, {
-        headers: { 'x-user-role': userRole }
+      const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes?_t=${Date.now()}`, {
+        headers: { 'x-user-role': userRole },
+        cache: 'no-store'
       });
       const data = await res.json();
 
       if (res.ok) {
         tablaLotesBody.innerHTML = '';
-        if (data.lotes.length === 0) {
+        if (contenedorPendientes) contenedorPendientes.innerHTML = '';
+
+        const lotesRegistrados = data.lotes.filter(l => l.estado !== 'pendiente');
+        const lotesPendientes = data.lotes.filter(l => l.estado === 'pendiente');
+
+        if (lotesRegistrados.length === 0) {
           tablaLotesBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #6B7280;">No hay lotes en almacén para este producto.</td></tr>';
-          return;
+        } else {
+          lotesRegistrados.forEach((lote) => {
+            const caducidadFormateada = lote.fecha_caducidad ? String(lote.fecha_caducidad).substring(0, 10) : '';
+            const textoCaducidad = caducidadFormateada || 'Sin caducidad';
+            const fechaRegistro = new Date(lote.recibido_en).toLocaleDateString();
+
+            tablaLotesBody.innerHTML += `
+              <tr>
+                <td><span class="badge" style="background:#E5E7EB; color:#374151;">L-${lote.id}</span></td>
+                <td><strong>${lote.cantidad}</strong></td>
+                <td>${calcularBadgeCaducidad(lote.fecha_caducidad)} <br><small class="text-muted">${textoCaducidad}</small></td>
+                <td>${fechaRegistro}</td>
+                <td>
+                  <button class="btn-eliminar-lote" data-id="${lote.id}" style="background-color: #FEE2E2; color: #991B1B; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Eliminar</button>
+                </td>
+              </tr>
+            `;
+          });
         }
 
-        data.lotes.forEach((lote) => {
-          const caducidadFormateada = lote.fecha_caducidad ? String(lote.fecha_caducidad).substring(0, 10) : '';
-          const textoCaducidad = caducidadFormateada || 'Sin caducidad';
-          const fechaRegistro = new Date(lote.recibido_en).toLocaleDateString();
-
-          tablaLotesBody.innerHTML += `
-            <tr>
-              <td><span class="badge" style="background:#E5E7EB; color:#374151;">L-${lote.id}</span></td>
-              <td><strong>${lote.cantidad}</strong></td>
-              <td>${calcularBadgeCaducidad(lote.fecha_caducidad)} <br><small class="text-muted">${textoCaducidad}</small></td>
-              <td>${fechaRegistro}</td>
-              <td>
-                <button class="btn-eliminar-lote" data-id="${lote.id}" style="background-color: #FEE2E2; color: #991B1B; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Eliminar</button>
-              </td>
-            </tr>
-          `;
-        });
+        if (lotesPendientes.length === 0) {
+          contenedorPendientes.innerHTML = '<p class="text-muted" style="font-size:0.85rem; text-align:center; padding: 1rem 0;">No hay mercancía pendiente de registro.</p>';
+        } else {
+          const hoy = fechaLocalHoy();
+          lotesPendientes.forEach((lote) => {
+            contenedorPendientes.innerHTML += `
+              <div class="field-row lote-pendiente-item" style="align-items: flex-end; margin-bottom: 1rem; padding: 1rem; background: #fff; border: 1px solid #E5E7EB; border-radius: 6px;">
+                <div class="form-group" style="width: 30%;">
+                  <label class="form-label">Cantidad Recibida</label>
+                  <input type="number" class="form-input" value="${lote.cantidad}" readonly style="background-color: #F3F4F6;" />
+                </div>
+                <div class="form-group" style="width: 40%;">
+                  <label class="form-label">Caducidad (Opcional)</label>
+                  <input type="date" class="form-input caducidad-pendiente" min="${hoy}" />
+                </div>
+                <button type="button" class="btn btn--primary btn-registrar-pendiente" data-idlote="${lote.id}" style="width: 30%;">Registrar Lote</button>
+              </div>
+            `;
+          });
+        }
       } else {
         tablaLotesBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: red;">Error al cargar lotes.</td></tr>`;
       }
@@ -740,7 +663,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Interceptar el clic en el botón "Stock" de la tabla principal
   tablaBody.addEventListener('click', (e) => {
     const btnStock = e.target.closest('.btn-stock');
     if (btnStock) {
@@ -757,44 +679,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Interceptar el envío del formulario para crear un nuevo lote
-  formNuevoLote?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const productoId = stockProductoId.value;
+  document.getElementById('contenedorLotesPendientes')?.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('btn-registrar-pendiente')) {
+      const btn = e.target;
+      const contenedor = btn.closest('.lote-pendiente-item');
+      const fechaCaducidad = contenedor.querySelector('.caducidad-pendiente').value;
+      const idLote = btn.dataset.idlote;
+      const productoId = stockProductoId.value;
 
-    const payload = {
-      cantidad: Number(document.getElementById('loteCantidad').value),
-      fecha_caducidad: document.getElementById('loteCaducidad').value || null
-    };
+      btn.disabled = true;
+      btn.textContent = 'Guardando...';
+      alertStock.hidden = true;
 
-    btnGuardarLote.disabled = true;
-    btnGuardarLote.textContent = 'Guardando...';
-    alertStock.hidden = true;
+      try {
+        const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes/${idLote}/confirmar`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
+          body: JSON.stringify({ fecha_caducidad: fechaCaducidad })
+        });
+        const data = await res.json();
 
-    try {
-      const res = await fetch(`${API_PRODUCTOS}/${productoId}/lotes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        mostrarAlertaStock('Lote agregado exitosamente al almacén.', 'success');
-        formNuevoLote.reset();
-        await refrescarStock(productoId);
-      } else {
-        mostrarAlertaStock(data.mensaje || 'Error al procesar el lote.', 'error');
+        if (res.ok) {
+          mostrarAlertaStock('Lote registrado exitosamente al almacén.', 'success');
+          await refrescarStock(productoId);
+        } else {
+          mostrarAlertaStock(data.mensaje || 'Error al procesar el lote.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Registrar Lote';
+        }
+      } catch (error) {
+        mostrarAlertaStock('Error de comunicación con el servidor.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Registrar Lote';
       }
-    } catch (error) {
-      mostrarAlertaStock('Error de comunicación con el servidor.', 'error');
-    } finally {
-      btnGuardarLote.disabled = false;
-      btnGuardarLote.textContent = 'Agregar Lote';
     }
   });
 
-  // Interceptar el clic para eliminar un lote específico
   tablaLotesBody?.addEventListener('click', async (e) => {
     const btnEliminar = e.target.closest('.btn-eliminar-lote');
     if (!btnEliminar) return;
@@ -820,14 +740,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Mostrar la caducidad solo al regresar a almacén; el conteo físico permite cantidad 0
   document.getElementById('tipoAjuste').addEventListener('change', (e) => {
     const val = e.target.value;
     document.getElementById('grupoCaducidadAjuste').style.display = val === 'regresar_almacen' ? 'block' : 'none';
     inputCantidadAjuste.min = val === 'conteo_mostrador' ? 0 : 1;
   });
 
-  // Aplicar ajuste / mover stock
   formAjuste.addEventListener('submit', async (e) => {
     e.preventDefault();
     const productoId = stockProductoId.value;

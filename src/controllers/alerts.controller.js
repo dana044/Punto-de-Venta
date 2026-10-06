@@ -20,6 +20,21 @@ const listarAlertas = async (req, res) => {
   }
 };
 
+/**
+ * Devuelve la lista de alertas de caducidad activas (productos con lotes
+ * vencidos o próximos a vencer dentro del umbral fijo).
+ */
+const listarAlertasCaducidad = async (req, res) => {
+  try {
+    const alertas = await alertsModel.getAlertasCaducidad();
+    return res.status(200).json({ total: alertas.length, alertas });
+  } catch (error) {
+    console.error('Error al listar alertas de caducidad:', error);
+    return res.status(500).json({ mensaje: 'Error interno al obtener las alertas de caducidad.' });
+  }
+};
+ 
 module.exports = {
-  listarAlertas
+  listarAlertas,
+  listarAlertasCaducidad
 };

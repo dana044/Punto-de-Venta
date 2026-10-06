@@ -1,42 +1,24 @@
 /**
  * @file validate.middleware.js
- * @description Interceptores para la validacion de integridad de datos de entrada.
+ * @description Interceptores para la validacion de integridad de datos de entrada (Adaptado a 3FN).
  * @author Citlaly Morales Viveros (Cliente / Programadora XP)
  */
 
 /**
- * Categorías permitidas para un producto. Debe coincidir con el ENUM de productos.categoria
- * en schema.sql y con las opciones del <select> de inventario.html.
- * @constant {string[]}
- */
-const CATEGORIAS_VALIDAS = ['Papelería', 'Bebidas', 'Comida', 'Tecnología', 'Limpieza', 'Herramientas', 'Hogar', 'Cuidado personal', 'Mascotas', 'Otros'];
-
-/**
- * Valida que la peticion contenga los atributos del producto, al menos un distribuidor vinculado y
- * que la fecha de caducidad tenga un formato válido
- *
- * Nota: la validación de fecha de caducidad se retiró porque el registro de un producto ya no la
- * recibe (la caducidad se captura por lote). Ahora también exige una categoría de la lista permitida.
- *
- * @function validateProduct
- * @param {import('express').Request} req - Objeto de peticion de Express.
- * @param {import('express').Response} res - Objeto de respuesta de Express.
- * @param {import('express').NextFunction} next - Funcion para transferir el control al siguiente middleware.
- * @returns {Object|void} Retorna respuesta con estado HTTP 400 en caso de fallo, o continua con next().
+ * Valida que la peticion contenga los atributos del producto y los IDs de catálogos requeridos (3FN).
  */
 const validateProduct = (req, res, next) => {
-  const { nombre, codigo_barras, categoria, presentacion, unidad_medida, precio, proveedoresIds } = req.body;
+  const { nombre, codigo_barras, categoria_id, presentacion, unidad_medida_id, precio, proveedoresIds } = req.body;
 
-  if (!nombre || !codigo_barras || !presentacion || !unidad_medida || precio === undefined || precio === null) {
+  if (!nombre || !codigo_barras || !presentacion || !categoria_id || !unidad_medida_id || precio === undefined || precio === null) {
     return res.status(400).json({
-      mensaje: 'Falta informacion basica. Debes completar nombre, codigo de barras, presentacion, unidad de medida y precio.'
+      mensaje: 'Falta información básica. Debes completar nombre, código de barras, presentación, categoría, unidad de medida y precio.'
     });
   }
 
-  // La categoría es un ENUM: solo se aceptan los valores de la lista cerrada
-  if (!CATEGORIAS_VALIDAS.includes(categoria)) {
+  if (isNaN(Number(categoria_id)) || isNaN(Number(unidad_medida_id))) {
     return res.status(400).json({
-      mensaje: `La categoria debe ser una de: ${CATEGORIAS_VALIDAS.join(', ')}.`
+      mensaje: 'La categoría y la unidad de medida deben ser identificadores válidos (IDs).'
     });
   }
 
@@ -49,18 +31,8 @@ const validateProduct = (req, res, next) => {
   next();
 };
 
-/**
- * Valida el cuerpo de la peticion para confirmar una recepcion de mercancia.
- *
- * @function validateRecepcion
- * @param {import('express').Request} req
- * @param {import('express').Response} res
- * @param {import('express').NextFunction} next
- * @returns {Object|void}
- */
 const validateRecepcion = (req, res, next) => {
   const { items } = req.body;
-
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({
       mensaje: 'Debes capturar la cantidad recibida de al menos un producto.'
@@ -73,25 +45,15 @@ const validateRecepcion = (req, res, next) => {
 
   if (itemInvalido) {
     return res.status(400).json({
-      mensaje: 'Cada producto debe incluir productoId y una cantidadRecibida valida (no negativa).'
+      mensaje: 'Cada producto debe incluir productoId y una cantidadRecibida válida (no negativa).'
     });
   }
 
   next();
 };
 
-/**
- * Valida el carrito enviado para recalcular subtotal, descuentos y total.
- *
- * @function validateCarrito
- * @param {import('express').Request} req
- * @param {import('express').Response} res
- * @param {import('express').NextFunction} next
- * @returns {Object|void}
- */
 const validateCarrito = (req, res, next) => {
   const { items } = req.body;
-
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({
       mensaje: 'La venta debe tener al menos un producto para calcular los totales.'
@@ -99,7 +61,6 @@ const validateCarrito = (req, res, next) => {
   }
 
   const tiposValidos = ['porcentaje', 'monto'];
-
   const itemInvalido = items.find((item) => {
     const cantidadInvalida = item.productoId === undefined || !item.cantidad || Number(item.cantidad) <= 0;
     const descuentoInvalido = item.descuentoTipo !== undefined && !tiposValidos.includes(item.descuentoTipo);
@@ -116,74 +77,56 @@ const validateCarrito = (req, res, next) => {
 };
 
 /**
- * Roles autorizados para el registro de empleados.
- * @constant {string[]}
+ * Roles válidos basados en IDs numéricos de la tabla roles (1: admin, 2: cajero, 3: almacenista).
  */
-const ROLES_VALIDOS = ['administrador', 'cajero', 'almacenista'];
+const ROLES_VALIDOS_IDS = [1, 2, 3];
 
-/**
- * Valida la captura de datos y contrasenas al registrar empleados.
- *
- * @function validateEmployee
- * @param {import('express').Request} req
- * @param {import('express').Response} res
- * @param {import('express').NextFunction} next
- * @returns {Object|void}
- */
 const validateEmployee = (req, res, next) => {
-  const { nombreCompleto, correo, role, password, confirmarPassword } = req.body;
+  const { nombreCompleto, correo, rolId, password, confirmarPassword } = req.body;
 
-  if (!nombreCompleto || !correo || !role || !password) {
+  if (!nombreCompleto || !correo || !rolId || !password) {
     return res.status(400).json({
-      mensaje: 'Falta informacion. Debes completar nombre completo, puesto, usuario y contrasena.'
+      mensaje: 'Falta información. Debes completar nombre completo, correo, rol y contraseña.'
     });
   }
 
-  if (!ROLES_VALIDOS.includes(role)) {
+  if (!ROLES_VALIDOS_IDS.includes(Number(rolId))) {
     return res.status(400).json({
-      mensaje: 'El rol debe ser administrador, cajero o almacenista.'
+      mensaje: 'El ID de rol seleccionado no es válido.'
     });
   }
 
   if (password.length < 8) {
     return res.status(400).json({
-      mensaje: 'La contrasena debe tener al menos 8 caracteres.'
+      mensaje: 'La contraseña debe tener al menos 8 caracteres.'
     });
   }
 
   if (password !== confirmarPassword) {
     return res.status(400).json({
-      mensaje: 'Las contrasenas no coinciden.'
+      mensaje: 'Las contraseñas no coinciden.'
     });
   }
 
   next();
 };
 
-/**
- * Valida el cuerpo de la peticion para registrar un ajuste manual de inventario
- * (cantidad numerica no negativa, tipo de ajuste permitido y motivo obligatorio).
- *
- * @function validateAjuste
- * @param {import('express').Request} req
- * @param {import('express').Response} res
- * @param {import('express').NextFunction} next
- * @returns {Object|void} Retorna respuesta con estado HTTP 400 en caso de fallo, o continua con next().
- */
 const validateAjuste = (req, res, next) => {
   const { cantidad, tipoAjuste, motivo } = req.body;
-  // Se agregaron los tipos de transferencia a los tipos validos
   const tiposValidos = ['merma', 'daño', 'ingreso_manual', 'conteo', 'transferencia_mostrador', 'transferencia_almacen'];
 
   if (cantidad === undefined || isNaN(cantidad) || Number(cantidad) < 0) {
     return res.status(400).json({ mensaje: 'Debes enviar una cantidad válida mayor o igual a cero.' });
   }
+
   if (!tiposValidos.includes(tipoAjuste)) {
     return res.status(400).json({ mensaje: `El tipo de ajuste debe ser uno de: ${tiposValidos.join(', ')}.` });
   }
+
   if (!motivo || motivo.trim() === '') {
     return res.status(400).json({ mensaje: 'Debes incluir un motivo para auditar este ajuste.' });
   }
+
   next();
 };
 

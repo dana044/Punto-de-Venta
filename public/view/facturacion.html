@@ -1,0 +1,160 @@
+<!--
+  Punto de Venta UV - Facturación (SIMULADA)
+  Proyecto: La Number One
+-->
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Punto de Venta UV · Facturación</title>
+    <link rel="stylesheet" href="/css/01-variables.css" />
+    <link rel="stylesheet" href="/css/02-base.css" />
+    <link rel="stylesheet" href="/css/04-components.css" />
+    <link rel="stylesheet" href="/css/10-facturacion.css" />
+</head>
+
+<body class="fact-body">
+
+    <header class="fact-header">
+        <img src="/img/logo.png" alt="Logo de La Number One" />
+        <div>
+            <h1>La Number One</h1>
+            <p>Facturación en línea</p>
+        </div>
+    </header>
+
+    <main class="fact-main">
+        <h2 class="fact-titulo">Factura tu compra</h2>
+        <p class="fact-subtitulo">Sigue los dos pasos con los datos que aparecen en tu ticket.</p>
+
+        <div class="fact-nota">
+            Este módulo es una <strong>simulación con fines académicos</strong>: no se conecta con el SAT
+            ni genera una factura fiscal (CFDI) real.
+        </div>
+
+        <!-- PASO 1: validación de la compra -->
+        <section class="fact-card" aria-labelledby="tituloPaso1">
+            <h2 id="tituloPaso1"><span class="step-badge">1</span> Validación de la compra</h2>
+
+            <div id="mensajePaso1" class="alert" role="alert" hidden></div>
+
+            <form id="formPaso1" novalidate>
+                <div class="fact-grid">
+                    <div class="form-group fact-ancho">
+                        <label class="form-label" for="inputFolioFacturacion">Folio de facturación</label>
+                        <input type="text" id="inputFolioFacturacion" class="form-input" maxlength="20"
+                            placeholder="Ej. 0B3A-598D-2026" autocomplete="off" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="inputFechaCompra">Fecha de compra</label>
+                        <input type="date" id="inputFechaCompra" class="form-input" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="inputFolioVenta">Folio de venta (ticket)</label>
+                        <input type="text" id="inputFolioVenta" class="form-input" maxlength="30"
+                            placeholder="Ej. VTA-2026-00001" autocomplete="off" />
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn--primary" id="btnValidar">Validar folio</button>
+            </form>
+
+            <!-- Indicador de carga: la validación se simula entre 3 y 5 segundos -->
+            <div id="cargandoValidacion" class="fact-cargando" hidden>
+                <div class="fact-spinner"></div>
+                <span>Validando tu compra...</span>
+            </div>
+
+            <div id="resumenVenta" class="fact-resumen" hidden>
+                <div><span>Folio de venta</span><strong id="resFolioVenta">---</strong></div>
+                <div><span>Fecha de compra</span><strong id="resFecha">---</strong></div>
+                <div><span>Total de la compra</span><strong id="resTotal">---</strong></div>
+            </div>
+        </section>
+
+        <!-- PASO 2: datos fiscales (deshabilitado hasta validar el Paso 1) -->
+        <section class="fact-card" aria-labelledby="tituloPaso2">
+            <h2 id="tituloPaso2"><span class="step-badge">2</span> Datos fiscales</h2>
+
+            <div id="mensajePaso2" class="alert" role="alert" hidden></div>
+
+            <form id="formPaso2" novalidate>
+                <fieldset id="paso2" class="fact-paso2" disabled>
+                    <div class="fact-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="inputRfc">RFC</label>
+                            <input type="text" id="inputRfc" class="form-input" maxlength="13"
+                                placeholder="Ej. XAXX010101000" autocomplete="off" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="inputCodigoPostal">Código postal</label>
+                            <input type="text" id="inputCodigoPostal" class="form-input" maxlength="5"
+                                inputmode="numeric" placeholder="5 dígitos" autocomplete="off" />
+                        </div>
+                        <div class="form-group fact-ancho">
+                            <label class="form-label" for="inputNombre">Nombre / Razón social</label>
+                            <input type="text" id="inputNombre" class="form-input" maxlength="150" autocomplete="off" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="selectRegimen">Régimen fiscal</label>
+                            <select id="selectRegimen" class="form-select">
+                                <option value="">Selecciona...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="selectUsoCfdi">Uso de CFDI</label>
+                            <select id="selectUsoCfdi" class="form-select">
+                                <option value="">Selecciona...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label class="fact-check">
+                        <input type="checkbox" id="chkCorreo" />
+                        <span>Quiero recibir la factura por correo electrónico</span>
+                    </label>
+
+                    <div class="fact-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="inputCorreo">Correo electrónico</label>
+                            <input type="email" id="inputCorreo" class="form-input" maxlength="120" autocomplete="off"
+                                disabled />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="inputCorreoConfirmar">Confirmar correo electrónico</label>
+                            <input type="email" id="inputCorreoConfirmar" class="form-input" maxlength="120"
+                                autocomplete="off" disabled />
+                        </div>
+                    </div>
+
+                    <label class="fact-check">
+                        <input type="checkbox" id="chkAviso" />
+                        <span>He leído y acepto el <a href="/politica-privacidad" target="_blank" rel="noopener">Aviso
+                                de Privacidad</a></span>
+                    </label>
+                </fieldset>
+
+                <div class="fact-acciones">
+                    <button type="submit" class="btn btn--primary" id="btnObtenerFactura" disabled>Obtener
+                        factura</button>
+                    <button type="button" class="btn btn--secondary" id="btnOtroTicket">Facturar otro ticket</button>
+                </div>
+            </form>
+
+            <!-- Confirmación de la solicitud -->
+            <div id="resultadoFactura" class="alert alert--success" style="margin-top: 1rem;" hidden>
+                <div id="resultadoMensaje"></div>
+                <div id="resultadoDetalle" style="font-weight: 400; margin-top: 0.25rem;"></div>
+                <div class="fact-referencia">Folio de facturación: <strong id="resFolioFacturacion">---</strong></div>
+                <div class="fact-referencia">Identificador de factura simulada: <strong
+                        id="resFolioFactura">---</strong></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/js/facturacion.js"></script>
+</body>
+
+</html>

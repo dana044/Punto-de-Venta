@@ -1,8 +1,8 @@
 <!--
-  Punto de Venta UV — Gestión de Inventario
-  @author Citlaly Morales Viveros (Cliente / Programadora XP)
-  @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
--->
+    Punto de Venta UV — Gestión de Inventario
+    @author Citlaly Morales Viveros (Cliente / Programadora XP)
+    @author Stephanie Elizdeth Hernández Prieto (Tracker / Programadora XP)
+  -->
 <!DOCTYPE html>
 <html lang="es">
 
@@ -87,6 +87,7 @@
       </div>
 
       <div id="panelAlertasStock"></div>
+      <div id="panelAlertasCaducidad"></div>
 
       <!-- Tabla de productos en inventario -->
       <section class="table-section">
@@ -108,6 +109,10 @@
                 <option value="almacen">Solo alerta en almacén</option>
                 <option value="mostrador">Solo alerta en mostrador</option>
               </select>
+              <!-- Filtro de productos vencidos o próximos a vencer (mismo umbral del banner) -->
+              <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                <input type="checkbox" id="chkCaducidad"> Ver próximos a caducar
+              </label>
               <div class="table-search">
                 <input type="text" id="buscarProducto" placeholder="Buscar por nombre, código o categoría..." />
               </div>
@@ -122,6 +127,7 @@
                   <th>Producto</th>
                   <th>Categoría</th>
                   <th>Precio</th>
+                  <th>Ubicación</th>
                   <th>Almacén</th>
                   <th>Mostrador</th>
                   <th>Caducidad</th>
@@ -143,7 +149,8 @@
           <header class="stepped-card__header">
             <div>
               <strong id="formTitle">Registro de Nuevos Productos</strong>
-              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;">Ingresa los datos generales y asocia los distribuidores correspondientes.</p>
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;">Ingresa los datos generales y
+                asocia los distribuidores correspondientes.</p>
             </div>
             <button type="button" id="btnCerrarModal" class="btn-close-modal">&times;</button>
           </header>
@@ -158,7 +165,8 @@
 
               <div class="form-group" style="margin-top: 1rem;">
                 <label class="form-label" for="nombreProducto">Nombre del Producto</label>
-                <input type="text" id="nombreProducto" class="form-input" placeholder="Ej. Libreta Universitaria" required />
+                <input type="text" id="nombreProducto" class="form-input" placeholder="Ej. Libreta Universitaria"
+                  required />
               </div>
 
               <div class="field-row">
@@ -187,7 +195,8 @@
               <div class="field-row">
                 <div class="form-group">
                   <label class="form-label" for="presentacion">Presentación</label>
-                  <input type="text" id="presentacion" class="form-input" placeholder="Ej. Cuadro Chico 100 hojas" required />
+                  <input type="text" id="presentacion" class="form-input" placeholder="Ej. Cuadro Chico 100 hojas"
+                    required />
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="unidadMedida">Unidad de Medida</label>
@@ -210,12 +219,34 @@
                 <input type="number" step="0.01" min="0" id="precio" class="form-input" placeholder="0.00" required />
               </div>
 
-              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.75rem;">Las existencias y caducidades se administran desde el botón «Stock» del producto.</p>
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.75rem;">Las existencias y caducidades se
+                administran desde el botón «Stock» del producto.</p>
 
               <div class="form-group" style="margin-top: 1rem;">
                 <label class="form-label">Distribuidores / Proveedores Asociados</label>
-                <div id="proveedoresContainer" class="form-input" style="min-height: 60px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; background-color: #FAFAFA;">
+                <div id="proveedoresContainer" class="form-input"
+                  style="min-height: 60px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; background-color: #FAFAFA;">
                   <span class="text-muted">Cargando distribuidores...</span>
+                </div>
+              </div>
+
+              <p style="margin-top: 1.5rem; border-bottom: 1px solid #E5E7EB; padding-bottom: 0.5rem;">
+                <strong>Ubicación Física</strong>
+              </p>
+
+              <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label" for="area">Área / Almacén</label>
+                <input type="text" id="area" class="form-input" placeholder="Ej. Almacén Principal" />
+              </div>
+
+              <div class="field-row">
+                <div class="form-group">
+                  <label class="form-label" for="pasillo">Pasillo</label>
+                  <input type="text" id="pasillo" class="form-input" placeholder="Ej. Pasillo A" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="seccion">Sección / Anaquel</label>
+                  <input type="text" id="seccion" class="form-input" placeholder="Ej. Sección 3" />
                 </div>
               </div>
             </section>
@@ -234,7 +265,8 @@
           <header class="stepped-card__header">
             <div>
               <strong id="stockTitle">Gestión de Stock</strong>
-              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;" id="stockSubtitle">Producto seleccionado</p>
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.15rem;" id="stockSubtitle">Producto
+                seleccionado</p>
             </div>
             <button type="button" id="btnCerrarModalStock" class="btn-close-modal">&times;</button>
           </header>
@@ -244,7 +276,8 @@
           <!-- Pestañas -->
           <div style="display: flex; gap: 1rem; border-bottom: 1px solid #E5E7EB; margin: 0 1.5rem; padding-top: 1rem;">
             <button type="button" class="tab-btn active" data-target="tab-lotes"
-              style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-weight: bold; border-bottom: 2px solid var(--color-primary);">Lotes (Almacén)</button>
+              style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-weight: bold; border-bottom: 2px solid var(--color-primary);">Lotes
+              (Almacén)</button>
             <button type="button" class="tab-btn" data-target="tab-ajuste"
               style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer;">Mover / Ajustar</button>
           </div>
@@ -253,21 +286,15 @@
 
           <!-- Pestaña: Lotes -->
           <div id="tab-lotes" class="tab-content">
-            <form id="formNuevoLote" style="padding: 1.5rem; background: #FAFAFA; border-bottom: 1px solid #E5E7EB;">
-              <p style="font-size: 0.9rem; margin-bottom: 0.3rem;"><strong>+ Ingresar nueva mercancía</strong></p>
-              <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.8rem;">Al agregar o eliminar lotes, el stock de almacén se ajusta automáticamente.</p>
-              <div class="field-row" style="align-items: flex-end;">
-                <div class="form-group">
-                  <label class="form-label" for="loteCantidad">Cantidad</label>
-                  <input type="number" id="loteCantidad" class="form-input" min="1" placeholder="Ej. 50" required />
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="loteCaducidad">Caducidad (Opcional)</label>
-                  <input type="date" id="loteCaducidad" class="form-input" />
-                </div>
-                <button type="submit" class="btn btn--primary" id="btnGuardarLote">Agregar Lote</button>
-              </div>
-            </form>
+            <!-- Lotes Pendientes de Registro -->
+            <div id="seccionLotesPendientes"
+              style="padding: 1.5rem; background: #FAFAFA; border-bottom: 1px solid #E5E7EB;">
+              <p style="font-size: 0.9rem; margin-bottom: 0.3rem;"><strong>+ Lotes Pendientes de Registro</strong></p>
+              <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.8rem;">Asigna la fecha de caducidad a la
+                mercancía recién recibida para moverla al almacén.</p>
+
+              <div id="contenedorLotesPendientes"></div>
+            </div>
 
             <div style="padding: 1.5rem; max-height: 300px; overflow-y: auto;">
               <table class="data-table" style="width: 100%;">
@@ -324,7 +351,8 @@
 
                 <div class="form-group" style="margin-top: 1rem;">
                   <label class="form-label" for="motivoAjuste">Motivo (Auditoría)</label>
-                  <input type="text" id="motivoAjuste" class="form-input" placeholder="Ej. Inventario mensual, caja rota..." required />
+                  <input type="text" id="motivoAjuste" class="form-input"
+                    placeholder="Ej. Inventario mensual, caja rota..." required />
                 </div>
               </section>
 
@@ -344,4 +372,5 @@
   <script src="/js/inactividad.js"></script>
   <script src="/js/alertas.js"></script>
 </body>
+
 </html>

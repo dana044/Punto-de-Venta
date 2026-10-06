@@ -19,4 +19,15 @@ router.get(
   alertsController.listarAlertas
 );
 
+/**
+ * Lista las alertas de caducidad activas (lotes vencidos o próximos a
+ * vencer dentro del umbral mínimo fijo).
+ * @route {GET} /api/alerts/caducidad
+ */
+router.get(
+  '/caducidad',
+  permitirRoles('administrador', 'almacenista'),
+  alertsController.listarAlertasCaducidad
+);
+
 module.exports = router;

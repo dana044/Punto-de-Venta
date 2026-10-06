@@ -56,6 +56,50 @@ const getAlertas = async () => {
   return alertas;
 };
 
+const UMBRAL_CADUCIDAD_DIAS = 7;
+/**
+ * Lista los productos con al menos un lote vigente (cantidad > 0) cuya
+ * fecha de caducidad ya pasó o está dentro del umbral fijo de días. Si un
+ * producto tiene varios lotes próximos a vencer, se reporta solo el más
+ * próximo (el que primero hay que vender o dar de baja).
+ *
+ * @async
+ * @function getAlertasCaducidad
+ * @returns {Promise<Array<{productoId: number, productoNombre: string, fechaCaducidad: string, diasRestantes: number}>>}
+ */
+const getAlertasCaducidad = async () => {
+  const query = `
+    SELECT 
+      p.id,
+      p.nombre,
+      MIN(l.fecha_caducidad) AS fecha_caducidad
+    FROM productos p
+    JOIN lotes_producto l ON l.producto_id = p.id
+    WHERE p.activo = 1
+      AND l.cantidad > 0
+      AND l.fecha_caducidad IS NOT NULL
+      AND l.fecha_caducidad <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+    GROUP BY p.id, p.nombre
+    ORDER BY fecha_caducidad ASC
+  `;
+ 
+  const [rows] = await db.execute(query, [UMBRAL_CADUCIDAD_DIAS]);
+ 
+  const hoy = new Date();
+  return rows.map((producto) => {
+    const fechaCad = new Date(producto.fecha_caducidad);
+    const diasRestantes = Math.ceil((fechaCad - hoy) / (1000 * 60 * 60 * 24));
+ 
+    return {
+      productoId: producto.id,
+      productoNombre: producto.nombre,
+      fechaCaducidad: producto.fecha_caducidad,
+      diasRestantes
+    };
+  });
+};
+ 
 module.exports = {
-  getAlertas
+  getAlertas,
+  getAlertasCaducidad
 };

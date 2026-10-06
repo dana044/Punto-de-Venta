@@ -160,6 +160,8 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("userRole", datos.usuario.role);
     /** Nombre del usuario, se muestra en los reportes impresos (si no viene, se usa el correo). */
     localStorage.setItem("userName", datos.usuario.nombre || datos.usuario.correo);
+    /** Id del usuario en sesión */
+    localStorage.setItem("userId", datos.usuario.id);
 
     switch (datos.usuario.role) {
       case 'administrador':

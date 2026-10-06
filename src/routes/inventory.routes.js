@@ -7,7 +7,6 @@
 const express = require('express');
 const router = express.Router();
 const inventoryController = require('../controllers/inventory.controller.js');
-const { validateProduct } = require('../middlewares/validate.middleware.js');
 const { permitirRoles } = require('../middlewares/auth.middleware.js');
 
 /**
@@ -41,7 +40,6 @@ router.get('/proveedores', inventoryController.listarProveedores);
 router.post(
   '/productos',
   permitirRoles('administrador', 'almacenista'),
-  validateProduct,
   inventoryController.registrarProducto
 );
 
@@ -59,8 +57,8 @@ router.get('/productos', inventoryController.getProducto);
  * @route {PATCH} /api/inventory/productos/:id/baja
  */
 router.patch(
-  '/productos/:id/baja', 
-  permitirRoles('administrador', 'almacenista'), 
+  '/productos/:id/baja',
+  permitirRoles('administrador', 'almacenista'),
   inventoryController.bajaProducto
 );
 
@@ -74,8 +72,20 @@ router.patch(
 router.put(
   '/productos/:id',
   permitirRoles('administrador', 'almacenista'),
-  validateProduct,
   inventoryController.actualizarProducto
+);
+
+/**
+ * Ruta para confirmar un lote pendiente de registro, asignando su caducidad definitiva
+ * y sumando sus existencias al almacén general.
+ * Restringida a los roles 'administrador' y 'almacenista'.
+ * @name put/productos/:id/lotes/:idLote/confirmar
+ * @route {PUT} /api/inventory/productos/:id/lotes/:idLote/confirmar
+ */
+router.put(
+  '/productos/:id/lotes/:idLote/confirmar',
+  permitirRoles('administrador', 'almacenista'),
+  inventoryController.confirmarLotePendiente
 );
 
 /**

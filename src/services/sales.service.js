@@ -6,20 +6,20 @@
 
 const crypto = require('crypto');
 const { findById } = require('../models/product.model.js');
-const db = require('../config/db'); // Se agregó importación DB
+const db = require('../config/db');
 const SaleModel = require('../models/sale.model.js');
 
 const IVA_RATE = 0.16;
 
 /**
- * Genera el folio único de auto-facturación que se imprime al pie del ticket.
- * Formato: XXXX-XXXX-AAAA (8 caracteres hexadecimales aleatorios + año en curso).
- * @returns {string} Folio de facturación, ej. "7A9B-3C1E-2026".
+ * Genera un No. de Autorización de 6 dígitos (100000-999999) para los pagos con tarjeta.
+ * Usa crypto.randomInt (aleatorio criptográfico). La unicidad la garantiza el índice UNIQUE
+ * de ventas.num_autorizacion.
+ * @returns {string} Número de 6 dígitos, ej. "483920".
  */
-const generarFolioFacturacion = () => {
-  const aleatorio = crypto.randomBytes(4).toString('hex').toUpperCase();
-  return `${aleatorio.slice(0, 4)}-${aleatorio.slice(4)}-${new Date().getFullYear()}`;
-};
+const generarNumAutorizacion = () => String(crypto.randomInt(100000, 1000000));
+
+const MAX_INTENTOS_UNICOS = 10;
 
 const buscarProducto = async (productoId) => {
   return await findById(productoId);
@@ -54,9 +54,8 @@ const calcularVenta = async (items) => {
       return { ok: false, mensaje: `La cantidad de "${producto.nombre}" debe ser mayor a 0.` };
     }
 
-    // Validación de stock desde mostrador
     if (producto.stock_mostrador < cantidad) {
-       return { ok: false, mensaje: `Stock insuficiente en mostrador para "${producto.nombre}". Disp: ${producto.stock_mostrador}` };
+      return { ok: false, mensaje: `Stock insuficiente en mostrador para "${producto.nombre}". Disp: ${producto.stock_mostrador}` };
     }
 
     const subtotalLinea = Number(producto.precio) * cantidad;
@@ -96,49 +95,45 @@ const calcularVenta = async (items) => {
 };
 
 /**
- * Registra formalmente la venta (HU-30).
- * Genera el cargo, el detalle transaccional y descuenta el stock en una sola operación atómica.
+ * Registra formalmente la venta.
+ * La inserción ignora columnas calculadas (subtotal, total_linea, etc.)
+ * y las delega completamente al motor MySQL.
  */
 const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido, numAutorizacion) => {
-  // 1. Recalcular y validar todo el carrito y el stock
   const calculo = await calcularVenta(items);
   if (!calculo.ok) return calculo;
-  
+
   const ventaData = calculo.resultado;
-  
-  // 2. Validar que el pago cubra el total
+
   if (metodoPago === 'efectivo' && montoRecibido < ventaData.total) {
     return { ok: false, mensaje: 'El monto recibido es menor al total a cobrar.' };
   }
 
-  // 2.1 Validar el No. de Autorización opcional del voucher (solo aplica a pagos con tarjeta)
-  const autorizacion = metodoPago === 'tarjeta' && numAutorizacion ? String(numAutorizacion).trim() : null;
-  if (autorizacion && !/^\d{6}$/.test(autorizacion)) {
-    return { ok: false, mensaje: 'El No. de Autorización debe contener exactamente 6 dígitos.' };
-  }
-
-  // 2.2 Folio de auto-facturación: la venta se procesa como "Público en General" y el cliente factura después
-  const folioFacturacion = generarFolioFacturacion();
+  let autorizacion = metodoPago === 'tarjeta' ? generarNumAutorizacion() : null;
 
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
 
-    // 3. Insertar la cabecera de la venta
-    const [ventaResult] = await connection.execute(
-      'INSERT INTO ventas (usuario_id, subtotal, descuentos, iva, total, metodo_pago, num_autorizacion, folio_facturacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [usuarioId, ventaData.subtotal, ventaData.descuentos, ventaData.iva, ventaData.total, metodoPago, autorizacion, folioFacturacion]
-    );
+    let ventaResult;
+    for (let intento = 1; ; intento++) {
+      try {
+        //La cabecera no guarda subtotales ni folios de facturación externos
+        [ventaResult] = await connection.execute(
+          'INSERT INTO ventas (usuario_id, metodo_pago, num_autorizacion) VALUES (?, ?, ?)',
+          [usuarioId, metodoPago, autorizacion]
+        );
+        break;
+      } catch (errorInsercion) {
+        if (errorInsercion.code !== 'ER_DUP_ENTRY' || intento >= MAX_INTENTOS_UNICOS) throw errorInsercion;
+        if (autorizacion) autorizacion = generarNumAutorizacion();
+      }
+    }
     const ventaId = ventaResult.insertId;
 
-    // 3.1 Se guarda el folio definitivo (mismo formato que el folio mostrado en el POS)
     const folio = SaleModel.formatearFolio(ventaId);
     await connection.execute('UPDATE ventas SET folio = ? WHERE id = ?', [folio, ventaId]);
 
-    // 4. Insertar el detalle por partida y descontar inventario de MOSTRADOR
-    //    Se vuelve a leer el stock con FOR UPDATE dentro de la misma transacción
-    //    para evitar que dos ventas simultáneas dejen el stock en negativo
-    
     for (const item of ventaData.items) {
       const [filas] = await connection.execute(
         'SELECT stock_mostrador FROM productos WHERE id = ? FOR UPDATE',
@@ -156,24 +151,24 @@ const registrarVenta = async (items, usuarioId, metodoPago, montoRecibido, numAu
         [item.cantidad, item.productoId]
       );
 
+      //MySQL calcula subtotal_linea, descuento_linea y total_linea automáticamente a través de columnas VIRTUAL GENERATED
       await connection.execute(
-        `INSERT INTO venta_detalle (venta_id, producto_id, cantidad, precio_unitario, descuento_tipo, descuento_valor, subtotal_linea, descuento_linea, total_linea) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [ventaId, item.productoId, item.cantidad, item.precioUnitario, item.descuentoTipo, item.descuentoValor, item.subtotalLinea, item.descuentoLinea, item.totalLinea]
+        `INSERT INTO venta_detalle (venta_id, producto_id, cantidad, precio_unitario, descuento_tipo, descuento_valor) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [ventaId, item.productoId, item.cantidad, item.precioUnitario, item.descuentoTipo, item.descuentoValor]
       );
     }
 
     await connection.commit();
-    
-    // 5. Retornar el folio y el cálculo del vuelto
-    return { 
-      ok: true, 
+
+    return {
+      ok: true,
       resultado: {
-         mensaje: 'Venta procesada con éxito.',
-         folio,
-         folioFacturacion,
-         total: ventaData.total,
-         cambio: metodoPago === 'efectivo' ? Number((montoRecibido - ventaData.total).toFixed(2)) : 0
+        mensaje: 'Venta procesada con éxito.',
+        folio,
+        numAutorizacion: autorizacion,
+        total: ventaData.total,
+        cambio: metodoPago === 'efectivo' ? Number((montoRecibido - ventaData.total).toFixed(2)) : 0
       }
     };
   } catch (error) {

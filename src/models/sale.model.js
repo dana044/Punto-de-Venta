@@ -105,7 +105,7 @@ class SaleModel {
                 SUM(vd.total_linea) AS total_recaudado
             FROM venta_detalle vd
             INNER JOIN ventas v ON vd.venta_id = v.id
-            INNER JOIN productos p ON vd.producto_id = p.id
+            INNER JOIN v_productos p ON vd.producto_id = p.id
             WHERE YEAR(v.fecha) = ? AND MONTH(v.fecha) = ?
             GROUP BY p.id, p.nombre, p.codigo_barras, p.categoria
             ORDER BY total_unidades_vendidas DESC;
@@ -181,11 +181,12 @@ class SaleModel {
      */
     static async getCategoriasCatalogo() {
         const query = `
-            SELECT p.categoria AS categoria, COUNT(p.id) AS total_productos
+            SELECT c.nombre AS categoria, COUNT(p.id) AS total_productos
             FROM productos p
-            WHERE p.activo = 1
-            GROUP BY p.categoria
-            ORDER BY p.categoria ASC;
+            JOIN categorias c ON p.categoria_id = c.id
+            WHERE p.estado_id = 1
+            GROUP BY c.id, c.nombre
+            ORDER BY c.nombre ASC;
         `;
         const [rows] = await db.query(query);
         return rows;
@@ -202,8 +203,8 @@ class SaleModel {
     static async getProductosCatalogo(categoria, termino) {
         let query = `
             SELECT id, nombre, codigo_barras, categoria, precio, stock_mostrador
-            FROM productos
-            WHERE activo = 1
+            FROM v_productos
+            WHERE estado = 'activo'
         `;
         const params = [];
 

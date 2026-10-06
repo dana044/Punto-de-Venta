@@ -3,14 +3,14 @@
  * @description Controlador para el alta de empleados y sus credenciales de acceso y administración de cuentas.
  */
 
-const { 
-  createUser, 
-  getAllUsers, 
-  findByCorreoYRol, 
-  getUserById, 
-  updateUser, 
-  setUserActivo, 
-  deleteUser 
+const {
+  createUser,
+  getAllUsers,
+  findByCorreoYRol,
+  getUserById,
+  updateUser,
+  setUserActivo,
+  deleteUser
 } = require('../models/user.model.js');
 
 /**
@@ -24,18 +24,28 @@ const {
  * @returns {Promise<Object>} Respuesta JSON con el empleado creado (sin la contraseña) o el error correspondiente.
  */
 const registrarEmpleado = async (req, res) => {
-  const { nombreCompleto, correo, role, password } = req.body;
+  const { nombreCompleto, correo, role, rol, password } = req.body;
+  const rolFinal = role || rol;
 
   try {
-    /** Evita correos duplicados, igual que hará el login al buscarlos. */
-    const correoDuplicado = await findByCorreoYRol(correo, role);
+    if (!nombreCompleto || !correo || !rolFinal || !password) {
+      return res.status(400).json({
+        mensaje: 'Falta información. Debes completar nombre completo, correo, rol y contraseña.'
+      });
+    }
+
+    const correoDuplicado = await findByCorreoYRol(correo, rolFinal);
     if (correoDuplicado) {
       return res.status(409).json({ mensaje: 'Ese correo ya está en uso con ese rol. Usa un correo diferente.' });
     }
 
-    const nuevoEmpleado = await createUser({ nombreCompleto, correo, password, role });
+    const nuevoEmpleado = await createUser({
+      nombreCompleto,
+      correo,
+      password,
+      role: rolFinal
+    });
 
-    /** Nunca se devuelve la contraseña en la respuesta. */
     const { password: _passwordOculta, ...empleadoParaCliente } = nuevoEmpleado;
 
     return res.status(201).json({

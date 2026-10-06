@@ -1,52 +1,22 @@
 /**
  * @file suppliers.controller.js
- * @description Controlador para la gestión de proveedores: altas, listados, edición y baja lógica.
- *              Validación y normalización de múltiples teléfonos y correos por distribuidor.
+ * @description Controlador para la gestión de proveedores (Adaptado a 3FN).
+ *              Validación y normalización de múltiples teléfonos, correos y desglose de dirección.
  * @author Alfonso Mendoza Vásquez (Doomsayer / Programador XP)
  * @author Citlaly Morales Viveros (Cliente / Programador XP)
  */
 
 const SupplierModel = require('../models/supplier.model');
 
-/**
- * Tipos de teléfono aceptados (deben coincidir con el ENUM de proveedor_telefonos).
- * @constant {string[]}
- */
 const TIPOS_TELEFONO = ['oficina', 'celular', 'whatsapp', 'otro'];
-
-/**
- * Máximo de teléfonos y de correos que se pueden registrar por distribuidor.
- * @constant {number}
- */
 const MAX_CONTACTOS = 10;
-
-/**
- * Expresión regular para validar el formato de un correo electrónico.
- * @constant {RegExp}
- */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/**
- * Expresión regular para validar un teléfono: solo dígitos, de 7 a 15 caracteres.
- * @constant {RegExp}
- */
 const TELEFONO_REGEX = /^\d{7,15}$/;
 
 /**
- * Valida y normaliza los medios de contacto recibidos en el cuerpo de la petición.
- *
- * Acepta las listas nuevas y, por compatibilidad, los campos 'telefono' y 'email'.
- * Las filas vacías se descartan, los correos se pasan a minúsculas y se rechazan los repetidos.
- * Una lista que no se envió queda como `undefined` en el resultado, lo que significa "no modificar".
+ * Valida y normaliza los medios de contacto recibidos.
  *
  * @function normalizarContactos
- * @param {Object} body - Datos de contacto de la petición.
- * @param {string} [body.telefono] - Teléfono único (formato anterior).
- * @param {string} [body.email] - Correo único (formato anterior).
- * @param {Array<{telefono: string, tipo: string}|string>} [body.telefonos] - Lista de teléfonos.
- * @param {Array<{correo: string}|string>} [body.correos] - Lista de correos.
- * @returns {{telefonos?: Array<{telefono: string, tipo: string}>, correos?: string[], error?: string}}
- *          Listas normalizadas, o 'error' con el mensaje a mostrar si alguna validación falla.
  */
 const normalizarContactos = ({ telefono, email, telefonos, correos }) => {
     let listaTelefonos;
@@ -66,7 +36,7 @@ const normalizarContactos = ({ telefono, email, telefonos, correos }) => {
         for (const item of listaTelefonos) {
             const esObjeto = item !== null && typeof item === 'object';
             const numero = String((esObjeto ? item.telefono : item) ?? '').trim();
-            if (!numero) continue; // fila vacía
+            if (!numero) continue;
 
             if (!TELEFONO_REGEX.test(numero)) {
                 return { error: `El teléfono "${numero}" no es válido. Usa solo dígitos (de 7 a 15).` };
@@ -91,7 +61,7 @@ const normalizarContactos = ({ telefono, email, telefonos, correos }) => {
 
         for (const item of listaCorreos) {
             const correo = String((typeof item === 'string' ? item : item?.correo) ?? '').trim().toLowerCase();
-            if (!correo) continue; // fila vacía
+            if (!correo) continue;
 
             if (correo.length > 100 || !EMAIL_REGEX.test(correo)) {
                 return { error: `El correo "${correo}" no es válido.` };
@@ -112,27 +82,20 @@ const normalizarContactos = ({ telefono, email, telefonos, correos }) => {
 };
 
 /**
- * Procesa la solicitud para registrar un nuevo proveedor.
- *
- * El cuerpo puede incluir telefonos y correos, se exige al menos un correo.
- * El primero de cada lista se toma como contacto principal.
+ * Procesa la solicitud para registrar un nuevo proveedor, aceptando direcciones segmentadas (3FN).
  *
  * @async
  * @function createSupplier
- * @param {import('express').Request} req - Petición HTTP con los datos del proveedor.
- * @param {import('express').Response} res - Respuesta HTTP de Express.
- * @returns {Promise<Object>} Respuesta JSON con código 201 y la entidad creada.
  */
 const createSupplier = async (req, res) => {
     try {
-        const { nombre, direccion, telefono, email, telefonos, correos } = req.body;
+        // Se soportan los campos de 3FN y el campo legado (direccion) para retrocompatibilidad
+        const { nombre, direccion, calle, colonia, ciudad, estado, codigo_postal, telefono, email, telefonos, correos } = req.body;
 
-        // Filtro: Validación de entrada
         if (!nombre) {
             return res.status(400).json({ success: false, message: 'El nombre y el correo electrónico son obligatorios.' });
         }
 
-        // validación y normalización de todos los medios de contacto
         const contactos = normalizarContactos({ telefono, email, telefonos, correos });
         if (contactos.error) {
             return res.status(400).json({ success: false, message: contactos.error });
@@ -146,9 +109,16 @@ const createSupplier = async (req, res) => {
             return res.status(400).json({ success: false, message: 'El nombre debe tener al menos 3 caracteres.' });
         }
 
+        // Retrocompatibilidad: Si viene 'direccion', se asigna a 'calle' para no perder datos de formularios antiguos
+        const calleFinal = calle || direccion || null;
+
         const nuevoId = await SupplierModel.create({
             nombre: nombre.trim(),
-            direccion: direccion ? direccion.trim() : null,
+            calle: calleFinal ? calleFinal.trim() : null,
+            colonia: colonia ? colonia.trim() : null,
+            ciudad: ciudad ? ciudad.trim() : null,
+            estado: estado ? estado.trim() : null,
+            codigo_postal: codigo_postal ? codigo_postal.trim() : null,
             telefonos: contactos.telefonos || [],
             correos: contactos.correos
         });
@@ -190,22 +160,18 @@ const getSuppliers = async (req, res) => {
 /**
  * Procesa la solicitud para actualizar un proveedor.
  *
- * Si el cuerpo trae `telefonos` y/o `correos`, cada lista reemplaza por completo a la guardada.
- * Si se envía `correos`, debe contener al menos un correo válido.
- *
  * @async
  * @function updateSupplier
  */
 const updateSupplier = async (req, res) => {
     try {
         const { id } = req.params;
-        const { nombre, direccion, telefono, email, telefonos, correos } = req.body;
+        const { nombre, direccion, calle, colonia, ciudad, estado, codigo_postal, telefono, email, telefonos, correos } = req.body;
 
         if (!id || isNaN(id)) {
             return res.status(400).json({ success: false, message: 'ID de proveedor inválido.' });
         }
 
-        // validación y normalización de todos los medios de contacto
         const contactos = normalizarContactos({ telefono, email, telefonos, correos });
         if (contactos.error) {
             return res.status(400).json({ success: false, message: contactos.error });
@@ -215,13 +181,19 @@ const updateSupplier = async (req, res) => {
             return res.status(400).json({ success: false, message: 'El distribuidor debe conservar al menos un correo electrónico.' });
         }
 
+        const calleFinal = calle || direccion || null;
+
         const success = await SupplierModel.update(id, {
             nombre,
-            direccion,
+            calle: calleFinal,
+            colonia,
+            ciudad,
+            estado,
+            codigo_postal,
             telefonos: contactos.telefonos,
             correos: contactos.correos
         });
-        
+
         if (!success) {
             return res.status(404).json({ success: false, message: 'Proveedor no encontrado.' });
         }
@@ -251,7 +223,7 @@ const deactivateSupplier = async (req, res) => {
         }
 
         const success = await SupplierModel.deactivate(id);
-        
+
         if (!success) {
             return res.status(404).json({ success: false, message: 'Proveedor no encontrado o ya inactivo.' });
         }
@@ -268,23 +240,20 @@ const deactivateSupplier = async (req, res) => {
  * 
  * @async
  * @function reactivateSupplier
- * @param {import('express').Request} req - Objeto de petición Express conteniendo el parámetro `id`.
- * @param {import('express').Response} res - Objeto de respuesta HTTP de Express.
- * @returns {Promise<import('express').Response>} Respuesta JSON indicando el estado de la operación (200 o 500).
  */
 const reactivateSupplier = async (req, res) => {
     try {
         const { id } = req.params;
         await SupplierModel.reactivateSupplier(id);
-        return res.status(200).json({ 
-            success: true, 
-            message: 'Proveedor reactivado con éxito.' 
+        return res.status(200).json({
+            success: true,
+            message: 'Proveedor reactivado con éxito.'
         });
     } catch (error) {
         console.error('[Error Log - ERROR EN REACTIVACIÓN DE PROVEEDOR]:', error);
-        return res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor al intentar reactivar al proveedor.' 
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor al intentar reactivar al proveedor.'
         });
     }
 };
