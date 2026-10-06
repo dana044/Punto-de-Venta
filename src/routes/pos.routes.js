@@ -76,6 +76,42 @@ router.get(
 );
 
 /**
+ * Reporte de ventas por día (cantidad de ventas e importe total).
+ * Acceso restringido exclusivamente al Administrador (HU-03).
+ * @name get/reporte-diario
+ * @route {GET} /api/pos/reporte-diario
+ */
+router.get(
+  '/reporte-diario',
+  permitirRoles('administrador'),
+  posController.obtenerReporteDiario
+);
+
+/**
+ * Reporte de productos por presentación (rendimiento de cada formato de empaque).
+ * Acceso restringido exclusivamente al Administrador (HU-03).
+ * @name get/reporte-presentacion
+ * @route {GET} /api/pos/reporte-presentacion
+ */
+router.get(
+  '/reporte-presentacion',
+  permitirRoles('administrador'),
+  posController.obtenerReportePresentacion
+);
+
+/**
+ * Valida la contraseña del administrador para autorizar la eliminación de productos del carrito.
+ * Restringida a cajero y administrador (roles que operan el POS).
+ * @name post/autorizar-eliminacion
+ * @route {POST} /api/pos/autorizar-eliminacion
+ */
+router.post(
+  '/autorizar-eliminacion',
+  permitirRoles('cajero', 'administrador'),
+  posController.autorizarEliminacion
+);
+
+/**
  * Catálogo del POS: categorías disponibles para la cuadrícula inicial.
  * Restringida a cajero y administrador.
  * @name get/catalogo/categorias

@@ -59,6 +59,10 @@
       background: #FEF3C7;
       color: #B45309;
     }
+    /* Los botones (.btn) usan display:inline-flex y anulan el atributo hidden: aquí se respeta en los apartados nuevos */
+    .reporte-bloque [hidden] {
+      display: none !important;
+    }
     @media print {
       body {
         background: #FFFFFF !important;
@@ -96,6 +100,24 @@
       }
       #contenedorGrafica {
         page-break-inside: avoid;
+      }
+
+      /* Al imprimir el reporte general se ocultan los apartados por día y por presentación */
+      .reporte-bloque {
+        display: none !important;
+      }
+      /* Al imprimir uno de los apartados nuevos se muestra solo ese y se oculta el reporte general */
+      body[data-imprimiendo] #metricasVenta,
+      body[data-imprimiendo] #seccionGeneral {
+        display: none !important;
+      }
+      body[data-imprimiendo="diario"] #bloqueDiario,
+      body[data-imprimiendo="presentacion"] #bloquePresentacion {
+        display: block !important;
+      }
+      .reporte-bloque .summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+        margin: 0 0 1rem;
       }
     }
   </style>
@@ -177,7 +199,7 @@
         </div>
       </div>
 
-      <section class="table-section">
+      <section class="table-section" id="seccionGeneral">
         <div class="table-card">
           <div class="table-card__toolbar">
             <div>
@@ -242,6 +264,168 @@
               <tr>
                 <td colspan="7" class="text-muted" style="text-align: center; padding: 2rem;">
                   Selecciona el mes y año de consulta y haz clic en "Generar Informe".
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Reporte de Ventas del Día: cantidad de ventas e importe total de un día específico -->
+      <section class="table-section reporte-bloque" id="bloqueDiario" style="margin-top: 2rem;">
+        <div class="table-card">
+          <div class="table-card__toolbar">
+            <div>
+              <h2>Reporte de Ventas del Día</h2>
+              <span class="table-card__count" id="diarioCount">Elige un día para evaluar sus ingresos.</span>
+            </div>
+
+            <form id="formReporteDiario" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;" class="no-print">
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="inputFechaDiario">Día</label>
+                <input type="date" id="inputFechaDiario" class="form-input" style="width: 170px;" required />
+              </div>
+              <button type="submit" class="btn btn--primary" id="btnGenerarDiario">Generar Reporte</button>
+              <button type="button" class="btn btn--secondary" id="btnImprimirDiario" hidden>Imprimir Reporte</button>
+              <button type="button" class="btn btn--secondary" id="btnCsvDiario" hidden>Exportar a Excel (CSV)</button>
+            </form>
+          </div>
+
+          <div id="alertaDiario" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
+
+          <div class="summary-grid" id="metricasDiario" style="display: none; margin: 1.5rem 1.5rem 0;">
+            <div class="summary-card">
+              <div class="summary-card__title">Importe Total del Día</div>
+              <div class="summary-card__value" id="diarioMetricaImporte">$0.00</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Ventas Realizadas</div>
+              <div class="summary-card__value" id="diarioMetricaVentas">0</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Ticket Promedio</div>
+              <div class="summary-card__value" id="diarioMetricaTicket">$0.00</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Hora con Más Ventas</div>
+              <div class="summary-card__value" id="diarioMetricaHoraPico" style="font-size: 1.2rem;">---</div>
+            </div>
+          </div>
+
+          <div class="charts-grid" id="graficasDiario" style="display: none; margin: 1.5rem;">
+            <div class="table-card chart-card">
+              <h3>Importe Vendido por Hora ($)</h3>
+              <div class="chart-box" style="height: 260px;">
+                <canvas id="graficaDiarioHora"></canvas>
+              </div>
+            </div>
+            <div class="table-card chart-card">
+              <h3>Importe por Método de Pago</h3>
+              <div class="chart-box" style="height: 260px;">
+                <canvas id="graficaDiarioMetodo"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Folio</th>
+                <th>Hora</th>
+                <th>Método de Pago</th>
+                <th>Piezas</th>
+                <th>Subtotal ($)</th>
+                <th>IVA ($)</th>
+                <th>Importe Total ($)</th>
+              </tr>
+            </thead>
+            <tbody id="tablaDiarioBody">
+              <tr>
+                <td colspan="7" class="text-muted" style="text-align: center; padding: 2rem;">
+                  Selecciona el día de consulta y haz clic en "Generar Reporte".
+                </td>
+              </tr>
+            </tbody>
+            <tfoot id="tablaDiarioFoot"></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <!-- Reporte por Presentación: rendimiento de los distintos formatos de empaque -->
+      <section class="table-section reporte-bloque" id="bloquePresentacion" style="margin-top: 2rem;">
+        <div class="table-card">
+          <div class="table-card__toolbar">
+            <div>
+              <h2>Reporte de Productos por Presentación</h2>
+              <span class="table-card__count" id="presentacionCount">Conoce el rendimiento de cada formato de empaque.</span>
+            </div>
+
+            <form id="formReportePresentacion" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;" class="no-print">
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="selectMesPresentacion">Mes</label>
+                <select id="selectMesPresentacion" class="form-select"></select>
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="inputAnioPresentacion">Año</label>
+                <input type="number" id="inputAnioPresentacion" class="form-input" min="2024" max="2035" style="width: 110px;" required />
+              </div>
+              <button type="submit" class="btn btn--primary" id="btnGenerarPresentacion">Generar Reporte</button>
+              <button type="button" class="btn btn--secondary" id="btnImprimirPresentacion" hidden>Imprimir Reporte</button>
+              <button type="button" class="btn btn--secondary" id="btnCsvPresentacion" hidden>Exportar a Excel (CSV)</button>
+            </form>
+          </div>
+
+          <div id="alertaPresentacion" class="alert" hidden style="margin: 1rem 1.5rem 0;"></div>
+
+          <div class="summary-grid" id="metricasPresentacion" style="display: none; margin: 1.5rem 1.5rem 0;">
+            <div class="summary-card">
+              <div class="summary-card__title">Presentaciones con Venta</div>
+              <div class="summary-card__value" id="presMetricaFormatos">0</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Unidades Vendidas</div>
+              <div class="summary-card__value" id="presMetricaUnidades">0 pzas</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Importe Vendido (sin IVA)</div>
+              <div class="summary-card__value" id="presMetricaImporte">$0.00</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__title">Presentación Líder</div>
+              <div class="summary-card__value" id="presMetricaLider" style="font-size: 1.2rem;">---</div>
+            </div>
+          </div>
+
+          <div class="charts-grid" id="graficasPresentacion" style="display: none; margin: 1.5rem;">
+            <div class="table-card chart-card">
+              <h3>Unidades Vendidas por Presentación</h3>
+              <div class="chart-box" style="height: 260px;">
+                <canvas id="graficaPresentacionUnidades"></canvas>
+              </div>
+            </div>
+            <div class="table-card chart-card">
+              <h3>Participación en el Importe Vendido</h3>
+              <div class="chart-box" style="height: 260px;">
+                <canvas id="graficaPresentacionImporte"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 80px;">Ranking</th>
+                <th>Presentación</th>
+                <th>Productos Distintos</th>
+                <th>Piezas Vendidas</th>
+                <th>Importe Vendido ($)</th>
+                <th>% Aporte Ingreso</th>
+              </tr>
+            </thead>
+            <tbody id="tablaPresentacionBody">
+              <tr>
+                <td colspan="6" class="text-muted" style="text-align: center; padding: 2rem;">
+                  Selecciona el mes y año de consulta y haz clic en "Generar Reporte".
                 </td>
               </tr>
             </tbody>

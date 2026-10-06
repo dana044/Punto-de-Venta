@@ -10,6 +10,7 @@
 
 const salesService = require('../services/sales.service.js');
 const SaleModel = require('../models/sale.model.js');
+const { getAllUsers } = require('../models/user.model.js');
 
 /**
  * HU-25: Inicializa una transacción de venta devolviendo el folio oficial.
@@ -77,10 +78,12 @@ const calcularTotales = async (req, res) => {
 const procesarCobro = async (req, res) => {
   try {
     const { items, metodoPago, montoRecibido, numAutorizacion } = req.body;
-    
-    // Si tu middleware de Auth ya pasa el usuario en req.user.id, úsalo.
-    // De lo contrario, usaremos el ID 2 (Cajero 01) como fallback seguro para pruebas.
-    const usuarioId = req.user?.id || 2; 
+
+    const usuarioId = Number(req.body.usuarioId);
+
+    if (!usuarioId) {
+      return res.status(400).json({ mensaje: 'Se requiere el usuario en sesión para cobrar. Vuelve a iniciar sesión.' });
+    }
 
     const resultado = await salesService.registrarVenta(items, usuarioId, metodoPago, montoRecibido, numAutorizacion);
 
@@ -161,12 +164,136 @@ const listarProductosCatalogo = async (req, res) => {
   }
 };
 
+/**
+ * Valida y normaliza los parámetros ?anio= y ?mes= de los reportes de ventas.
+ * @param {import('express').Request} req
+ * @returns {{anio: number, mes: number}|null} Los valores numéricos o null si no son válidos.
+ */
+const leerPeriodoReporte = (req) => {
+  const anio = Number(req.query.anio);
+  const mes = Number(req.query.mes);
+
+  if (!Number.isInteger(anio) || anio < 2000 || anio > 2100) return null;
+  if (!Number.isInteger(mes) || mes < 1 || mes > 12) return null;
+  return { anio, mes };
+};
+
+/**
+ * Valida el parámetro ?fecha= (AAAA-MM-DD) y confirma que sea un día real del calendario.
+ * @param {string} fecha
+ * @returns {boolean}
+ */
+const esFechaValida = (fecha) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || '')) return false;
+
+  const [anio, mes, dia] = fecha.split('-').map(Number);
+  const fechaJs = new Date(Date.UTC(anio, mes - 1, dia));
+  return fechaJs.getUTCFullYear() === anio
+    && fechaJs.getUTCMonth() === mes - 1
+    && fechaJs.getUTCDate() === dia;
+};
+
+/**
+ * Reporte de ventas de un día específico: cantidad de ventas e importe total de ese día.
+ * @async
+ * @function obtenerReporteDiario
+ * @param {import('express').Request} req - Petición con query param ?fecha=AAAA-MM-DD.
+ * @param {import('express').Response} res
+ */
+const obtenerReporteDiario = async (req, res) => {
+  try {
+    const fecha = req.query.fecha;
+    if (!esFechaValida(fecha)) {
+      return res.status(400).json({
+        mensaje: 'Debes proporcionar una "fecha" válida (AAAA-MM-DD) para generar el reporte.'
+      });
+    }
+
+    const ventas = await SaleModel.getReporteDiario(fecha);
+
+    return res.status(200).json({
+      fecha,
+      total: ventas.length,
+      ventas
+    });
+  } catch (error) {
+    console.error('[Error Log - ERROR REPORTE DIARIO DE VENTAS]:', error);
+    return res.status(500).json({ mensaje: 'Error interno al consultar las ventas del día.' });
+  }
+};
+
+/**
+ * Reporte de productos por presentación: rendimiento de cada formato de empaque.
+ * @async
+ * @function obtenerReportePresentacion
+ * @param {import('express').Request} req - Petición con query params ?anio=YYYY&mes=MM.
+ * @param {import('express').Response} res
+ */
+const obtenerReportePresentacion = async (req, res) => {
+  try {
+    const periodo = leerPeriodoReporte(req);
+    if (!periodo) {
+      return res.status(400).json({
+        mensaje: 'Debes proporcionar un "anio" y un "mes" válidos para generar el reporte.'
+      });
+    }
+
+    const presentaciones = await SaleModel.getReportePresentacion(periodo.anio, periodo.mes);
+
+    return res.status(200).json({
+      total: presentaciones.length,
+      presentaciones
+    });
+  } catch (error) {
+    console.error('[Error Log - ERROR REPORTE POR PRESENTACION]:', error);
+    return res.status(500).json({ mensaje: 'Error interno al consultar las ventas por presentación.' });
+  }
+};
+
+/**
+ * Autoriza la eliminación de productos del carrito: exige la contraseña de un administrador activo.
+ * Solo valida la contraseña; el carrito vive en el navegador, por eso no modifica nada en la base de datos.
+ * @async
+ * @function autorizarEliminacion
+ * @param {import('express').Request} req - Petición con { contrasena } en el cuerpo.
+ * @param {import('express').Response} res - 200 con el nombre del administrador, 400 o 401.
+ */
+const autorizarEliminacion = async (req, res) => {
+  try {
+    const { contrasena } = req.body;
+
+    if (!contrasena) {
+      return res.status(400).json({ mensaje: 'Ingresa la contraseña del administrador.' });
+    }
+
+    const usuarios = await getAllUsers();
+    const administrador = usuarios.find(
+      (u) => u.role === 'administrador' && u.activo && u.password === contrasena
+    );
+
+    if (!administrador) {
+      return res.status(401).json({ mensaje: 'Contraseña de administrador incorrecta.' });
+    }
+
+    return res.status(200).json({
+      autorizado: true,
+      administrador: administrador.nombreCompleto
+    });
+  } catch (error) {
+    console.error('[Error Log - ERROR AUTORIZACION DE ELIMINACION]:', error);
+    return res.status(500).json({ mensaje: 'Error interno al validar la autorización.' });
+  }
+};
+
 module.exports = {
   abrirVenta,
   obtenerSiguienteFolio,
   calcularTotales,
   procesarCobro,
   obtenerReporteVentaMensual,
+  obtenerReporteDiario,
+  obtenerReportePresentacion,
+  autorizarEliminacion,
   listarCategoriasCatalogo,
   listarProductosCatalogo
 };

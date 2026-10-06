@@ -6,6 +6,7 @@
 
 const API_BUSCAR_PRODUCTO = '/api/inventory/productos/buscar-pos';
 const API_CALCULAR = '/api/pos/calcular';
+const API_AUTORIZAR_ELIMINACION = '/api/pos/autorizar-eliminacion';
 const API_COBRAR = '/api/pos/cobrar';
 const API_SIGUIENTE_FOLIO = '/api/pos/siguiente-folio';
 const API_CATALOGO_CATEGORIAS = '/api/pos/catalogo/categorias';
@@ -196,9 +197,10 @@ async function inicializarVenta() {
 
     const actualizar = () => {
       const nombre = elNombre.textContent.trim();
+      const etiquetaRol = userRole === 'administrador' ? 'Administrador' : 'Cajero';
       elCajero.textContent = nombre && nombre !== 'Usuario'
-        ? `Cajero ${nombre}: Turno en curso`
-        : 'Cajero: Turno en curso';
+        ? `${etiquetaRol} ${nombre}: Turno en curso`
+        : `${etiquetaRol}: Turno en curso`;
     };
 
     actualizar();
@@ -243,8 +245,7 @@ async function inicializarVenta() {
         return;
       }
 
-      // --- SOLUCIÓN AL CARRITO FANTASMA ---
-      // Creamos una foto del carrito actual por si el backend rechaza la compra
+      // Creamos un respaldo del carrito si se rechaza la compra
       const backupCarrito = JSON.parse(JSON.stringify(carrito));
       const indiceExistente = carrito.findIndex(item => item.productoId === data.producto.id);
 
@@ -282,11 +283,136 @@ async function inicializarVenta() {
     }
   }
 
+  // Quitar productos exige elegir la cantidad y la autorización del administrador (ver modal "Quitar producto")
   window.quitarLinea = function(index) {
-    carrito.splice(index, 1);
-    recalcular();
-    inputBuscarProducto.focus();
+    abrirModalQuitar(index);
   };
+
+  // --- ELIMINAR POR CANTIDAD CON AUTORIZACIÓN DEL ADMINISTRADOR ---
+
+  const modalQuitar = document.getElementById('modalQuitar');
+  const quitarNombre = document.getElementById('quitarNombre');
+  const quitarEnCarrito = document.getElementById('quitarEnCarrito');
+  const inputQuitarCantidad = document.getElementById('inputQuitarCantidad');
+  const inputQuitarContrasena = document.getElementById('inputQuitarContrasena');
+  const errQuitar = document.getElementById('errQuitar');
+  const btnQuitarTodo = document.getElementById('btnQuitarTodo');
+  const btnConfirmarQuitar = document.getElementById('btnConfirmarQuitar');
+  const btnCancelarQuitar = document.getElementById('btnCancelarQuitar');
+
+  let indiceAQuitar = null; // Línea del carrito sobre la que se pidió quitar piezas
+
+  /**
+   * Abre el modal para elegir cuántas piezas quitar de la línea indicada.
+   * @param {number} index - Posición de la línea en el carrito.
+   */
+  function abrirModalQuitar(index) {
+    const item = carrito[index];
+    if (!item) return;
+
+    indiceAQuitar = index;
+    quitarNombre.textContent = item.productoNombre;
+    quitarEnCarrito.textContent = item.cantidad;
+    inputQuitarCantidad.max = item.cantidad;
+    inputQuitarCantidad.value = 1;
+    inputQuitarContrasena.value = '';
+    errQuitar.hidden = true;
+    btnConfirmarQuitar.disabled = false;
+    modalQuitar.classList.remove('modal--hidden');
+    inputQuitarCantidad.focus();
+    inputQuitarCantidad.select();
+  }
+
+  function cerrarModalQuitar() {
+    modalQuitar.classList.add('modal--hidden');
+    inputQuitarContrasena.value = ''; // La contraseña nunca se conserva en pantalla
+    indiceAQuitar = null;
+    inputBuscarProducto.focus();
+  }
+
+  function mostrarErrorQuitar(mensaje) {
+    errQuitar.textContent = mensaje;
+    errQuitar.hidden = false;
+  }
+
+  btnQuitarTodo.addEventListener('click', () => {
+    const item = carrito[indiceAQuitar];
+    if (item) inputQuitarCantidad.value = item.cantidad;
+    inputQuitarContrasena.focus();
+  });
+
+  btnCancelarQuitar.addEventListener('click', cerrarModalQuitar);
+
+  [inputQuitarCantidad, inputQuitarContrasena].forEach(campo => {
+    campo.addEventListener('input', () => { errQuitar.hidden = true; });
+    campo.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        btnConfirmarQuitar.click();
+      }
+    });
+  });
+
+  btnConfirmarQuitar.addEventListener('click', async () => {
+    const item = carrito[indiceAQuitar];
+    if (!item) {
+      cerrarModalQuitar();
+      return;
+    }
+
+    const cantidadAQuitar = Number(inputQuitarCantidad.value);
+    const contrasena = inputQuitarContrasena.value;
+
+    if (!Number.isInteger(cantidadAQuitar) || cantidadAQuitar < 1 || cantidadAQuitar > item.cantidad) {
+      mostrarErrorQuitar(`La cantidad a quitar debe ser un número entero entre 1 y ${item.cantidad}.`);
+      inputQuitarCantidad.focus();
+      return;
+    }
+
+    if (!contrasena) {
+      mostrarErrorQuitar('Ingresa la contraseña del administrador para autorizar.');
+      inputQuitarContrasena.focus();
+      return;
+    }
+
+    btnConfirmarQuitar.disabled = true;
+
+    try {
+      const res = await fetch(API_AUTORIZAR_ELIMINACION, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
+        body: JSON.stringify({ contrasena })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        mostrarErrorQuitar(data.mensaje || 'No se pudo validar la autorización.');
+        inputQuitarContrasena.value = '';
+        inputQuitarContrasena.focus();
+        return;
+      }
+
+      if (cantidadAQuitar >= item.cantidad) {
+        carrito.splice(indiceAQuitar, 1);
+      } else {
+        item.cantidad -= cantidadAQuitar;
+        // Un descuento en monto no puede superar el nuevo subtotal de la línea
+        if (item.descuentoTipo === 'monto') {
+          item.descuentoValor = Math.min(item.descuentoValor, item.precioUnitario * item.cantidad);
+        }
+      }
+
+      const nombreProducto = item.productoNombre;
+      cerrarModalQuitar();
+      await recalcular();
+      mostrarMensaje(`Se quitaron ${cantidadAQuitar} pza(s) de "${nombreProducto}". Autorizó: ${data.administrador}.`, 'success');
+    } catch (err) {
+      console.error('Fallo al autorizar la eliminación:', err);
+      mostrarErrorQuitar('Error de comunicación con el servidor.');
+    } finally {
+      btnConfirmarQuitar.disabled = false;
+    }
+  });
 
   async function recalcular() {
     if (carrito.length === 0) {
@@ -431,7 +557,9 @@ async function inicializarVenta() {
             metodoPago: selectMetodoPago.value,
             montoRecibido: Number(inputMontoRecibido.value),
             venta_id: ventaActivaId,
-            numAutorizacion: numAutorizacion || null
+            numAutorizacion: numAutorizacion || null,
+            // Id del usuario en sesión, para que la venta quederegistrada a nombre de quien está cobrando.
+            usuarioId: localStorage.getItem('userId')
           })
         });
 
@@ -449,7 +577,7 @@ async function inicializarVenta() {
             Number(inputMontoRecibido.value), 
             data.cambio || (Number(inputMontoRecibido.value) - totalActual),
             data.folioFacturacion,
-            numAutorizacion
+            data.numAutorizacion // Generado automáticamente por el servidor (solo tarjeta)
         );
 
         // Venta exitosa: limpiar carrito y resetear variables

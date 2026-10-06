@@ -7,17 +7,14 @@
  */
 const db = require('../config/db');
 
-class SaleModel {
-    /**
-     * HU-25: Crea una nueva venta generando un folio único consecutivo.
-     */
+class SaleModel {    
     static async createSale(cajeroId) {
         const connection = await db.getConnection();
         try {
             await connection.beginTransaction();
 
             const [result] = await connection.execute(
-                'INSERT INTO ventas (usuario_id, subtotal, iva, total, fecha) VALUES (?, 0.00, 0.00, 0.00, NOW())',
+                'INSERT INTO ventas (usuario_id, fecha) VALUES (?, NOW())',
                 [cajeroId]
             );
 
@@ -55,8 +52,6 @@ class SaleModel {
     /**
      * Calcula, en modo de solo lectura, el folio que tendrá la próxima venta.
      * NO inserta nada en la base de datos: la venta se crea hasta que se cobra.
-     * Primero intenta leer el siguiente AUTO_INCREMENT de la tabla ventas; si el motor
-     * no lo permite, usa MAX(id) + 1 como respaldo.
      *
      * @async
      * @static
@@ -68,7 +63,7 @@ class SaleModel {
             let siguienteId = null;
 
             try {
-                // Evita que MySQL 8 devuelva estadísticas en caché del AUTO_INCREMENT
+                // Evita que MySQL devuelva estadísticas en caché del AUTO_INCREMENT
                 await connection.query('SET SESSION information_schema_stats_expiry = 0');
                 const [filas] = await connection.query(
                     `SELECT AUTO_INCREMENT AS siguiente
@@ -92,8 +87,7 @@ class SaleModel {
     }
 
     /**
-     * HU-40: Reporte general y ranking mensual de ventas.
-     * Devuelve todos los productos comercializados en el mes, ordenados descendentemente.
+     * Obtiene el ranking de productos más vendidos en un mes específico.
      * @async
      * @static
      * @param {number|string} anio
@@ -121,18 +115,77 @@ class SaleModel {
     }
 
     /**
+     * Reporte de ventas de un día específico: cada venta del día con su hora, método de pago e importe.
+     * Calcula los totales directamente desde ventas y venta_detalle (sin depender de vistas):
+     * el IVA es el 16 % de (subtotal - descuentos) de la venta y el importe total lo incluye,
+     * igual que el ticket del cliente. Las ventas sin partidas no se cuentan.
+     * @async
+     * @static
+     * @param {string} fecha - Día a consultar en formato AAAA-MM-DD.
+     * @returns {Promise<Array<Object>>} Una fila por venta, de la más temprana a la más reciente.
+     */
+    static async getReporteDiario(fecha) {
+        const query = `
+            SELECT
+                v.id,
+                COALESCE(v.folio, CONCAT('#', v.id)) AS folio,
+                DATE_FORMAT(v.fecha, '%H:%i') AS hora,
+                HOUR(v.fecha) AS hora_dia,
+                v.metodo_pago,
+                SUM(vd.cantidad) AS piezas,
+                SUM(vd.total_linea) AS subtotal_neto,
+                ROUND(SUM(vd.total_linea) * 0.16, 2) AS iva
+            FROM ventas v
+            INNER JOIN venta_detalle vd ON vd.venta_id = v.id
+            WHERE v.fecha >= ? AND v.fecha < DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY v.id, v.folio, v.fecha, v.metodo_pago
+            ORDER BY v.fecha ASC;
+        `;
+        const [rows] = await db.execute(query, [fecha, fecha]);
+        return rows;
+    }
+
+    /**
+     * Reporte de productos por presentación: rendimiento de cada formato de empaque en un mes.
+     * El importe se calcula con total_linea (sin IVA), igual que el reporte general de ventas.
+     * @async
+     * @static
+     * @param {number|string} anio
+     * @param {number|string} mes
+     * @returns {Promise<Array<Object>>} Una fila por presentación, ordenadas por unidades vendidas.
+     */
+    static async getReportePresentacion(anio, mes) {
+        const query = `
+            SELECT
+                COALESCE(NULLIF(TRIM(p.presentacion), ''), 'Sin presentación') AS presentacion,
+                COUNT(DISTINCT p.id) AS productos_distintos,
+                SUM(vd.cantidad) AS total_unidades_vendidas,
+                SUM(vd.total_linea) AS total_recaudado
+            FROM venta_detalle vd
+            INNER JOIN ventas v ON vd.venta_id = v.id
+            INNER JOIN productos p ON vd.producto_id = p.id
+            WHERE YEAR(v.fecha) = ? AND MONTH(v.fecha) = ?
+            GROUP BY COALESCE(NULLIF(TRIM(p.presentacion), ''), 'Sin presentación')
+            ORDER BY total_unidades_vendidas DESC;
+        `;
+        const [rows] = await db.execute(query, [Number(anio), Number(mes)]);
+        return rows;
+    }
+
+    /**
      * Catálogo del POS: lista las categorías que tienen productos activos.
+     * La categoría es una columna ENUM de la tabla productos y activo = 1 son los productos vigentes.
      * @async
      * @static
      * @returns {Promise<Array<Object>>} Categorías con el total de productos de cada una.
      */
     static async getCategoriasCatalogo() {
         const query = `
-            SELECT categoria, COUNT(*) AS total_productos
-            FROM productos
-            WHERE activo = 1
-            GROUP BY categoria
-            ORDER BY categoria ASC;
+            SELECT p.categoria AS categoria, COUNT(p.id) AS total_productos
+            FROM productos p
+            WHERE p.activo = 1
+            GROUP BY p.categoria
+            ORDER BY p.categoria ASC;
         `;
         const [rows] = await db.query(query);
         return rows;
@@ -160,7 +213,6 @@ class SaleModel {
         }
 
         if (termino) {
-            // Se escapan los comodines para que el texto del cajero se busque literal
             const textoSeguro = termino.replace(/[\\%_]/g, '\\$&');
             query += ' AND (nombre LIKE ? OR codigo_barras LIKE ?)';
             params.push(`%${textoSeguro}%`, `%${textoSeguro}%`);
