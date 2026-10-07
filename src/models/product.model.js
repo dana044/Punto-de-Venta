@@ -493,7 +493,7 @@ const eliminarLote = async (loteId, productoId, usuarioId) => {
  * @function ajustarStock
  * @param {number|string} id - Identificador del producto.
  * @param {number|string} cantidad - Piezas del ajuste.
- * @param {number} tipoMovimientoId - ID del catálogo de tipos_movimiento.
+ * @param {number|string} tipoMovimientoId - Texto o ID numérico del movimiento.
  * @param {string} motivo - Motivo capturado para auditoría.
  * @param {number} [usuario_id] - Usuario que realiza el ajuste (por defecto 1).
  * @param {string|null} [caducidad=null] - Caducidad del lote creado al regresar a almacén.
@@ -513,6 +513,23 @@ const ajustarStock = async (id, cantidad, tipoMovimientoId, motivo, usuario_id, 
     let nuevoStockMostrador = rows[0].stock_mostrador;
     let ubicacionHistorial = 'mostrador';
     const cantNum = Number(cantidad);
+
+    // --- INICIO DE LA TRADUCCIÓN DE TEXTO A NÚMERO ---
+    const mapaMovimientos = {
+      'mover_mostrador': 1,
+      'regresar_almacen': 2,
+      'merma': 3,
+      'daño': 4,
+      'conteo_mostrador': 5
+    };
+
+    // Si llega como texto desde la ruta, lo traduce a su número correspondiente.
+    if (typeof tipoMovimientoId === 'string' && mapaMovimientos[tipoMovimientoId]) {
+      tipoMovimientoId = mapaMovimientos[tipoMovimientoId];
+    } else {
+      tipoMovimientoId = Number(tipoMovimientoId); // Respaldo por si ya llega como número
+    }
+    // --- FIN DE LA TRADUCCIÓN ---
 
     if (tipoMovimientoId === 1) {
       const [lotes] = await connection.execute(
@@ -561,7 +578,6 @@ const ajustarStock = async (id, cantidad, tipoMovimientoId, motivo, usuario_id, 
     connection.release();
   }
 };
-
 /**
  * Función auxiliar para descontar piezas aplicando FEFO y eliminando lotes vacíos.
  */
