@@ -22,7 +22,8 @@
   "dependencies": {
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "mysql2": "^3.24.4"
+    "mysql2": "^3.24.4",
+    "node-cron": "^4.6.0"
   },
   "directories": {
     "test": "tests"
